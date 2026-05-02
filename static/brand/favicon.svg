@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  favicon Tonton — monograma "tt" + acento de coração
+  Laranja quente + amarelo, no espírito da loja infantil.
+  Vetorial puro, escala perfeita em qualquer densidade.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Tonton">
+  <rect width="64" height="64" rx="14" fill="#FFF6E6"/>
+  <ellipse cx="33" cy="34" rx="22" ry="20" fill="#F38A35" opacity="0.18"/>
+  <text x="22" y="46"
+        font-family="'Fredoka', 'Quicksand', 'Comic Sans MS', sans-serif"
+        font-weight="700" font-size="40" fill="#FCC630"
+        text-anchor="middle" letter-spacing="-0.04em">t</text>
+  <text x="38" y="50"
+        font-family="'Fredoka', 'Quicksand', 'Comic Sans MS', sans-serif"
+        font-weight="700" font-size="40" fill="#F38A35"
+        text-anchor="middle" letter-spacing="-0.04em">t</text>
+  <path d="M52 50 c -1.6 -1.4 -3.6 -0.6 -3.6 1.2 c 0 1.6 3.6 4.4 3.6 4.4 s 3.6 -2.8 3.6 -4.4 c 0 -1.8 -2 -2.6 -3.6 -1.2 z"
+        fill="#3DB48F"/>
+</svg>

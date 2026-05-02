@@ -1,0 +1,1777 @@
+/* ============================================================
+   tonton · style-refinements.css
+   ------------------------------------------------------------
+   Carregado DEPOIS de style.css. Não substitui — refina.
+   Foco: alma editorial dos mockups. Tipografia respirada,
+   números em serif, blocos numerados, microcopy aliviada.
+
+   Convenção de classes novas: prefixo .me-* ("tonton editorial")
+   pra coexistir com tudo que já existe sem colidir.
+   ============================================================ */
+
+/* ────────────────────────────────────────────────────────────
+   1 · TIPOGRAFIA EDITORIAL — refinos sobre o que já existe
+   ──────────────────────────────────────────────────────────── */
+
+/* Topbar: eyebrow do dia mais delicado, título com peso de revista */
+.topbar__sub {
+  font-size: 10px;
+  letter-spacing: .24em;
+  color: var(--gray-500);
+  font-weight: 400;
+}
+.topbar__title {
+  font-size: 36px;
+  letter-spacing: -.02em;
+  line-height: 1.05;
+}
+@media (max-width: 780px) {
+  .topbar__title { font-size: 26px; }
+}
+
+/* Card titles: italics editorial respiradas */
+.card__title {
+  font-size: 24px;
+  line-height: 1.15;
+}
+.card__sub {
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  color: var(--gray-500);
+}
+
+/* ────────────────────────────────────────────────────────────
+   2 · EYEBROW NUMERADO ("01 · como ela se chama")
+   Usado em create_product e qualquer formulário longo.
+   ──────────────────────────────────────────────────────────── */
+
+/* Coluna da foto no formulário de produto: sticky no desktop para
+   manter a foto visível enquanto o usuário rola pelos campos da direita.
+   Em mobile (≤780px, mesmo breakpoint do grid--1-2 colapsar) precisa
+   ser static — caso contrário a foto cobre os campos abaixo, tornando
+   alguns inacessíveis (especialmente após upload, quando o slot cresce). */
+.me-photo-col {
+  position: sticky;
+  top: 110px;
+}
+@media (max-width: 780px) {
+  .me-photo-col {
+    position: static;
+    top: auto;
+  }
+}
+
+/* Hero do detalhe do produto: foto 280px + info no desktop, colapsa
+   para uma única coluna em mobile. Sem isso, a coluna info fica com
+   ~80px no celular e o texto (nome, SKU, preços) estoura para fora. */
+.product-hero-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 0;
+}
+@media (max-width: 780px) {
+  .product-hero-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.me-section {
+  margin-bottom: 36px;
+}
+.me-section + .me-section {
+  border-top: 1px solid var(--gray-200);
+  padding-top: 36px;
+}
+.me-section__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.me-section__title {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: -.015em;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.1;
+}
+.me-section__title-num {
+  font-family: var(--f-mono);
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: .18em;
+  color: var(--coral-deep);
+  margin-right: 10px;
+  vertical-align: 4px;
+}
+.me-section__aside {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  color: var(--gray-500);
+  text-transform: lowercase;
+  flex-shrink: 0;
+}
+
+/* ────────────────────────────────────────────────────────────
+   3 · STAT EDITORIAL — número gigante em serif italic
+   Usado no dashboard pros KPIs principais.
+   ──────────────────────────────────────────────────────────── */
+
+.me-stat {
+  display: block;
+}
+.me-stat__label {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--gray-500);
+  margin-bottom: 14px;
+  display: block;
+}
+.me-stat__num {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 56px;
+  font-weight: 400;
+  line-height: .95;
+  letter-spacing: -.025em;
+  color: var(--ink);
+  margin: 0;
+  display: block;
+}
+.me-stat__num--currency {
+  font-style: italic;
+}
+.me-stat__num--currency::first-letter,
+.me-stat__currency {
+  font-family: var(--f-body);
+  font-style: normal;
+  font-size: .42em;
+  font-weight: 500;
+  vertical-align: .65em;
+  margin-right: 4px;
+  letter-spacing: 0;
+  color: var(--gray-700);
+}
+.me-stat__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 11.5px;
+  color: var(--gray-500);
+  flex-wrap: wrap;
+}
+.me-stat__delta {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: .04em;
+  padding: 3px 8px;
+  border-radius: 3px;
+  background: var(--mint);
+  color: var(--mint-ink);
+  font-weight: 500;
+}
+.me-stat__delta--down { background: var(--rose); color: var(--magenta-deep); }
+.me-stat__delta--neutral { background: var(--gray-100); color: var(--gray-700); }
+
+@media (max-width: 780px) {
+  .me-stat__num { font-size: 42px; }
+}
+
+/* Grid de stats no topo do dashboard — cards separados com gap (estilo mockup) */
+.me-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.me-stat-grid > .me-stat {
+  padding: 22px 24px 22px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--r-md);
+}
+
+@media (max-width: 980px) {
+  .me-stat-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 540px) {
+  /* Mantém 2x2 em iPhones — coluna única consumia ~480px de altura
+     antes de chegar no banner/gráfico. 2x2 cabe em ~210px. */
+  .me-stat-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .me-stat-grid > .me-stat { padding: 14px 14px; }
+  .me-stat__num { font-size: 26px; }
+  .me-stat__currency { font-size: 14px; }
+  .me-stat__label { font-size: 9px; letter-spacing: .12em; }
+  .me-stat__meta { font-size: 10.5px; gap: 6px; margin-top: 8px; }
+  .me-stat__delta { padding: 1px 5px; font-size: 9px; }
+}
+
+/* ────────────────────────────────────────────────────────────
+   4 · BANNER SUTIL DE PENDENTES — linha à esquerda
+   ──────────────────────────────────────────────────────────── */
+
+.me-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px 14px 16px;
+  background: var(--cream);
+  border-left: 3px solid var(--coral-deep);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  margin-bottom: 22px;
+  text-decoration: none;
+  color: inherit;
+  transition: background .15s;
+}
+.me-banner:hover { background: var(--peach); }
+.me-banner__body { flex: 1; min-width: 0; line-height: 1.4; }
+.me-banner__title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.me-banner__sub {
+  font-size: 11.5px;
+  color: var(--gray-600);
+  margin-top: 2px;
+}
+.me-banner__sub strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.me-banner__cue {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  color: var(--coral-deep);
+  text-transform: lowercase;
+  flex-shrink: 0;
+}
+
+/* ────────────────────────────────────────────────────────────
+   5 · NUMBERED LIST — top produtos com números 1-5 grandes
+   ──────────────────────────────────────────────────────────── */
+
+.me-rank-list {
+  display: flex;
+  flex-direction: column;
+}
+.me-rank-list__row {
+  display: grid;
+  grid-template-columns: 32px 56px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--gray-100);
+  text-decoration: none;
+  color: inherit;
+}
+.me-rank-list__row:last-child { border-bottom: 0; }
+.me-rank-list__num {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 28px;
+  color: var(--coral-soft);
+  line-height: 1;
+  text-align: left;
+}
+.me-rank-list__thumb {
+  width: 56px;
+  height: 64px;
+  border-radius: var(--r-sm);
+  background: var(--gray-100);
+  background-size: cover;
+  background-position: center;
+}
+.me-rank-list__name {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.me-rank-list__sub {
+  font-size: 11px;
+  color: var(--gray-500);
+  margin-top: 2px;
+  font-family: var(--f-mono);
+  letter-spacing: .04em;
+}
+.me-rank-list__metric {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: .06em;
+  color: var(--mint-ink);
+  background: var(--mint);
+  padding: 3px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* ────────────────────────────────────────────────────────────
+   6 · LISTA DE VENDAS RECENTES — calma, com #id discreto
+   ──────────────────────────────────────────────────────────── */
+
+.me-feed {
+  display: flex;
+  flex-direction: column;
+}
+.me-feed__row {
+  display: grid;
+  grid-template-columns: 56px auto 1fr auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--gray-100);
+  text-decoration: none;
+  color: inherit;
+  transition: background .12s;
+  margin: 0 -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: var(--r-sm);
+}
+.me-feed__row:hover { background: var(--gray-100); }
+.me-feed__row:last-child { border-bottom: 0; }
+.me-feed__thumb {
+  width: 48px;
+  height: 56px;
+  border-radius: var(--r-sm);
+  background: var(--gray-100) center/cover no-repeat;
+  flex-shrink: 0;
+}
+.me-feed__id {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  color: var(--gray-500);
+}
+.me-feed__name {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.me-feed__sub {
+  font-size: 11.5px;
+  color: var(--gray-500);
+  font-family: var(--f-mono);
+  letter-spacing: .04em;
+  text-align: center;
+  white-space: nowrap;
+}
+.me-feed__price {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 18px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.me-feed__when {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  color: var(--gray-500);
+  letter-spacing: .04em;
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 780px) {
+  .me-feed__row {
+    grid-template-columns: 48px 1fr auto;
+    gap: 12px;
+  }
+  .me-feed__sub, .me-feed__when { display: none; }
+}
+
+/* ────────────────────────────────────────────────────────────
+   7 · CARD EDITORIAL — mais respirado que o .card padrão
+   ──────────────────────────────────────────────────────────── */
+
+.me-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--r-md);
+  padding: 28px;
+}
+/* Quando o card só tem 2 elementos (header + 1 row), alivia o padding inferior */
+.me-card:has(> .me-feed__row:only-of-type) {
+  padding-bottom: 18px;
+}
+.me-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.me-card__title {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 22px;
+  font-weight: 400;
+  margin: 0;
+  letter-spacing: -.01em;
+  color: var(--ink);
+}
+.me-card__sub {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+.me-card__action {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: .08em;
+  color: var(--coral-deep);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.me-card__action:hover { color: var(--coral); }
+
+@media (max-width: 540px) {
+  .me-card { padding: 22px 20px; }
+}
+
+/* ────────────────────────────────────────────────────────────
+   8 · BARRA DE PROGRESSO FINA (saúde financeira)
+   ──────────────────────────────────────────────────────────── */
+
+.me-bar {
+  display: block;
+  margin-bottom: 18px;
+}
+.me-bar:last-child { margin-bottom: 0; }
+.me-bar__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+  font-size: 12.5px;
+}
+.me-bar__name { color: var(--ink); font-weight: 500; }
+.me-bar__val {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+  color: var(--gray-700);
+}
+.me-bar__pct {
+  margin-left: 6px;
+  color: var(--ink);
+  font-weight: 600;
+}
+.me-bar__track {
+  height: 3px;
+  background: var(--gray-100);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.me-bar__fill {
+  height: 100%;
+  background: var(--coral);
+  border-radius: 2px;
+  transition: width .4s ease;
+}
+
+/* ────────────────────────────────────────────────────────────
+   9 · INPUT EDITORIAL — campos respirados sem caixa
+   Versão alternativa de .form-control usada no create_product.
+   Linhas finas sob o texto, sem moldura pesada.
+   ──────────────────────────────────────────────────────────── */
+
+.me-field {
+  display: block;
+  margin-bottom: 22px;
+}
+.me-field__label {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.me-field__name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: .01em;
+}
+.me-field__hint {
+  font-size: 10.5px;
+  color: var(--gray-500);
+  font-style: italic;
+}
+.me-field__input,
+.me-field input,
+.me-field select,
+.me-field textarea {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--gray-300);
+  padding: 8px 0;
+  font-family: var(--f-body);
+  font-size: 14px;
+  color: var(--ink);
+  background: transparent;
+  outline: none;
+  transition: border-color .15s;
+  border-radius: 0;
+}
+.me-field input:focus,
+.me-field select:focus,
+.me-field textarea:focus {
+  border-bottom-color: var(--coral);
+}
+.me-field textarea { resize: vertical; min-height: 60px; padding: 8px 0; }
+
+.me-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+.me-field-grid--3 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 720px) {
+  .me-field-grid,
+  .me-field-grid--3 { grid-template-columns: 1fr; gap: 0; }
+}
+
+/* ────────────────────────────────────────────────────────────
+   10 · CHIP-PICKER — cores e tamanhos como pills selecionáveis
+   ──────────────────────────────────────────────────────────── */
+
+.me-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.me-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--ink);
+  color: var(--white);
+  border: 1px solid var(--ink);
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .12s;
+  font-family: var(--f-body);
+  letter-spacing: .02em;
+}
+.me-chip:hover { background: var(--ink-soft); border-color: var(--ink-soft); }
+.me-chip--ghost {
+  background: transparent;
+  color: var(--gray-700);
+  border: 1px dashed var(--gray-300);
+}
+.me-chip--ghost:hover {
+  border-color: var(--coral);
+  color: var(--coral-deep);
+  background: transparent;
+}
+.me-chip__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
+
+/* ────────────────────────────────────────────────────────────
+   11 · PHOTO SLOT — área de foto principal com overlay button
+   ──────────────────────────────────────────────────────────── */
+
+.me-photo-slot {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  background: var(--gray-100);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  cursor: pointer;
+}
+.me-photo-slot__img,
+.me-photo-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.me-photo-slot__placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--gray-500);
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.me-photo-slot__overlay {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(26,15,10,.85);
+  color: var(--white);
+  border-radius: var(--r-pill);
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  text-transform: lowercase;
+  border: 0;
+  cursor: pointer;
+  transition: background .15s;
+  backdrop-filter: blur(4px);
+  z-index: 2;
+}
+.me-photo-slot__overlay:hover { background: var(--ink); }
+.me-photo-slot__overlay svg { width: 12px; height: 12px; }
+
+/* Mini-thumbs strip abaixo da foto principal */
+.me-thumb-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+.me-thumb-strip__item {
+  aspect-ratio: 1;
+  border-radius: var(--r-sm);
+  background: var(--gray-100) center/cover no-repeat;
+  cursor: pointer;
+  border: 1px solid var(--gray-200);
+}
+.me-thumb-strip__add {
+  aspect-ratio: 1;
+  border: 1px dashed var(--gray-300);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--gray-500);
+  font-size: 22px;
+  font-weight: 300;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all .15s;
+}
+.me-thumb-strip__add:hover {
+  border-color: var(--coral);
+  color: var(--coral-deep);
+}
+.me-thumb-strip__caption {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .08em;
+  color: var(--gray-500);
+  margin-top: 12px;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* ────────────────────────────────────────────────────────────
+   12 · FOOTER BAR — barra fixa com status e ações (form longo)
+   ──────────────────────────────────────────────────────────── */
+
+.me-footer-bar {
+  position: sticky;
+  bottom: 0;
+  margin-top: 28px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 24px;
+  background: var(--white);
+  border-top: 1px solid var(--gray-200);
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  z-index: 5;
+}
+.me-footer-bar__status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: .08em;
+  color: var(--gray-500);
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.me-footer-bar__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--coral);
+  flex-shrink: 0;
+}
+.me-footer-bar__actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .me-footer-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px 18px;
+  }
+  .me-footer-bar__actions { width: 100%; }
+  .me-footer-bar__actions .btn { flex: 1; }
+}
+
+/* ────────────────────────────────────────────────────────────
+   13 · SEGMENTED — tabs sutis (6 meses · 12 meses · YTD)
+   ──────────────────────────────────────────────────────────── */
+
+.me-seg {
+  display: inline-flex;
+  background: var(--gray-100);
+  border-radius: var(--r-pill);
+  padding: 3px;
+  gap: 0;
+}
+.me-seg__btn {
+  border: 0;
+  background: transparent;
+  padding: 6px 14px;
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  color: var(--gray-700);
+  cursor: pointer;
+  border-radius: var(--r-pill);
+  text-transform: lowercase;
+  transition: all .15s;
+}
+.me-seg__btn.is-active {
+  background: var(--ink);
+  color: var(--cream);
+}
+
+/* ────────────────────────────────────────────────────────────
+   13b · CHART editorial — eixos em HTML, SVG só pra linhas
+   Resolve a distorção do preserveAspectRatio="none" no texto.
+   ──────────────────────────────────────────────────────────── */
+
+.me-chart {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 12px;
+  align-items: stretch;
+}
+.me-chart__yaxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 4px 0;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+  color: var(--gray-500);
+}
+.me-chart__yaxis span {
+  line-height: 1;
+  white-space: nowrap;
+}
+.me-chart__plot {
+  position: relative;
+  min-width: 0;
+}
+.me-chart__xaxis {
+  display: grid;
+  /* --chart-cols controlado pelo template (6, 12, ou n_months para YTD).
+     Default 6 mantém compat com qualquer chamador antigo. */
+  grid-template-columns: repeat(var(--chart-cols, 6), 1fr);
+  gap: 4px;
+  margin-top: 14px;
+  padding-left: 76px;
+}
+.me-chart__xaxis-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+  min-width: 0;
+}
+.me-chart__xaxis-month {
+  font-family: var(--f-mono);
+  font-size: 9.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--gray-500);
+}
+.me-chart__xaxis-val {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1;
+}
+.me-chart__xaxis-val--neg {
+  /* Valores negativos: cor de alerta para que mês com perda salte aos olhos.
+     Usa magenta-deep que já existe na paleta para má notícia financeira. */
+  color: var(--magenta-deep, #c82c2c);
+}
+
+@media (max-width: 720px) {
+  /* yaxis continua existindo em mobile (44px); mantém alinhamento das
+     barras no eixo X. Antes zerava o padding-left, deixava labels deslocados. */
+  .me-chart {
+    grid-template-columns: 44px 1fr;
+    gap: 8px;
+  }
+  .me-chart__xaxis {
+    padding-left: 52px;  /* 44px yaxis + 8px gap */
+    gap: 2px;
+  }
+  .me-chart__xaxis-val { font-size: 11px; }
+  .me-chart__yaxis { font-size: 9px; }
+  /* Com 12 meses ou YTD em mobile, valor mensal não cabe.
+     Esconde o valor — usuário ainda vê o mês e o gráfico. */
+  .me-chart__xaxis[style*="--chart-cols: 12"] .me-chart__xaxis-val,
+  .me-chart__xaxis[style*="--chart-cols:12"]  .me-chart__xaxis-val,
+  .me-chart__xaxis[style*="--chart-cols: 11"] .me-chart__xaxis-val,
+  .me-chart__xaxis[style*="--chart-cols: 10"] .me-chart__xaxis-val,
+  .me-chart__xaxis[style*="--chart-cols: 9"]  .me-chart__xaxis-val,
+  .me-chart__xaxis[style*="--chart-cols: 8"]  .me-chart__xaxis-val,
+  .me-chart__xaxis[style*="--chart-cols: 7"]  .me-chart__xaxis-val { display: none; }
+}
+
+/* ────────────────────────────────────────────────────────────
+   14 · LAYOUT GERAL — ajustes finos no app shell
+   ──────────────────────────────────────────────────────────── */
+
+/* Mais ar entre cards do dashboard */
+.dashboard-page > * + * {
+  margin-top: 24px;
+}
+
+/* Cards em grids do dashboard ficam mais respirados */
+.dashboard-page .card {
+  padding: 26px 28px;
+}
+@media (max-width: 540px) {
+  .dashboard-page .card { padding: 22px 20px; }
+}
+
+/* Catálogo público: garantir que o hero respira mais */
+.ed-hero__title {
+  letter-spacing: -.025em;
+}
+
+/* ────────────────────────────────────────────────────────────
+   14b · CATÁLOGO PÚBLICO — refinos editoriais cirúrgicos
+   O catálogo já está editorial; aqui só ajustes de respiro.
+   ──────────────────────────────────────────────────────────── */
+
+/* Título do hero — letter-spacing ainda mais apertado pra peso de revista */
+.ed-hero--cover .ed-hero__title,
+.ed-hero--store .ed-hero__title {
+  letter-spacing: -.028em;
+  text-wrap: balance;
+}
+
+/* Eyebrow do hero — mais letter-spacing, mais delicado */
+.ed-hero__edition {
+  font-size: 10.5px !important;
+  letter-spacing: .28em !important;
+}
+
+/* Lede mais respirado, em italic sutil pra reforçar voz editorial */
+.ed-hero__lede {
+  font-style: italic;
+  color: var(--gray-700);
+}
+
+/* Card do produto: nome com mais peso editorial, meta menor */
+.ed-card__name {
+  letter-spacing: -.005em;
+}
+.ed-card__meta {
+  font-size: 10.5px !important;
+  letter-spacing: .12em;
+}
+
+/* Intermission curatorial: bloco que respira muito mais */
+.ed-intermission {
+  padding: 80px 24px !important;
+  text-align: center;
+}
+.ed-intermission__eyebrow {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .28em;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+.ed-intermission__text {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: clamp(20px, 3vw, 32px);
+  line-height: 1.3;
+  color: var(--ink);
+  max-width: 28ch;
+  margin: 0 auto;
+  text-wrap: balance;
+}
+
+/* Manifesto: tipografia mais delicada */
+.ed-manifesto__eyebrow {
+  letter-spacing: .28em !important;
+}
+.ed-manifesto__title {
+  letter-spacing: -.025em;
+  text-wrap: balance;
+}
+
+/* Footer: mais respiração, separadores sutis */
+.ed-foot {
+  padding-top: 60px !important;
+  padding-bottom: 60px !important;
+}
+.ed-foot__brand p {
+  font-style: italic;
+  font-family: var(--f-display);
+  font-size: 16px;
+  letter-spacing: .005em;
+}
+.ed-foot__label {
+  font-size: 10px !important;
+  letter-spacing: .22em !important;
+}
+.ed-foot__legal {
+  font-size: 10.5px;
+  letter-spacing: .04em;
+  opacity: .6;
+}
+
+/* Filtros: chips mais delicados */
+.ed-chip {
+  font-family: var(--f-body);
+  letter-spacing: .01em;
+}
+
+/* Search: mais respirada */
+.ed-search input {
+  letter-spacing: .01em;
+}
+
+/* ────────────────────────────────────────────────────────────
+   14c · CATÁLOGO PÚBLICO — Footer editorial reformulado
+   Substitui completamente o layout antigo (.ed-foot__brand
+   + .ed-foot__cols) por uma versão respirada e balanceada.
+   ──────────────────────────────────────────────────────────── */
+
+.ed-foot--editorial {
+  display: block !important;
+  background: var(--plum) !important;
+  color: rgba(245,237,227,.85);
+  padding: clamp(48px, 5vw, 72px) clamp(24px, 5vw, 64px) 28px !important;
+  gap: 0 !important;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Decorative top rule (constrained à largura do conteúdo) */
+.ed-foot--editorial::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100% - 2 * clamp(24px, 5vw, 64px)), 1080px);
+  height: 1px;
+  background: rgba(245,237,227,.12);
+}
+
+.ed-foot__inner {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr 1fr;
+  gap: clamp(28px, 3vw, 48px);
+  align-items: start;
+  margin: 0 auto 48px;
+  max-width: 1080px;
+}
+
+/* Quando não tem o "Sobre" (catalogo pequeno), 3 cols */
+.ed-foot__inner:not(:has(.ed-foot__col:nth-child(4))) {
+  grid-template-columns: 1.2fr 1fr 1fr;
+}
+
+@media (max-width: 920px) {
+  .ed-foot__inner,
+  .ed-foot__inner:not(:has(.ed-foot__col:nth-child(4))) {
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+  .ed-foot__col--brand { grid-column: 1 / -1; margin-bottom: 8px; }
+}
+@media (max-width: 540px) {
+  .ed-foot__inner,
+  .ed-foot__inner:not(:has(.ed-foot__col:nth-child(4))) {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+}
+
+/* Coluna brand: wordmark menor, mais coeso */
+.ed-foot__col--brand { max-width: 32ch; }
+
+.ed-foot__wordmark {
+  display: inline-block;
+  font-family: var(--f-display);
+  font-size: clamp(40px, 4vw, 56px);
+  line-height: 1;
+  color: var(--cream);
+  text-decoration: none;
+  letter-spacing: -.03em;
+  margin-bottom: 18px;
+  font-weight: 400;
+}
+.ed-foot__wordmark em {
+  font-style: italic;
+  color: var(--coral-soft);
+}
+.ed-foot__wordmark:hover em {
+  color: var(--coral);
+  transition: color .2s;
+}
+
+.ed-foot__tagline {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: clamp(13px, 1.1vw, 15px);
+  line-height: 1.45;
+  color: var(--cream);
+  margin: 0 0 14px;
+  text-wrap: balance;
+}
+
+.ed-foot__credo {
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: rgba(245,237,227,.55);
+  margin: 0;
+  max-width: 30ch;
+}
+
+/* Colunas de links */
+.ed-foot__col .ed-foot__label {
+  font-family: var(--f-mono) !important;
+  font-size: 10px !important;
+  letter-spacing: .26em !important;
+  text-transform: uppercase !important;
+  color: var(--coral-soft) !important;
+  margin: 6px 0 16px !important;
+  padding: 0 !important;
+}
+
+.ed-foot__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ed-foot__list li { margin: 0; }
+.ed-foot__list a {
+  display: inline-block;
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 14.5px;
+  color: var(--cream);
+  text-decoration: none;
+  position: relative;
+  padding-bottom: 1px;
+  transition: color .15s;
+  letter-spacing: -.005em;
+}
+.ed-foot__list a::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 100%;
+  bottom: -2px;
+  height: 1px;
+  background: var(--coral-soft);
+  transition: right .25s ease;
+}
+.ed-foot__list a:hover {
+  color: var(--coral-soft);
+}
+.ed-foot__list a:hover::after {
+  right: 0;
+}
+
+/* Linha legal: separador fino + 2 lados */
+.ed-foot__legal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 22px;
+  border-top: 1px solid rgba(245,237,227,.1);
+  flex-wrap: wrap;
+  gap: 12px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+.ed-foot__legal,
+.ed-foot__legal-aside {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  font-family: var(--f-mono);
+  font-size: 9.5px;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: rgba(245,237,227,.42);
+}
+.ed-foot__legal-aside {
+  font-family: var(--f-display) !important;
+  font-style: italic !important;
+  text-transform: none !important;
+  letter-spacing: -.005em !important;
+  font-size: 13px !important;
+  color: rgba(245,237,227,.55) !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   14d · CATÁLOGO PÚBLICO — amplificação editorial geral
+   Sutilezas que reforçam a impressão de "revista".
+   ──────────────────────────────────────────────────────────── */
+
+/* Cards do grid: nome em italic delicado pra reforçar curadoria */
+.ed-card__name {
+  font-style: italic;
+  font-size: 18px;
+  letter-spacing: -.005em;
+}
+
+/* Preço: serif italic em vez de mono */
+.ed-price {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 18px;
+  letter-spacing: -.005em;
+}
+.ed-price__prefix {
+  font-family: var(--f-mono);
+  font-style: normal;
+  font-size: 9.5px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--gray-500);
+  margin-right: 4px;
+  vertical-align: 1px;
+}
+
+/* Cue "conversar →" mais delicado */
+.ed-card__cue {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .14em;
+  color: var(--gray-500);
+}
+
+/* Sort active mais editorial — underline em vez de bold */
+.ed-sort.is-active {
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 2px;
+  font-weight: 500;
+}
+
+/* ────────────────────────────────────────────────────────────
+   14f · FILTER BAR em 3 colunas (igual ao mockup do Claude)
+   Estrutura horizontal: busca esquerda · cats centro · sort direita.
+   Categorias viram texto com underline (sem pill com borda).
+   ──────────────────────────────────────────────────────────── */
+
+.ed-filters {
+  grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr) !important;
+  align-items: center;
+  gap: clamp(20px, 3vw, 48px) !important;
+}
+.ed-search { max-width: 280px !important; padding-bottom: 8px !important; }
+.ed-search input { font-size: 14px; }
+
+.ed-filters__cats {
+  justify-content: center;
+  gap: 0 !important;
+  flex-wrap: wrap;
+}
+.ed-filters__cats .ed-chip {
+  padding: 4px 12px !important;
+  border: 0 !important;
+  background: transparent !important;
+  font-size: 11px;
+  letter-spacing: .12em !important;
+  color: var(--ed-muted) !important;
+  text-transform: lowercase !important;
+  border-radius: 0 !important;
+  position: relative;
+}
+.ed-filters__cats .ed-chip:hover { color: var(--ink) !important; }
+.ed-filters__cats .ed-chip.is-active {
+  background: transparent !important;
+  color: var(--ink) !important;
+  font-weight: 500;
+}
+.ed-filters__cats .ed-chip.is-active::after {
+  content: '';
+  position: absolute;
+  left: 12px; right: 12px;
+  bottom: -1px;
+  height: 1px;
+  background: var(--ink);
+}
+
+.ed-filters__sort {
+  justify-content: flex-end;
+  gap: 18px !important;
+  font-size: 11px !important;
+}
+
+/* Contador de filtros ocupa as 3 cols */
+.ed-filters__count { grid-column: 1 / -1; }
+
+@media (max-width: 920px) {
+  .ed-filters {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  .ed-search { max-width: 100% !important; }
+  .ed-filters__sort { justify-content: flex-start; }
+}
+
+/* ────────────────────────────────────────────────────────────
+   14e · CARD ALINHADO — preço sempre na base do card
+   Resolve o desalinhamento quando produtos têm quantidade
+   diferente de variantes/swatches.
+   ──────────────────────────────────────────────────────────── */
+
+.ed-card__link {
+  display: flex !important;
+  flex-direction: column;
+  height: 100%;
+}
+.ed-card__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+/* Empurra o foot pro fim — todos os preços alinham na linha de baixo */
+.ed-card__foot {
+  margin-top: auto;
+}
+/* O variants block fica logo após o head, sem ser empurrado */
+.ed-card__variants {
+  margin-top: 0;
+}
+
+/* ────────────────────────────────────────────────────────────
+   15 · DARK MODE — ajustes para os refinamentos
+   ──────────────────────────────────────────────────────────── */
+
+[data-theme="dark"] .me-stat-grid {
+  background: transparent;
+  border-color: var(--gray-200);
+}
+[data-theme="dark"] .me-banner {
+  background: var(--peach);
+}
+[data-theme="dark"] .me-footer-bar {
+  background: var(--cream);
+}
+[data-theme="dark"] .me-photo-slot__overlay {
+  background: rgba(245,237,227,.92);
+  color: var(--ink);
+}
+[data-theme="dark"] .me-photo-slot__overlay:hover {
+  background: var(--cream);
+}
+
+/* ────────────────────────────────────────────────────────────
+   17 · LOOKBOOK · lista de produtos do look (admin)
+   ──────────────────────────────────────────────────────────── */
+
+.me-look-products {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.me-look-product-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--r-sm);
+  transition: border-color .15s;
+}
+.me-look-product-row:hover { border-color: var(--gray-300); }
+.me-look-product-row__handle {
+  font-family: var(--f-mono);
+  color: var(--gray-400);
+  font-size: 14px;
+  cursor: grab;
+  user-select: none;
+  letter-spacing: -2px;
+}
+.me-look-product-row__thumb {
+  width: 40px;
+  height: 48px;
+  border-radius: var(--r-sm);
+  background: var(--gray-100) center/cover no-repeat;
+  flex-shrink: 0;
+}
+.me-look-product-row__remove {
+  width: 26px; height: 26px;
+  border: 1px solid var(--gray-200);
+  background: transparent;
+  border-radius: 50%;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--gray-500);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all .12s;
+}
+.me-look-product-row__remove:hover {
+  border-color: var(--magenta-deep);
+  color: var(--magenta-deep);
+}
+/* ────────────────────────────────────────────────────────────
+   16 · ALERT GRID adaptativo — resolve o "descontínuo"
+   Quando só 1 alerta dispara, ocupa largura natural (não 50%).
+   Com 2 ou 3, divide igualmente. Sem coluna fantasma.
+   ──────────────────────────────────────────────────────────── */
+
+.me-alert-grid {
+  display: grid;
+  gap: 18px;
+  /* min 320px, cresce até 1fr quando couber */
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+/* Quando só tem 1 filho, limita largura pra não esticar feio */
+.me-alert-grid:has(> .me-card:only-child) {
+  grid-template-columns: minmax(320px, 720px);
+}
+
+/* Cards de alerta: mantêm o card branco (consistência com outros cards),
+   mas com layout interno alinhado e sem padding excessivo quando vazios. */
+.me-alert-grid > .me-card .me-feed__row {
+  /* mesma grid de "Vendas recentes" — thumb + identificador + meta + valor + tempo */
+  grid-template-columns: 48px 1fr auto auto !important;
+  gap: 14px;
+  padding: 12px 0 !important;
+}
+.me-alert-grid > .me-card .me-feed__row:first-of-type {
+  border-top: 1px solid var(--gray-100);
+  padding-top: 14px !important;
+}
+
+@media (max-width: 540px) {
+  .me-alert-grid { grid-template-columns: 1fr; }
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   17 · FAB MOBILE — Nova venda
+   Em ≤720px o botão "Nova venda" do topbar some e vira FAB
+   no canto inferior direito. Alvo grande (56px) para polegar
+   em iPhones. Safe-area-inset garante respiro do notch/home bar.
+   ──────────────────────────────────────────────────────────── */
+
+.dashboard-fab {
+  display: none;  /* só aparece em mobile */
+}
+
+@media (max-width: 720px) {
+  /* Esconde botão "Nova venda" do topbar — FAB assume o papel */
+  .topbar__actions > .topbar-action-primary { display: none; }
+
+  .dashboard-fab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    position: fixed;
+    /* Canto inferior direito, com respeito à safe-area do iPhone */
+    right: calc(20px + env(safe-area-inset-right));
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    z-index: 100;
+    height: 56px;
+    padding: 0 22px 0 18px;
+    background: var(--coral-deep);
+    color: var(--cream);
+    border-radius: 28px;  /* pill */
+    text-decoration: none;
+    font-family: var(--f-display);
+    font-style: italic;
+    font-size: 15px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.15), 0 2px 6px rgba(0,0,0,.08);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .dashboard-fab:hover,
+  .dashboard-fab:focus {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,.18), 0 3px 8px rgba(0,0,0,.1);
+  }
+  .dashboard-fab:active {
+    transform: translateY(0);
+  }
+  .dashboard-fab svg {
+    width: 20px;
+    height: 20px;
+    color: var(--cream);
+  }
+}
+
+/* Em telas muito pequenas (≤380px iPhone SE), só ícone para não invadir conteúdo */
+@media (max-width: 380px) {
+  .dashboard-fab {
+    padding: 0;
+    width: 56px;
+    justify-content: center;
+  }
+  .dashboard-fab__label {
+    display: none;
+  }
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   18 · ÍCONES nos cards de KPI — decoração discreta
+   Posicionados no canto superior direito, em cor muito sutil.
+   Não competem com o número, só reforçam o tipo da métrica.
+   ──────────────────────────────────────────────────────────── */
+
+.me-stat {
+  position: relative;  /* ancora o ícone absoluto */
+}
+.me-stat__icon {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--gray-300, #d8d8d4);
+  pointer-events: none;
+}
+.me-stat__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 540px) {
+  /* Em mobile o card é menor — ícone menor e mais próximo da borda */
+  .me-stat__icon {
+    top: 12px;
+    right: 12px;
+    width: 22px;
+    height: 22px;
+  }
+  .me-stat__icon svg { width: 14px; height: 14px; }
+}
+
+
+/* ────────────────────────────────────────────────────────────
+   19 · MONTH PICKER — seletor de mês no corpo do dashboard
+   Setas + dropdown + botão "hoje". Sem JS (usa <details>).
+   Posicionado ANTES dos KPIs (não mais na topbar — quebrava
+   layout em mobile espremido entre os ícones de utilitário).
+   ──────────────────────────────────────────────────────────── */
+
+/* Linha que envolve o picker + botão hoje */
+.month-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 20px;
+}
+
+.month-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--r-pill, 999px);
+  padding: 3px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+}
+
+.month-picker__nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 50%;
+  color: var(--coral-deep);
+  font-size: 16px;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.month-picker__nav:hover {
+  background: var(--cream, #f8f3eb);
+}
+.month-picker__nav--disabled {
+  color: var(--gray-300, #d8d8d4);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.month-picker__menu {
+  position: relative;
+}
+.month-picker__menu summary { list-style: none; }
+.month-picker__menu summary::-webkit-details-marker { display: none; }
+
+.month-picker__current {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  user-select: none;
+  letter-spacing: 0;
+  text-transform: lowercase;
+  border-radius: var(--r-pill, 999px);
+  transition: background .12s ease;
+}
+.month-picker__current:hover {
+  background: var(--cream, #f8f3eb);
+}
+.month-picker__chevron {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-right: 1.4px solid var(--coral-deep);
+  border-bottom: 1.4px solid var(--coral-deep);
+  transform: rotate(45deg) translateY(-1px);
+  transition: transform .2s ease;
+}
+.month-picker__menu[open] .month-picker__chevron {
+  transform: rotate(-135deg) translateY(-1px);
+}
+
+.month-picker__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 180px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  padding: 6px 0;
+  box-shadow: 0 8px 28px rgba(0,0,0,.08);
+  z-index: 90;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.month-picker__item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 8px 16px;
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--gray-700);
+  text-decoration: none;
+  text-transform: lowercase;
+  white-space: nowrap;
+  transition: background .12s ease, color .12s ease;
+}
+.month-picker__item:hover {
+  background: var(--cream, #f8f3eb);
+  color: var(--ink);
+}
+.month-picker__item.is-active {
+  color: var(--ink);
+  position: relative;
+}
+.month-picker__item.is-active::before {
+  content: '·';
+  position: absolute;
+  left: 7px;
+  color: var(--coral-deep);
+  font-size: 18px;
+  line-height: 1;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.month-picker__hint {
+  font-family: var(--f-mono);
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: .14em;
+  color: var(--coral-deep);
+  text-transform: uppercase;
+  margin-left: 8px;
+}
+
+.month-picker__today {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 14px;
+  height: 32px;
+  border-radius: var(--r-pill, 999px);
+  background: var(--coral-deep);
+  color: var(--cream);
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: lowercase;
+  text-decoration: none;
+  transition: opacity .15s ease;
+}
+.month-picker__today:hover { opacity: .9; }
+
+/* Mobile: picker continua bonito no corpo, alinhado à esquerda. */
+@media (max-width: 540px) {
+  .month-picker-row {
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .month-picker__current { font-size: 13px; padding: 6px 10px; }
+}
+
+/* ────────────────────────────────────────────────────────────
+   N · ALINHAMENTO DE GRID — fix de "column blowout" no desktop
+   ------------------------------------------------------------
+   Em CSS Grid, filhos têm `min-width: auto` por padrão — ou seja,
+   se um <select> ou um placeholder longo ocupa mais que sua fração,
+   ele "estoura" a coluna e quebra a proporção 1fr 1fr (ou 2fr 1fr).
+   Era exatamente o que estava acontecendo em Configurações ▸ Operação:
+   o card de PIX, com o option "Chave aleatória (EVP)", empurrava a
+   coluna direita para mais largo que a esquerda.
+
+   A correção canônica é zerar o min-width dos itens de grid e,
+   por simetria, dos itens flex em coluna. No mobile, todos esses
+   grids viram 1 coluna via media query — então a regra abaixo
+   é inerte ali e não muda nada. Visualmente: os cards passam a
+   ter exatamente a mesma largura, alinhados em colunas firmes.
+   ──────────────────────────────────────────────────────────── */
+.grid > *,
+.grid--2 > *,
+.grid--3 > *,
+.grid--4 > *,
+.grid--5 > *,
+.grid--kpi > *,
+.grid--2-1 > *,
+.grid--1-2 > *,
+.grid--pos > *,
+.grid--profile > * {
+  min-width: 0;
+}
+
+/* Form controls dentro de grids/flex precisam aceitar encolher
+   abaixo do tamanho intrínseco do conteúdo (ex: select com option
+   longo). Sem isso, o flex:1 do input/select segura largura mínima
+   do conteúdo e voltamos ao mesmo problema dentro de cada card. */
+.form-control,
+.form-control input,
+.form-control select,
+.form-control textarea,
+.form-control--plain input,
+.form-control--plain select,
+.form-control--plain textarea {
+  min-width: 0;
+}
+
+/* `.flex-col` empilha cards verticalmente — garantir que cada card
+   ocupe exatamente a largura da coluna pai, sem ler o conteúdo
+   intrínseco. Isso resolve o caso "cada card tem uma largura
+   diferente" mesmo quando o pai é a coluna correta. */
+.flex-col > * {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ────────────────────────────────────────────────────────────
+   N+1 · SIDEBAR — estado ativo mais discreto
+   ------------------------------------------------------------
+   O gradient coral→magenta + glow funciona muito bem em CTAs
+   (botão "Salvar", hero), mas no menu lateral ele puxa o olho
+   para si e compete com o conteúdo da página. A regra abaixo
+   troca para uma marcação mais editorial: fundo coral suave +
+   texto coral profundo (mesmas cores da marca, intensidade
+   invertida) + barrinha de acento à esquerda. Mantém clareza
+   de "qual item está ativo" sem o peso visual.
+   Sobrescreve a regra original em style.css (mesma especificidade,
+   carregado depois — cascata vence).
+   ──────────────────────────────────────────────────────────── */
+.sidebar__item.is-active,
+.sidebar__item.is-active:hover {
+  background: var(--coral-glow);
+  color: var(--coral-deep);
+  font-weight: 600;
+  box-shadow: none;
+  position: relative;
+}
+/* Barrinha de acento à esquerda — ancorada no item, não na cor de fundo,
+   para que o estado ativo permaneça legível mesmo se a cor mudar. */
+.sidebar__item.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--coral);
+}
+/* Ícone também na cor de marca (em vez de currentColor branco) */
+.sidebar__item.is-active svg {
+  color: var(--coral-deep);
+}
+/* Badge dentro do item ativo: ajustar para o fundo claro */
+.sidebar__item.is-active .sidebar__badge {
+  background: var(--coral);
+  color: var(--white);
+}

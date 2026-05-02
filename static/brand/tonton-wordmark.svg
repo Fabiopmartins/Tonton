@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Wordmark Tonton — "loja infantil" curvada + "tonton" empilhado.
+  Laranja quente + amarelo deslocado + verde mintado.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" role="img" aria-label="Tonton — loja infantil">
+  <!-- "loja infantil" curvado em verde -->
+  <path id="curveTop" d="M 70 60 Q 180 26 290 60" fill="none"/>
+  <text font-family="'Quicksand', 'Nunito', sans-serif"
+        font-weight="600" font-size="20" fill="#3DB48F" letter-spacing="0.22em">
+    <textPath href="#curveTop" startOffset="50%" text-anchor="middle">loja infantil</textPath>
+  </text>
+
+  <!-- Primeira linha: "ton" -->
+  <g>
+    <!-- sombra amarela deslocada -->
+    <text x="116" y="123"
+          font-family="'Fredoka', 'Quicksand', 'Comic Sans MS', sans-serif"
+          font-weight="700" font-size="78"
+          fill="#FCC630" letter-spacing="-0.02em">ton</text>
+    <!-- frente laranja -->
+    <text x="120" y="120"
+          font-family="'Fredoka', 'Quicksand', 'Comic Sans MS', sans-serif"
+          font-weight="700" font-size="78"
+          fill="#F38A35" letter-spacing="-0.02em">ton</text>
+  </g>
+
+  <!-- Segunda linha: "ton" deslocado para baixo e levemente à direita -->
+  <g>
+    <text x="146" y="195"
+          font-family="'Fredoka', 'Quicksand', 'Comic Sans MS', sans-serif"
+          font-weight="700" font-size="78"
+          fill="#FCC630" letter-spacing="-0.02em">ton</text>
+    <text x="150" y="192"
+          font-family="'Fredoka', 'Quicksand', 'Comic Sans MS', sans-serif"
+          font-weight="700" font-size="78"
+          fill="#F38A35" letter-spacing="-0.02em">ton</text>
+  </g>
+
+  <!-- Coraçãozinho verde decorativo -->
+  <path d="M 308 175 c -3.6 -3.0 -8 -1.4 -8 2.6 c 0 3.6 8 9.8 8 9.8 s 8 -6.2 8 -9.8 c 0 -4 -4.4 -5.6 -8 -2.6 z"
+        fill="#3DB48F"/>
+
+  <!-- Linhas de movimento decorativas (motion lines) -->
+  <path d="M 76 188 q 8 -4 16 0" fill="none" stroke="#3DB48F" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 86 202 q 6 -3 12 0" fill="none" stroke="#3DB48F" stroke-width="3" stroke-linecap="round"/>
+</svg>
