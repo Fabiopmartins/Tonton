@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Precificação · tonton{% endblock %}
+{% set page_sub_label = "produto · helper de pricing" %}
+{% block page_title %}Precificação inteligente{% endblock %}
+
+{% block body %}
+
+<div class="grid grid--4 mb-3">
+  <div class="card kpi">
+    <div class="kpi__label">Overhead fixo rateado</div>
+    <div class="kpi__value kpi__value--magenta">R$ {{ format_money(overhead) }}</div>
+    <div class="text-muted" style="font-size:11.5px">por peça · média 90 dias</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Margem-alvo da loja</div>
+    <div class="kpi__value kpi__value--coral">{{ settings.get('target_margin_pct', '60') }}%</div>
+    <div class="text-muted" style="font-size:11.5px">referência default</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Alerta abaixo de</div>
+    <div class="kpi__value kpi__value--deep">{{ settings.get('min_margin_alert_pct', '30') }}%</div>
+    <div class="text-muted" style="font-size:11.5px">ping em produtos críticos</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Produtos analisados</div>
+    <div class="kpi__value kpi__value--plum">{{ products|length }}</div>
+    <div class="text-muted" style="font-size:11.5px">ativos no catálogo</div>
+  </div>
+</div>
+
+<div class="card card--flush">
+  <div class="card__header">
+    <div>
+      <div class="card__title">Tabela comparativa</div>
+      <div class="card__sub">custo · preço atual · preço-alvo · desvio</div>
+    </div>
+  </div>
+
+  <div class="table__head" style="grid-template-columns:2fr 110px 120px 120px 110px 100px">
+    <span>Produto</span><span>Custo</span><span>Preço atual</span><span>Preço-alvo</span><span>Margem</span><span>Status</span>
+  </div>
+
+  {% for p, m in product_metrics %}
+    {% set current_margin = m['current_margin']|float if m and 'current_margin' in m.keys() else 0 %}
+    {% set target_price = m['target_price']|float if m and 'target_price' in m.keys() else 0 %}
+    {% set min_alert = settings.get('min_margin_alert_pct', '30')|float %}
+    {% set status_tone = 'coral' if current_margin < min_alert else ('sun' if current_margin < (settings.get('target_margin_pct', '60')|float - 10) else 'mint') %}
+    {% set status_label = 'crítico' if current_margin < min_alert else ('abaixo' if current_margin < (settings.get('target_margin_pct', '60')|float - 10) else 'saudável') %}
+
+    <a href="{{ url_for('edit_product', pid=p['id']) }}" class="table__row" style="grid-template-columns:2fr 110px 120px 120px 110px 100px;text-decoration:none;color:inherit">
+      <div class="flex-center gap-2" style="min-width:0">
+        <div class="thumb thumb--h{{ loop.index0 % 8 }}" style="width:36px;height:44px"></div>
+        <div style="min-width:0">
+          <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p['name'] }}</div>
+          <div class="text-mono" style="font-size:11px;color:var(--gray-500)">{{ p['sku'] or '—' }}</div>
+        </div>
+      </div>
+      <div style="font-size:12.5px;color:var(--gray-700)">R$ {{ format_money(p['cost_price']) }}</div>
+      <div style="font-weight:600;font-size:13px">R$ {{ format_money(p['sale_price']) }}</div>
+      <div style="font-size:12.5px;color:var(--coral-deep);font-weight:500">R$ {{ format_money(target_price) }}</div>
+      <div style="font-weight:600;color:{% if current_margin < min_alert %}var(--danger){% elif current_margin >= 50 %}var(--mint-ink){% else %}var(--coral-deep){% endif %}">
+        {{ '%.1f'|format(current_margin) }}%
+      </div>
+      <span class="chip chip--sm chip--{{ status_tone }}">{{ status_label }}</span>
+    </a>
+  {% else %}
+    <div class="empty">
+      <div class="empty__title">Sem produtos para analisar</div>
+      <div class="empty__sub">Cadastre produtos para ver a análise.</div>
+      <a href="{{ url_for('create_product') }}" class="btn"><svg><use xlink:href="#i-plus"/></svg> Novo produto</a>
+    </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

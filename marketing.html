@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+{% block title %}Usuários · tonton{% endblock %}
+{% set page_sub_label = "sistema · acesso" %}
+{% block page_title %}Usuários do sistema{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('security_audit_view') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-shield"/></svg> Auditoria
+  </a>
+  <a href="{{ url_for('create_user') }}" class="btn">
+    <svg><use xlink:href="#i-plus"/></svg> Novo usuário
+  </a>
+{% endblock %}
+
+{% block body %}
+
+{% set admin_count    = users|selectattr('role', 'equalto', 'admin')|list|length %}
+{% set active_count   = users|selectattr('is_active', 'equalto', 1)|list|length %}
+{% set inactive_count = users|rejectattr('is_active', 'equalto', 1)|list|length %}
+
+<style>
+  .users-toolbar{
+    display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+    padding:14px 16px; background:var(--gray-100);
+    border-radius:var(--r-md); margin-bottom:14px;
+  }
+  .users-search{
+    flex:1; min-width:240px; position:relative;
+  }
+  .users-search svg{
+    position:absolute; left:12px; top:50%; transform:translateY(-50%);
+    width:16px; height:16px; color:var(--gray-600); pointer-events:none;
+  }
+  .users-search input{
+    width:100%; padding:10px 14px 10px 36px;
+    border:1px solid var(--gray-300); border-radius:var(--r-md);
+    background:#fff; font-size:13px;
+  }
+  .users-search input:focus{
+    outline:none; border-color:var(--coral-deep);
+    box-shadow:0 0 0 3px rgba(255,107,58,.12);
+  }
+  .filter-pill{
+    padding:7px 13px; border-radius:999px; font-size:12px; font-weight:600;
+    border:1px solid var(--gray-300); background:#fff; cursor:pointer;
+    transition:all .15s ease; user-select:none;
+  }
+  .filter-pill:hover{ background:var(--gray-100); }
+  .filter-pill.is-active{
+    background:var(--plum); color:#fff; border-color:var(--plum);
+  }
+
+  .role-badge{
+    display:inline-flex; align-items:center; gap:5px;
+    padding:3px 10px; border-radius:999px;
+    font-size:11px; font-weight:700; letter-spacing:.3px;
+  }
+  .role-badge--admin{ background:var(--magenta-deep); color:#fff; }
+  .role-badge--operator{ background:var(--gray-200); color:var(--gray-900); }
+  .role-badge svg{ width:11px; height:11px; }
+
+  .you-chip{
+    display:inline-block; padding:1px 7px; border-radius:999px;
+    background:var(--coral-glow); color:var(--coral-deep);
+    font-size:9.5px; font-weight:700; letter-spacing:.5px;
+    text-transform:uppercase; margin-left:6px;
+  }
+
+  .row-actions{
+    display:flex; gap:6px; justify-content:flex-end;
+  }
+  .row-actions form{ margin:0; }
+  .icon-btn{
+    width:32px; height:32px; border-radius:8px;
+    display:inline-flex; align-items:center; justify-content:center;
+    border:1px solid var(--gray-300); background:#fff; cursor:pointer;
+    transition:all .15s ease;
+  }
+  .icon-btn:hover{ background:var(--gray-100); }
+  .icon-btn svg{ width:14px; height:14px; color:var(--gray-700); }
+  .icon-btn--danger:hover{
+    background:#ffe0e0; border-color:#ff8a8a;
+  }
+  .icon-btn--danger:hover svg{ color:#c62828; }
+  .icon-btn[disabled]{ opacity:.4; cursor:not-allowed; }
+
+  .table__row.is-inactive{ opacity:.62; }
+  .table__row.is-self{
+    background:linear-gradient(90deg, rgba(255,107,58,.05) 0%, transparent 60%);
+  }
+  .table__row[hidden]{ display:none !important; }
+
+  /* Modal de confirmação de delete */
+  .modal{
+    position:fixed; inset:0; background:rgba(61,15,36,.6);
+    display:none; align-items:center; justify-content:center;
+    z-index:1000; padding:20px;
+  }
+  .modal.is-open{ display:flex; }
+  .modal__card{
+    background:#fff; border-radius:var(--r-lg); padding:24px;
+    max-width:440px; width:100%;
+    box-shadow:0 20px 60px rgba(0,0,0,.3);
+  }
+  .modal__title{ font-size:18px; font-weight:700; color:var(--plum); margin-bottom:8px; }
+  .modal__sub{ font-size:13px; color:var(--gray-700); margin-bottom:16px; }
+  .modal__warn{
+    background:#fff5f5; border:1px solid #ffd0d0; color:#9a0000;
+    padding:10px 12px; border-radius:8px; font-size:12px; margin-bottom:14px;
+  }
+  .modal input[type=text]{
+    width:100%; padding:10px 12px; border:1px solid var(--gray-300);
+    border-radius:8px; font-family:monospace;
+  }
+  .modal__actions{ display:flex; gap:8px; margin-top:14px; }
+</style>
+
+<!-- KPIs -->
+<div class="grid grid--3 mb-3">
+  <div class="card kpi">
+    <div class="kpi__label">Usuários ativos</div>
+    <div class="kpi__value kpi__value--coral">{{ active_count }}</div>
+    <div class="text-muted" style="font-size:11.5px">
+      de {{ users|length }} cadastrados · {{ inactive_count }} inativo{{ 's' if inactive_count != 1 }}
+    </div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Administradoras</div>
+    <div class="kpi__value kpi__value--magenta">{{ admin_count }}</div>
+    <div class="text-muted" style="font-size:11.5px">com acesso total</div>
+  </div>
+  <div class="card" style="background:var(--grad-soft);border:0">
+    <div class="text-eyebrow" style="color:var(--magenta-deep)">✦ segurança</div>
+    <div class="text-display" style="font-size:16px;margin-top:4px;color:var(--plum);line-height:1.35">
+      Mudanças sensíveis pedem re-autenticação.
+      <a href="{{ url_for('security_audit_view') }}" style="color:var(--magenta-deep);font-weight:600">Ver log →</a>
+    </div>
+  </div>
+</div>
+
+<div class="card card--flush">
+  <div class="card__header">
+    <div>
+      <div class="card__title">Todos os usuários</div>
+      <div class="card__sub">em ordem de criação</div>
+    </div>
+  </div>
+
+  <!-- Toolbar: busca + filtros -->
+  <div class="users-toolbar" style="margin:14px 16px">
+    <div class="users-search">
+      <svg><use xlink:href="#i-search"/></svg>
+      <input id="userSearch" type="search" placeholder="Buscar por nome ou e-mail…" autocomplete="off">
+    </div>
+    <div style="display:flex;gap:6px">
+      <button type="button" class="filter-pill is-active" data-filter="all">Todos</button>
+      <button type="button" class="filter-pill" data-filter="active">Ativos</button>
+      <button type="button" class="filter-pill" data-filter="inactive">Inativos</button>
+      <button type="button" class="filter-pill" data-filter="admin">Admins</button>
+    </div>
+  </div>
+
+  <div class="table__head" style="grid-template-columns:50px 2fr 2fr 130px 130px 100px 180px">
+    <span></span><span>Pessoa</span><span>E-mail</span><span>Perfil</span><span>Último acesso</span><span>Status</span><span style="text-align:right;padding-right:12px">Ações</span>
+  </div>
+
+  <div id="userRows">
+  {% for u in users %}
+    {% set is_self = (current_user_id == u['id']) %}
+    {% set is_active_int = u['is_active']|int %}
+    <div class="table__row {{ 'is-inactive' if not is_active_int }} {{ 'is-self' if is_self }}"
+         data-name="{{ u['display_name']|lower }}"
+         data-email="{{ u['email']|lower }}"
+         data-role="{{ u['role'] }}"
+         data-active="{{ '1' if is_active_int else '0' }}"
+         style="grid-template-columns:50px 2fr 2fr 130px 130px 100px 180px">
+      <div class="avatar avatar--md avatar--h{{ loop.index0 % 6 }}">
+        {{ u['display_name'][:2]|upper }}
+      </div>
+
+      <div>
+        <div style="font-size:13.5px;font-weight:600">
+          {{ u['display_name'] }}{% if is_self %}<span class="you-chip">você</span>{% endif %}
+        </div>
+        <div class="text-muted" style="font-size:10.5px">
+          criado {{ u['created_at'][:10] if u['created_at'] else '—' }}
+        </div>
+      </div>
+
+      <div class="text-muted" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis">
+        {{ u['email'] }}
+      </div>
+
+      <div>
+        {% if u['role'] == 'admin' %}
+          <span class="role-badge role-badge--admin">
+            <svg><use xlink:href="#i-star"/></svg> ADMIN
+          </span>
+        {% else %}
+          <span class="role-badge role-badge--operator">OPERATOR</span>
+        {% endif %}
+      </div>
+
+      <div class="text-muted" style="font-size:11.5px">
+        {{ u['last_login_at'][:16] if 'last_login_at' in u.keys() and u['last_login_at'] else 'nunca' }}
+      </div>
+
+      <span class="chip chip--sm chip--{{ 'mint' if is_active_int else 'neutral' }}">
+        {{ 'ativo' if is_active_int else 'inativo' }}
+      </span>
+
+      <div class="row-actions">
+        <!-- Promote/demote role -->
+        <form method="post" action="{{ url_for('promote_user', user_id=u['id']) }}">
+          {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+          <button type="submit" class="icon-btn" title="{{ 'Rebaixar a operator' if u['role'] == 'admin' else 'Promover a admin' }}"
+                  {% if is_self %}disabled{% endif %}>
+            <svg><use xlink:href="#i-shield"/></svg>
+          </button>
+        </form>
+
+        <!-- Send password reset -->
+        <form method="post" action="{{ url_for('send_user_reset', user_id=u['id']) }}">
+          {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+          <button type="submit" class="icon-btn" title="Enviar reset de senha por e-mail">
+            <svg><use xlink:href="#i-mail"/></svg>
+          </button>
+        </form>
+
+        <!-- Toggle ativar/desativar -->
+        <form method="post" action="{{ url_for('toggle_user', user_id=u['id']) }}">
+          {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+          <button type="submit" class="icon-btn" title="{{ 'Desativar' if is_active_int else 'Reativar' }}"
+                  {% if is_self and is_active_int %}disabled{% endif %}>
+            <svg><use xlink:href="#{{ 'i-x' if is_active_int else 'i-check' }}"/></svg>
+          </button>
+        </form>
+
+        <!-- Delete (apenas inativos, não-self) -->
+        {% if not is_active_int and not is_self %}
+          <button type="button" class="icon-btn icon-btn--danger" title="Apagar usuário"
+                  data-delete-id="{{ u['id'] }}"
+                  data-delete-name="{{ u['display_name'] }}">
+            <svg><use xlink:href="#i-trash"/></svg>
+          </button>
+        {% else %}
+          <button type="button" class="icon-btn" disabled title="{{ 'Desative antes de apagar' if is_active_int else 'Você não pode apagar a si mesmo' }}">
+            <svg><use xlink:href="#i-trash"/></svg>
+          </button>
+        {% endif %}
+      </div>
+    </div>
+  {% else %}
+    <div class="empty">
+      <div class="empty__title">Sem usuários</div>
+      <div class="empty__sub">Cadastre o primeiro acesso.</div>
+    </div>
+  {% endfor %}
+  </div>
+
+  <div id="emptyFiltered" class="empty" style="display:none">
+    <div class="empty__title">Nenhum resultado</div>
+    <div class="empty__sub">Ajuste a busca ou os filtros.</div>
+  </div>
+</div>
+
+<!-- Modal de confirmação para delete -->
+<div id="deleteModal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal__card">
+    <div class="modal__title">Apagar usuário</div>
+    <div class="modal__sub">
+      Você está prestes a apagar <strong id="deleteName">—</strong> permanentemente.
+    </div>
+    <div class="modal__warn">
+      Esta ação não pode ser desfeita. O histórico de auditoria preserva o registro.
+    </div>
+    <form id="deleteForm" method="post" action="">
+      {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+      <label class="form-label">Digite <code>DELETE</code> para confirmar</label>
+      <input type="text" name="confirm" id="deleteConfirm" autocomplete="off" placeholder="DELETE" required>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" id="deleteCancel" style="flex:1">Cancelar</button>
+        <button type="submit" class="btn btn--danger" id="deleteSubmit" style="flex:2" disabled>
+          <svg><use xlink:href="#i-trash"/></svg> Apagar definitivamente
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ----- Busca + filtros -----
+  const search = document.getElementById('userSearch');
+  const rows   = Array.from(document.querySelectorAll('#userRows .table__row'));
+  const pills  = Array.from(document.querySelectorAll('.filter-pill'));
+  const empty  = document.getElementById('emptyFiltered');
+  let currentFilter = 'all';
+
+  function applyFilters(){
+    const q = (search.value || '').trim().toLowerCase();
+    let visible = 0;
+    rows.forEach(r => {
+      const name = r.dataset.name || '';
+      const mail = r.dataset.email || '';
+      const role = r.dataset.role || '';
+      const active = r.dataset.active === '1';
+      const matchSearch = !q || name.includes(q) || mail.includes(q);
+      const matchFilter =
+        currentFilter === 'all' ||
+        (currentFilter === 'active' && active) ||
+        (currentFilter === 'inactive' && !active) ||
+        (currentFilter === 'admin' && role === 'admin');
+      const show = matchSearch && matchFilter;
+      r.hidden = !show;
+      if (show) visible++;
+    });
+    empty.style.display = visible === 0 && rows.length > 0 ? '' : 'none';
+  }
+
+  search.addEventListener('input', applyFilters);
+  pills.forEach(p => p.addEventListener('click', () => {
+    pills.forEach(x => x.classList.remove('is-active'));
+    p.classList.add('is-active');
+    currentFilter = p.dataset.filter;
+    applyFilters();
+  }));
+
+  // ----- Modal delete -----
+  const modal       = document.getElementById('deleteModal');
+  const modalName   = document.getElementById('deleteName');
+  const modalForm   = document.getElementById('deleteForm');
+  const modalInput  = document.getElementById('deleteConfirm');
+  const modalSubmit = document.getElementById('deleteSubmit');
+  const modalCancel = document.getElementById('deleteCancel');
+
+  function openDelete(id, name){
+    modalForm.action = '/users/' + id + '/delete';
+    modalName.textContent = name;
+    modalInput.value = '';
+    modalSubmit.disabled = true;
+    modal.classList.add('is-open');
+    setTimeout(() => modalInput.focus(), 50);
+  }
+  function closeDelete(){
+    modal.classList.remove('is-open');
+  }
+
+  document.querySelectorAll('[data-delete-id]').forEach(b => {
+    b.addEventListener('click', () => openDelete(b.dataset.deleteId, b.dataset.deleteName));
+  });
+  modalCancel.addEventListener('click', closeDelete);
+  modal.addEventListener('click', e => { if (e.target === modal) closeDelete(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDelete(); });
+  modalInput.addEventListener('input', () => {
+    modalSubmit.disabled = modalInput.value !== 'DELETE';
+  });
+})();
+</script>
+
+{% endblock %}

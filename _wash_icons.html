@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Produtos · tonton{% endblock %}
+{% set page_sub_label = "estoque" %}
+{% block page_title %}Produtos{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('product_labels_batch_ui') }}" class="btn btn--ghost btn--sm"
+     aria-label="Etiquetas em lote" title="Etiquetas em lote">
+    <svg><use xlink:href="#i-tag"/></svg> Etiquetas
+  </a>
+  <a href="{{ url_for('list_products') }}?export=1" class="btn btn--ghost btn--sm"
+     aria-label="Exportar lista" title="Exportar lista">
+    <svg><use xlink:href="#i-download"/></svg> Exportar
+  </a>
+  <a href="{{ url_for('create_product') }}" class="btn">
+    <svg><use xlink:href="#i-plus"/></svg> Novo produto
+  </a>
+{% endblock %}
+
+{% block body %}
+
+{# ── Resumo ──────────────────────────────────────────── #}
+<div class="grid grid--kpi mb-3">
+
+  <div class="card">
+    <div class="kpi__label">Total em catálogo</div>
+    <div class="kpi__value kpi__value--coral">{{ stats['total'] or 0 }}</div>
+    <div class="text-muted" style="font-size:11.5px">ativos no estoque</div>
+  </div>
+
+  <div class="card">
+    <div class="kpi__label">Estoque baixo</div>
+    <div class="kpi__value kpi__value--magenta">{{ stats['low_count'] or 0 }}</div>
+    <div class="text-muted" style="font-size:11.5px">abaixo do mínimo</div>
+  </div>
+
+  <div class="card">
+    <div class="kpi__label">Valor de custo</div>
+    <div class="kpi__value kpi__value--deep">R$ {{ format_money(stats['cost_val']) }}</div>
+    <div class="text-muted" style="font-size:11.5px">investido em peças</div>
+  </div>
+
+  <div class="card">
+    <div class="kpi__label">Valor de venda</div>
+    <div class="kpi__value kpi__value--plum">R$ {{ format_money(stats['sale_val']) }}</div>
+    <div class="text-muted" style="font-size:11.5px">potencial de receita</div>
+  </div>
+
+</div>
+
+<div class="card card--flush">
+
+  {# toolbar #}
+  <form method="get" class="filterbar">
+    <div class="search-pill" style="flex:1;width:auto">
+      <svg><use xlink:href="#i-search"/></svg>
+      <input type="search" name="q" value="{{ q }}" placeholder="Filtrar por nome, SKU, código de barras…">
+    </div>
+
+    <select name="category" class="filter-pill" onchange="this.form.submit()" style="padding-right:12px">
+      <option value="">Todas as categorias</option>
+      {% for c in categories %}
+        <option value="{{ c['category'] }}" {% if c['category'] == selected_category %}selected{% endif %}>{{ c['category'] }}</option>
+      {% endfor %}
+    </select>
+
+    <button class="btn btn--soft btn--sm" type="submit">
+      <svg><use xlink:href="#i-filter"/></svg> Aplicar
+    </button>
+  </form>
+
+  {# tabs #}
+  <div class="tabs">
+    <a href="{{ url_for('list_products') }}" class="tab{% if not low_stock %} is-active{% endif %}">
+      Todos <span class="tab__count">{{ stats['total'] }}</span>
+    </a>
+    <a href="{{ url_for('list_products') }}?low_stock=1" class="tab{% if low_stock %} is-active{% endif %}">
+      Estoque baixo <span class="tab__count">{{ stats['low_count'] }}</span>
+    </a>
+  </div>
+
+  {# header tabela #}
+  <div class="table__head products-table__head">
+    <span>Produto</span><span>SKU</span><span>Preço</span><span>Estoque</span><span>Custo</span><span>Margem</span><span style="text-align:right">Ações</span>
+  </div>
+
+  {% for p in products %}
+    {% set pct = p['stock_qty']|int * 100 // (p['stock_min']|int * 4) if p['stock_min']|int > 0 else 50 %}
+    {% set stock_tone = 'coral' if p['stock_qty']|int == 0 else ('sun' if p['stock_qty']|int <= p['stock_min']|int else 'mint') %}
+    {% set stock_label = 'esgotado' if p['stock_qty']|int == 0 else ('baixo' if p['stock_qty']|int <= p['stock_min']|int else 'ok') %}
+    {% set margin = (((p['sale_price']|float - p['cost_price']|float) / (p['sale_price']|float)) * 100) if p['sale_price']|float > 0 else 0 %}
+
+    <div class="table__row products-table__row">
+      <a href="{{ url_for('product_detail', pid=p['id']) }}" class="products-row__name" style="text-decoration:none;color:inherit">
+        {% if p['image_mime'] %}
+          <img src="{{ url_for('product_image', pid=p['id']) }}" alt="" style="width:44px;height:54px;object-fit:cover;border-radius:var(--r-sm);flex-shrink:0">
+        {% else %}
+          <div class="thumb thumb--h{{ loop.index0 % 8 }}" style="width:44px;height:54px"></div>
+        {% endif %}
+        <div style="min-width:0">
+          <div style="font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            {{ p['name'] }}
+            {% if not is_clothing_complete(p) %}
+              <span title="Ficha técnica sem composição cadastrada"
+                    aria-label="Ficha incompleta"
+                    style="display:inline-flex;align-items:center;gap:4px;margin-left:8px;
+                           padding:2px 8px;font-size:10.5px;font-weight:500;letter-spacing:.02em;
+                           background:transparent;color:var(--coral-deep);
+                           border:1px solid var(--coral-soft);border-radius:999px;
+                           vertical-align:middle">
+                <span style="width:5px;height:5px;border-radius:50%;background:var(--coral);display:inline-block"></span>
+                ficha
+              </span>
+            {% endif %}
+          </div>
+          <div class="text-muted" style="font-size:11.5px;margin-top:2px">
+            {{ p['category'] or '—' }}{% if p['size'] %} · {{ p['size'] }}{% endif %}{% if p['color'] %} · {{ p['color'] }}{% endif %}
+          </div>
+        </div>
+      </a>
+
+      <div class="products-row__sku text-mono" style="font-size:12px;color:var(--gray-700)">
+        <span class="products-row__label">SKU</span>{{ p['sku'] or '—' }}
+      </div>
+
+      <div class="products-row__price" style="font-weight:600;font-size:13.5px">
+        <span class="products-row__label">Preço</span>
+        {% if has_active_promo(p) %}
+          <span style="text-decoration:line-through;color:var(--gray-500);font-weight:500;font-size:11.5px;margin-right:4px">R$ {{ format_money(p['sale_price']) }}</span>
+          <span style="color:var(--magenta)">R$ {{ format_money(p['promo_price']) }}</span>
+        {% else %}
+          R$ {{ format_money(p['sale_price']) }}
+        {% endif %}
+      </div>
+
+      <div class="products-row__stock">
+        <span class="products-row__label">Estoque</span>
+        <span class="flex-center gap-1">
+          <span style="font-weight:600;font-size:13.5px;color:{% if p['stock_qty']|int == 0 %}var(--magenta){% elif p['stock_qty']|int <= p['stock_min']|int %}var(--coral-deep){% else %}var(--ink){% endif %}">
+            {{ p['stock_qty'] }}
+          </span>
+          <div class="progress progress--thin" style="width:48px">
+            <div class="progress__fill" style="width:{{ [pct, 100]|min }}%;background:{% if p['stock_qty']|int == 0 %}var(--magenta){% elif p['stock_qty']|int <= p['stock_min']|int %}var(--coral-deep){% else %}var(--coral){% endif %}"></div>
+          </div>
+        </span>
+      </div>
+
+      <div class="products-row__cost" style="font-size:12.5px;color:var(--gray-700)">
+        <span class="products-row__label">Custo</span>R$ {{ format_money(p['cost_price']) }}
+      </div>
+
+      <div class="products-row__margin">
+        <span class="products-row__label">Margem</span>
+        <span class="chip chip--sm chip--{{ 'mint' if margin >= 40 else 'sun' if margin >= 20 else 'coral' }}">
+          {{ '%.0f'|format(margin) }}%
+        </span>
+      </div>
+
+      <div class="products-row__actions">
+        <div class="kebab" data-kebab>
+          <button type="button" class="kebab__btn" aria-label="Ações do produto" aria-haspopup="menu" aria-expanded="false">
+            <svg><use xlink:href="#i-dots"/></svg>
+          </button>
+          <div class="kebab__panel" role="menu">
+            <a href="{{ url_for('product_detail', pid=p['id']) }}" class="kebab__item" role="menuitem">
+              <svg><use xlink:href="#i-eye"/></svg> Ver detalhes
+            </a>
+            <a href="{{ url_for('edit_product', pid=p['id']) }}" class="kebab__item" role="menuitem">
+              <svg><use xlink:href="#i-edit"/></svg> Editar
+            </a>
+            <a href="{{ url_for('product_variants_view', pid=p['id']) }}" class="kebab__item" role="menuitem">
+              <svg><use xlink:href="#i-grid"/></svg> Variantes
+            </a>
+            <a href="{{ url_for('product_price_history', pid=p['id']) }}" class="kebab__item" role="menuitem">
+              <svg><use xlink:href="#i-trend"/></svg> Histórico de preços
+            </a>
+            <div class="kebab__sep"></div>
+            <form method="post" action="{{ url_for('delete_product', pid=p['id']) }}" onsubmit="return confirm('Apagar este produto? Se houver histórico vinculado, ele será apenas desativado e deixará de aparecer na lista.');" style="margin:0">
+              {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+              <button type="submit" class="kebab__item kebab__item--danger" role="menuitem">
+                <svg><use xlink:href="#i-trash"/></svg> Apagar produto
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="empty">
+      <div class="empty__title">Nenhum produto</div>
+      <div class="empty__sub">Comece cadastrando a primeira peça do seu catálogo.</div>
+      <a href="{{ url_for('create_product') }}" class="btn"><svg><use xlink:href="#i-plus"/></svg> Novo produto</a>
+    </div>
+  {% endfor %}
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} · {{ title }} · tonton{% endblock %}
+{% set page_sub_label = "erro · " ~ code %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('dashboard' if session.get('user_id') else 'login') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar ao início
+  </a>
+{% endblock %}
+
+{% block body %}
+<div class="card" style="max-width:560px;margin:40px auto;text-align:center;padding:40px 28px">
+  <div class="text-display" style="font-size:88px;line-height:1;color:var(--coral-deep);margin-bottom:6px">{{ code }}</div>
+  <div class="text-eyebrow" style="margin-bottom:14px">{{ title|lower }}</div>
+  <p style="color:var(--gray-700);font-size:15px;line-height:1.55;margin:0 0 24px">{{ message }}</p>
+  <div class="flex gap-2" style="justify-content:center;flex-wrap:wrap">
+    <a href="{{ url_for('dashboard' if session.get('user_id') else 'login') }}" class="btn">
+      <svg><use xlink:href="#i-home"/></svg> Ir ao painel
+    </a>
+    <button type="button" class="btn btn--ghost" onclick="history.back()">Voltar</button>
+  </div>
+</div>
+{% endblock %}

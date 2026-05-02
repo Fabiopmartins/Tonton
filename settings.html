@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Nova campanha · tonton{% endblock %}
+{% set page_sub_label = "marketing · nova campanha" %}
+{% block page_title %}Nova campanha{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('list_campaigns') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+{% endblock %}
+
+{% block body %}
+
+<form method="post">
+  {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+  <div class="grid grid--2-1" style="align-items:start">
+
+    <div class="card">
+      <div class="card__title">Estrutura da campanha</div>
+      <div class="card__sub">nome interno, segmento e mensagem</div>
+
+      <div class="form-group mt-3">
+        <label class="form-label">Nome da campanha *</label>
+        <div class="form-control form-control--plain">
+          <input name="name" id="f-name" required autofocus
+                 placeholder="Ex: Lançamento Primavera 26"
+                 oninput="updatePreview()">
+        </div>
+        <div class="form-hint">Só você vê este nome — as clientes recebem só a mensagem.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Segmentação</label>
+        <div class="form-control form-control--plain">
+          <select name="target_filter">
+            <option value="all">Todas as clientes opt-in ({{ opt_in_count }})</option>
+            <option value="vip">Apenas VIPs (≥ R$ 1.000 gastos)</option>
+            <option value="recent">Compraram nos últimos 90 dias</option>
+            <option value="inactive">Sem compra há 180+ dias</option>
+            <option value="birthday">Aniversariantes do mês</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group mb-0">
+        <label class="form-label">Mensagem *</label>
+        <div class="form-control form-control--plain">
+          <textarea name="message_template" id="f-msg" required rows="8"
+                    oninput="updatePreview()"
+                    placeholder="Oi {{ '{{nome}}' }}! Tenho uma novidade que combina com seu estilo: acabou de chegar a coleção Primavera 26. Dá uma olhada: tontonlojainfantil.com.br/catalogo">Oi {{ '{{nome}}' }}! Tenho uma novidade especial para te contar...</textarea>
+        </div>
+        <div class="form-hint">
+          Use <strong class="text-mono" style="color:var(--coral-deep)">{{ '{{nome}}' }}</strong> para personalizar com o primeiro nome da cliente.
+        </div>
+      </div>
+    </div>
+
+    {# ── Preview WhatsApp ── #}
+    <div class="flex-col gap-3" style="position:sticky;top:110px">
+      <div>
+        <div class="section-label" style="margin-top:0">preview no WhatsApp</div>
+
+        <div style="background:#ece5dd;padding:20px 12px;border-radius:var(--r-lg);min-height:280px;position:relative">
+          <div style="max-width:85%;background:#dcf8c6;padding:10px 12px;border-radius:7px 7px 7px 0;box-shadow:0 1px 0.5px rgba(0,0,0,.13);margin-left:0">
+            <div id="preview-msg" style="font-size:13.5px;color:#1a0f0a;line-height:1.4;white-space:pre-wrap;font-family:var(--f-body)">
+              Oi Maria! Tenho uma novidade especial para te contar...
+            </div>
+            <div style="font-size:10.5px;color:#8a8a8a;margin-top:4px;text-align:right">
+              16:42 ✓✓
+            </div>
+          </div>
+          <div style="position:absolute;bottom:10px;right:12px;font-size:10.5px;color:#667781">
+            por tonton · {{ opt_in_count }} destinatárias
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="flex gap-2" style="justify-content:flex-end">
+          <a href="{{ url_for('list_campaigns') }}" class="btn btn--ghost">Cancelar</a>
+          <button type="submit" class="btn btn--lg">
+            <svg><use xlink:href="#i-check"/></svg> Criar rascunho
+          </button>
+        </div>
+        <div class="text-muted mt-2" style="font-size:11.5px">
+          A campanha começa como rascunho. Você confere tudo e envia depois.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updatePreview() {
+  var msg = document.getElementById('f-msg').value || 'Sua mensagem aqui…';
+  // Substitui {{ '{{nome}}' }} por "Maria" no preview
+  msg = msg.replace(/\{\{\s*nome\s*\}\}/g, 'Maria');
+  document.getElementById('preview-msg').textContent = msg;
+}
+updatePreview();
+</script>
+{% endblock %}

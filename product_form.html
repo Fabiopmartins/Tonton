@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Recuperar senha · tonton{% endblock %}
+
+{% block shell %}
+<div class="login-split">
+  <div class="login-split__form">
+    <a href="{{ url_for('login') }}" style="text-decoration:none">
+      <img src="{{ url_for('static', filename='brand/male-wordmark.jpg') }}" alt="tonton" style="height:30px;mix-blend-mode:multiply">
+    </a>
+
+    <div class="login-split__form-wrap">
+      <div class="text-eyebrow">recuperação de acesso</div>
+      <h1 class="login-heading">Recupere<br><em>sua senha.</em></h1>
+      <p class="text-muted" style="font-size:14.5px;margin:0 0 32px;line-height:1.55">
+        Informe o e-mail cadastrado. Se ele existir, enviaremos um link.
+      </p>
+
+      <form method="post" autocomplete="on">
+        {% if session.get('csrf_token') %}
+          <input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">
+        {% endif %}
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, msg in messages %}
+              <div class="flash flash--{{ category if category in ['success','error','warning','info'] else 'info' }} mb-2">
+                <svg style="width:16px;height:16px"><use xlink:href="#{% if category == 'success' %}i-check{% else %}i-sparkle{% endif %}"/></svg>
+                <span>{{ msg }}</span>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <div class="form-group">
+          <label class="form-label">E-mail</label>
+          <div class="form-control">
+            <svg><use xlink:href="#i-mail"/></svg>
+            <input name="email" type="email" required autofocus placeholder="voce@tontonlojainfantil.com.br">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn--lg btn--full">
+          Enviar link de recuperação
+          <svg><use xlink:href="#i-arrow"/></svg>
+        </button>
+
+        <div style="margin-top:20px;text-align:center;font-size:13px">
+          <a href="{{ url_for('login') }}">← Voltar para o login</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="login-split__art">
+    <div class="login-quote">
+      <div class="login-quote__eyebrow">✦ a gente tá aqui</div>
+      <div class="login-quote__text">
+        "Um erro não apaga o que foi construído. Só lembra que a gente é humano."
+      </div>
+      <div class="login-quote__attr">— Lorena Silva de Souza, fundadora</div>
+    </div>
+  </div>
+</div>
+{% endblock %}

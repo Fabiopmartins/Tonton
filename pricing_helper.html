@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% block title %}Etiquetas em massa · tonton{% endblock %}
+{% block page_title %}Etiquetas em massa{% endblock %}
+{% set page_sub_label = 'niimbot · pdf' %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('list_products') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar a produtos
+  </a>
+{% endblock %}
+
+{% block body %}
+<div class="card mb-3">
+  <div class="flex-between" style="gap:20px;flex-wrap:wrap">
+    <div>
+      <div class="card__title">Gerar etiquetas Niimbot</div>
+      <div class="card__sub">Selecione os produtos, ajuste a quantidade de cada, baixe o PDF e abra no app da Niimbot para imprimir em massa.</div>
+    </div>
+    <div style="text-align:right">
+      <div class="text-muted" style="font-size:11.5px">Formato configurado</div>
+      <div class="text-mono" style="font-size:14px;color:var(--ink);margin-top:2px">{{ width_mm }} × {{ height_mm }} mm</div>
+      <a href="{{ url_for('store_settings_view') }}" class="text-muted" style="font-size:11.5px;text-decoration:underline">ajustar</a>
+    </div>
+  </div>
+</div>
+
+{# Preview da etiqueta — clique num produto para visualizar antes de imprimir #}
+<div class="card mb-3" id="preview-card" style="display:none">
+  <div class="flex-between" style="gap:20px;flex-wrap:wrap;align-items:flex-start">
+    <div>
+      <div class="text-eyebrow" style="color:var(--magenta-deep)">✦ pré-visualização</div>
+      <div class="card__title" style="margin-top:4px">Como vai sair na impressora</div>
+      <div class="card__sub" id="preview-product-name">—</div>
+      <div class="text-muted" style="font-size:11.5px;margin-top:8px;max-width:320px;line-height:1.5">
+        Tamanho real ampliado 4×. O QR aponta para a página interna do produto (uso administrativo).
+      </div>
+    </div>
+    <div style="background:#fff;border:1px solid var(--gray-200);padding:12px;border-radius:8px">
+      <canvas id="label-preview" style="display:block;background:#fff"></canvas>
+    </div>
+  </div>
+</div>
+
+<form method="get" class="filterbar mb-2">
+  <svg><use xlink:href="#i-search"/></svg>
+  <input name="q" value="{{ q }}" placeholder="Buscar produto ou SKU" class="search-pill__input" style="min-width:200px;border:0;outline:0;background:transparent;font-size:14px">
+  <select name="cat" class="filter-pill" onchange="this.form.submit()" style="padding-right:12px">
+    <option value="">Todas as categorias</option>
+    {% for c in categories %}
+      <option value="{{ c['category'] }}" {% if selected_cat == c['category'] %}selected{% endif %}>{{ c['category'] }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn--ghost btn--sm" type="submit">Filtrar</button>
+  {% if q or selected_cat %}
+    <a href="{{ url_for('product_labels_batch_ui') }}" class="btn btn--ghost btn--sm">Limpar</a>
+  {% endif %}
+</form>
+
+<form method="post" action="{{ url_for('product_labels_niimbot') }}" id="labels-form">
+  {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="card__title" style="padding:16px 20px 12px">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:500">
+        <input type="checkbox" id="select-all" style="width:16px;height:16px;cursor:pointer">
+        <span>Selecionar todos (<span id="visible-count">{{ products|length }}</span>)</span>
+      </label>
+      <div class="card__sub" style="margin-top:4px">
+        <span id="selected-count">0</span> selecionado(s) ·
+        <span id="total-labels">0</span> etiqueta(s) no total
+      </div>
+    </div>
+
+    {% if products %}
+      <div class="labels-picker">
+        {% for p in products %}
+          <div class="labels-picker__row" data-row
+               data-name="{{ p['name']|e }}"
+               data-sku="{{ (p['sku'] or '')|e }}"
+               data-price="{{ format_money(p['sale_price']) }}">
+            <label class="labels-picker__select">
+              <input type="checkbox" name="product_id" value="{{ p['id'] }}" data-select style="width:16px;height:16px;cursor:pointer">
+            </label>
+
+            <div class="labels-picker__thumb">
+              {% if p['image_mime'] %}
+                <img src="{{ url_for('product_image', pid=p['id']) }}" alt="">
+              {% else %}
+                <div class="thumb thumb--h{{ loop.index0 % 8 }}"></div>
+              {% endif %}
+            </div>
+
+            <div class="labels-picker__info">
+              <div class="labels-picker__name">{{ p['name'] }}</div>
+              <div class="labels-picker__meta">
+                <span class="text-mono">{{ p['sku'] or '—' }}</span>
+                {% if p['category'] %}<span>· {{ p['category'] }}</span>{% endif %}
+                <span>· R$ {{ format_money(p['sale_price']) }}</span>
+                <span>· estoque {{ p['stock_qty'] }}</span>
+              </div>
+            </div>
+
+            <div class="labels-picker__qty">
+              <label class="form-label" style="font-size:10px;margin-bottom:4px">Etiquetas</label>
+              <div class="qty-stepper">
+                <button type="button" class="qty-stepper__btn" data-qty-down aria-label="Diminuir">−</button>
+                <input type="number" name="qty_{{ p['id'] }}" value="1" min="1" max="50" data-qty inputmode="numeric">
+                <button type="button" class="qty-stepper__btn" data-qty-up aria-label="Aumentar">+</button>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty" style="padding:60px 24px">
+        <div class="empty__title">Nenhum produto encontrado</div>
+        <div class="empty__sub">Ajuste a busca ou o filtro de categoria.</div>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if products %}
+    <div class="labels-picker__foot">
+      <button type="submit" class="btn btn--primary" id="generate-btn" disabled>
+        <svg><use xlink:href="#i-download"/></svg>
+        Gerar PDF de etiquetas
+      </button>
+      <div class="text-muted" style="font-size:11.5px;max-width:420px;line-height:1.5">
+        Dica: salve o PDF no celular, abra no app da <strong>Niimbot</strong> (menu "Arquivos" → "Importar PDF") e imprima todas as etiquetas de uma vez.
+      </div>
+    </div>
+  {% endif %}
+</form>
+
+<script>
+(function() {
+  const form = document.getElementById('labels-form');
+  if (!form) return;
+  const selectAll = document.getElementById('select-all');
+  const rows = Array.from(form.querySelectorAll('[data-row]'));
+  const generateBtn = document.getElementById('generate-btn');
+  const selCountEl = document.getElementById('selected-count');
+  const totalCountEl = document.getElementById('total-labels');
+
+  // ─── Preview da etiqueta ──────────────────────────────────
+  const widthMm  = {{ width_mm }};
+  const heightMm = {{ height_mm }};
+  const previewCard = document.getElementById('preview-card');
+  const previewName = document.getElementById('preview-product-name');
+  const canvas      = document.getElementById('label-preview');
+
+  function drawPreview(name, sku, price) {
+    if (!canvas) return;
+    // Escala 4× para enxergar bem; mantém proporção real mm
+    const pxPerMm = 12;
+    const w = Math.round(widthMm  * pxPerMm);
+    const h = Math.round(heightMm * pxPerMm);
+    canvas.width  = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+
+    // Fundo + borda
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#191714';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, w - 2, h - 2);
+
+    // Bloco do QR (placeholder com hachura — o real é gerado pelo backend)
+    const qrSide = Math.max(h - 16, 60);
+    const qrX = 6, qrY = (h - qrSide) / 2;
+    ctx.fillStyle = '#191714';
+    ctx.fillRect(qrX, qrY, qrSide, qrSide);
+    ctx.fillStyle = '#fff';
+    // padrão simplificado de QR
+    const cell = qrSide / 11;
+    const pattern = [
+      [1,1,1,1,1,1,1,0,1,1,1],
+      [1,0,0,0,0,0,1,0,0,1,0],
+      [1,0,1,1,1,0,1,1,1,0,1],
+      [1,0,1,1,1,0,1,0,0,1,1],
+      [1,0,1,1,1,0,1,1,0,0,1],
+      [1,0,0,0,0,0,1,0,1,1,0],
+      [1,1,1,1,1,1,1,0,1,0,1],
+      [0,0,0,0,0,0,0,0,0,1,1],
+      [1,0,1,1,0,1,0,1,1,0,0],
+      [0,1,0,0,1,1,1,0,1,1,0],
+      [1,1,1,0,1,0,1,1,0,0,1]
+    ];
+    for (let r = 0; r < 11; r++) {
+      for (let c = 0; c < 11; c++) {
+        if (!pattern[r][c]) {
+          ctx.fillRect(qrX + c*cell, qrY + r*cell, cell + 0.5, cell + 0.5);
+        }
+      }
+    }
+
+    // Texto à direita do QR
+    const tx = qrX + qrSide + 14;
+    const scale = Math.max(0.85, Math.min(heightMm / 12.0, 2.3));
+    ctx.fillStyle = '#191714';
+    ctx.font = `${Math.round(22 * scale)}px sans-serif`;
+    ctx.textBaseline = 'top';
+    const truncatedName = (name || '').slice(0, 26);
+    ctx.fillText(truncatedName, tx, 8);
+
+    ctx.fillStyle = '#b5924c';
+    ctx.font = `${Math.round(20 * scale)}px sans-serif`;
+    ctx.fillText('R$ ' + price, tx, Math.round(36 * scale));
+
+    ctx.fillStyle = '#666';
+    ctx.font = `${Math.max(Math.round(14 * scale), 12)}px monospace`;
+    const truncatedSku = (sku || 'SEM SKU').slice(0, 20);
+    ctx.fillText(truncatedSku, tx, Math.round(60 * scale));
+  }
+
+  function showPreview(row) {
+    if (!previewCard) return;
+    const name  = row.getAttribute('data-name')  || '';
+    const sku   = row.getAttribute('data-sku')   || '';
+    const price = row.getAttribute('data-price') || '0,00';
+    previewName.textContent = name;
+    previewCard.style.display = 'block';
+    drawPreview(name, sku, price);
+    previewCard.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+  }
+  // ──────────────────────────────────────────────────────────
+
+  function updateCounts() {
+    let selected = 0, total = 0;
+    rows.forEach(r => {
+      const cb = r.querySelector('[data-select]');
+      const qty = parseInt(r.querySelector('[data-qty]').value, 10) || 1;
+      if (cb.checked) { selected += 1; total += qty; }
+    });
+    selCountEl.textContent = selected;
+    totalCountEl.textContent = total;
+    if (generateBtn) generateBtn.disabled = selected === 0;
+    // Sync select-all tri-state
+    if (selectAll) {
+      if (selected === 0) { selectAll.checked = false; selectAll.indeterminate = false; }
+      else if (selected === rows.length) { selectAll.checked = true; selectAll.indeterminate = false; }
+      else { selectAll.checked = false; selectAll.indeterminate = true; }
+    }
+  }
+
+  if (selectAll) selectAll.addEventListener('change', () => {
+    rows.forEach(r => { r.querySelector('[data-select]').checked = selectAll.checked; });
+    updateCounts();
+  });
+
+  rows.forEach(r => {
+    r.querySelector('[data-select]').addEventListener('change', (e) => {
+      // Mostra preview ao marcar
+      if (e.target.checked) showPreview(r);
+      updateCounts();
+    });
+    // Clique na linha (fora do checkbox/qty) também mostra preview
+    r.addEventListener('click', (e) => {
+      if (e.target.closest('[data-select],[data-qty],[data-qty-up],[data-qty-down]')) return;
+      showPreview(r);
+    });
+    const qty = r.querySelector('[data-qty]');
+    qty.addEventListener('input', updateCounts);
+    r.querySelector('[data-qty-up]').addEventListener('click', () => {
+      qty.value = Math.min(50, (parseInt(qty.value, 10) || 1) + 1);
+      r.querySelector('[data-select]').checked = true;
+      showPreview(r);
+      updateCounts();
+    });
+    r.querySelector('[data-qty-down]').addEventListener('click', () => {
+      qty.value = Math.max(1, (parseInt(qty.value, 10) || 1) - 1);
+      updateCounts();
+    });
+  });
+
+  updateCounts();
+})();
+</script>
+{% endblock %}

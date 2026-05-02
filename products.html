@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Contas PIX · tonton{% endblock %}
+{% set page_sub_label = "configurações · pagamentos" %}
+{% block page_title %}Contas PIX{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('store_settings_view') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+  <a href="{{ url_for('create_pix_account') }}" class="btn">
+    <svg><use xlink:href="#i-plus"/></svg> Nova conta
+  </a>
+{% endblock %}
+
+{% block body %}
+
+<style>
+  .acc-row{
+    display:grid;
+    grid-template-columns:140px 1fr 100px 110px 200px;
+    gap:14px; align-items:center;
+    padding:14px 16px; border-bottom:1px solid var(--gray-200);
+  }
+  .acc-row[data-active="0"]{ opacity:.55; }
+  .provider-tag{
+    display:inline-flex; align-items:center; gap:5px;
+    padding:4px 10px; border-radius:6px;
+    font-size:11px; font-weight:700; letter-spacing:.3px; font-family:monospace;
+  }
+  .provider-tag--inter{ background:#ff6f00; color:#fff; }
+  .provider-tag--mercadopago{ background:#00b1ea; color:#fff; }
+  .provider-tag--manual{ background:var(--gray-200); color:var(--gray-900); }
+  .acc-actions{ display:flex; gap:6px; justify-content:flex-end; }
+  .acc-default-star{ color:var(--coral-deep); font-size:14px; }
+  @media (max-width: 800px){
+    .acc-row{ grid-template-columns:1fr; gap:6px; }
+  }
+</style>
+
+<div class="grid grid--3 mb-3">
+  <div class="card kpi">
+    <div class="kpi__label">Contas cadastradas</div>
+    <div class="kpi__value kpi__value--coral">{{ accounts|length }}</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Ativas</div>
+    <div class="kpi__value kpi__value--magenta">{{ accounts|selectattr('is_active', 'equalto', 1)|list|length }}</div>
+  </div>
+  <div class="card" style="background:var(--grad-soft);border:0">
+    <div class="text-eyebrow" style="color:var(--magenta-deep)">✦ multi-PSP</div>
+    <div class="text-display" style="font-size:15px;margin-top:4px;color:var(--plum);line-height:1.35">
+      Operador escolhe a conta no momento da venda.
+    </div>
+  </div>
+</div>
+
+<div class="card card--flush">
+  <div class="card__header">
+    <div>
+      <div class="card__title">Suas contas</div>
+      <div class="card__sub">conta padrão por provider aparece selecionada na venda</div>
+    </div>
+  </div>
+
+  {% if accounts %}
+    <div class="acc-row" style="background:var(--gray-100);font-weight:700;font-size:11px;letter-spacing:.4px;text-transform:uppercase;color:var(--gray-700)">
+      <span>Provider</span>
+      <span>Rótulo</span>
+      <span>Padrão</span>
+      <span>Status</span>
+      <span style="text-align:right">Ações</span>
+    </div>
+    {% for a in accounts %}
+      <div class="acc-row" data-active="{{ a['is_active'] }}">
+        <span class="provider-tag provider-tag--{{ a['provider'] }}">{{ a['provider']|upper }}</span>
+        <span style="font-weight:600">{{ a['label'] }}</span>
+        <span>
+          {% if a['is_default']|int %}
+            <span class="acc-default-star" title="Conta padrão para este provider">★ padrão</span>
+          {% else %}
+            <span class="text-muted" style="font-size:11px">—</span>
+          {% endif %}
+        </span>
+        <span>
+          <span class="chip chip--sm chip--{{ 'mint' if a['is_active']|int else 'neutral' }}">
+            {{ 'ativa' if a['is_active']|int else 'inativa' }}
+          </span>
+        </span>
+        <div class="acc-actions">
+          <form method="post" action="{{ url_for('toggle_pix_account', aid=a['id']) }}" style="margin:0">
+            {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+            <button type="submit" class="btn btn--ghost btn--sm">
+              {{ 'Desativar' if a['is_active']|int else 'Ativar' }}
+            </button>
+          </form>
+          <button type="button" class="btn btn--ghost btn--sm"
+                  onclick="if(confirm('Apagar esta conta? Use DELETE no campo seguinte.')){const v=prompt('Digite DELETE para confirmar:');if(v==='DELETE'){const f=document.getElementById('del-{{ a.id }}');f.querySelector('[name=confirm]').value=v;f.submit();}}">
+            Apagar
+          </button>
+          <form id="del-{{ a.id }}" method="post" action="{{ url_for('delete_pix_account', aid=a['id']) }}" style="display:none">
+            {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+            <input type="hidden" name="confirm">
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">
+      <div class="empty__title">Nenhuma conta cadastrada</div>
+      <div class="empty__sub">Cadastre Inter, Mercado Pago ou Manual para começar.</div>
+      <a href="{{ url_for('create_pix_account') }}" class="btn mt-3">
+        <svg><use xlink:href="#i-plus"/></svg> Cadastrar primeira conta
+      </a>
+    </div>
+  {% endif %}
+</div>
+
+<div style="background:var(--grad-soft);padding:14px 16px;border-radius:var(--r-md);margin-top:14px;font-size:12px;color:var(--plum);line-height:1.5">
+  <strong>Como funciona:</strong> cada conta cadastrada vira uma opção no momento da venda.
+  O operador escolhe para onde o valor deve ir (Inter, Mercado Pago, etc).
+  <strong>Inter</strong> exige cert .p12 convertido em PEM.
+  <strong>Manual</strong> não tem confirmação automática mdash; só gera o QR copia-e-cola.
+</div>
+
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Cupons · tonton{% endblock %}
+{% set page_sub_label = "marketing · cupons" %}
+{% block page_title %}Cupons de desconto{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('create_coupon') }}" class="btn">
+    <svg><use xlink:href="#i-plus"/></svg> Novo cupom
+  </a>
+{% endblock %}
+
+{% block body %}
+
+{% set active_count = coupons|selectattr('is_active')|list|length %}
+{% set total_uses = coupons|sum(attribute='used_count') %}
+
+<div class="grid grid--3 mb-3">
+  <div class="card kpi">
+    <div class="kpi__label">Cupons ativos</div>
+    <div class="kpi__value kpi__value--coral">{{ active_count }}</div>
+    <div class="text-muted" style="font-size:11.5px">de {{ coupons|length }} cadastrados</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Usos acumulados</div>
+    <div class="kpi__value kpi__value--magenta">{{ total_uses }}</div>
+    <div class="text-muted" style="font-size:11.5px">aplicações em vendas</div>
+  </div>
+  <div class="card" style="background:var(--grad-soft);border:0">
+    <div class="text-eyebrow" style="color:var(--magenta-deep)">✦ dica</div>
+    <div class="text-display" style="font-size:22px;margin-top:4px;color:var(--plum);line-height:1.2">
+      Cupons com prazo curto convertem melhor.
+    </div>
+    <div class="text-muted" style="font-size:12px;margin-top:8px;color:var(--plum)">Experimente 48h de validade em lançamentos.</div>
+  </div>
+</div>
+
+<div class="card card--flush">
+  <div class="card__header">
+    <div>
+      <div class="card__title">Catálogo de cupons</div>
+      <div class="card__sub">ordenados por criação</div>
+    </div>
+  </div>
+
+  {% if coupons %}
+    <div class="table__head" style="grid-template-columns:140px 2fr 110px 120px 120px 100px 110px">
+      <span>Código</span><span>Descrição</span><span>Tipo · Valor</span><span>Mín. compra</span><span>Usos</span><span>Validade</span><span>Status</span>
+    </div>
+    {% for c in coupons %}
+      {% set expired = c['expires_at'] and c['expires_at'] < (request.args.get('today', '2099-01-01')) %}
+      {% set max_reached = c['max_uses'] and c['used_count']|int >= c['max_uses']|int %}
+      {% set usable = c['is_active'] and not expired and not max_reached %}
+      <div class="table__row" style="grid-template-columns:140px 2fr 110px 120px 120px 100px 110px">
+
+        <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:var(--coral-glow);border:1px dashed var(--coral);border-radius:var(--r-sm);font-family:var(--f-mono);font-size:12px;font-weight:700;color:var(--coral-deep);letter-spacing:.1em">
+          {{ c['code'] }}
+        </div>
+
+        <div>
+          <div style="font-size:13px;font-weight:500">{{ c['description'] or '—' }}</div>
+          {% if c['created_at'] %}<div class="text-muted" style="font-size:11px;margin-top:2px">criado {{ c['created_at'][:10] }}</div>{% endif %}
+        </div>
+
+        <div>
+          <div class="text-display" style="font-size:20px;color:var(--magenta-deep);line-height:1">
+            {% if c['type'] == 'percent' %}{{ c['value']|int }}%{% else %}R$ {{ format_money(c['value']) }}{% endif %}
+          </div>
+          <div class="text-muted" style="font-size:10.5px;margin-top:2px">{{ 'percentual' if c['type'] == 'percent' else 'fixo' }}</div>
+        </div>
+
+        <div style="font-size:12.5px;color:var(--gray-700)">
+          {% if c['min_purchase']|float > 0 %}R$ {{ format_money(c['min_purchase']) }}{% else %}—{% endif %}
+        </div>
+
+        <div style="font-size:12.5px">
+          <span style="font-weight:600">{{ c['used_count'] }}</span>
+          {% if c['max_uses'] %}<span class="text-muted">/{{ c['max_uses'] }}</span>{% endif %}
+          {% if c['max_uses'] %}
+            <div class="progress progress--thin mt-1">
+              <div class="progress__fill progress__fill--magenta" style="width:{{ (c['used_count']|int * 100 / c['max_uses']|int)|round }}%"></div>
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="text-muted" style="font-size:12px">
+          {% if c['expires_at'] %}{{ c['expires_at'][:10] }}{% else %}sem{% endif %}
+        </div>
+
+        <form method="post" action="{{ url_for('toggle_coupon', cid=c['id']) }}" style="margin:0">
+          {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+          <button type="submit" class="chip chip--{{ 'mint' if usable else ('sun' if c['is_active'] else 'neutral') }}" style="border:0;cursor:pointer">
+            {{ 'ativo' if usable else ('expirado' if expired else ('esgotado' if max_reached else 'inativo')) }}
+          </button>
+        </form>
+
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">
+      <div class="empty__title">Nenhum cupom ainda</div>
+      <div class="empty__sub">Crie promoções com prazo ou limite de usos.</div>
+      <a href="{{ url_for('create_coupon') }}" class="btn"><svg><use xlink:href="#i-plus"/></svg> Novo cupom</a>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

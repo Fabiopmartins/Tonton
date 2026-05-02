@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+{% block title %}Novo produto · tonton{% endblock %}
+{% set page_sub_label = "produto · cadastro" %}
+{% block page_title %}Novo produto{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('list_products') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+{% endblock %}
+
+{% block body %}
+
+<form method="post" enctype="multipart/form-data">
+  {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+  <div class="grid grid--2-1" style="align-items:start">
+
+    {# ── Coluna principal: campos ── #}
+    <div class="flex-col gap-3">
+
+      <div class="card">
+        <div class="card__title">Informações básicas</div>
+        <div class="card__sub">identificação da peça</div>
+
+        <div class="form-group mt-3">
+          <label class="form-label">Nome *</label>
+          <div class="form-control form-control--plain">
+            <input name="name" required autofocus placeholder="Ex: Vestido linho tangerina">
+          </div>
+        </div>
+
+        <div class="grid grid--2 gap-3">
+          <div class="form-group">
+            <label class="form-label">SKU</label>
+            <div class="form-control form-control--plain">
+              <input name="sku" placeholder="VL-001">
+            </div>
+            <div class="form-hint">Opcional. Gera automático se vazio.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Código de barras</label>
+            <div class="form-control form-control--plain">
+              <input name="barcode" inputmode="numeric" placeholder="EAN-13">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group mb-0">
+          <label class="form-label">Descrição</label>
+          <div class="form-control form-control--plain">
+            <textarea name="description" rows="3" placeholder="Composição, cuidados, história da peça…"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">Categoria e atributos</div>
+        <div class="card__sub">usados na vitrine e filtros</div>
+
+        <div class="grid grid--2 gap-3 mt-3">
+          <div class="form-group">
+            <label class="form-label">Categoria</label>
+            <div class="form-control form-control--plain">
+              <input name="category" list="cat-list" placeholder="vestidos, camisas, saias…">
+              <datalist id="cat-list">
+                {% for c in categories %}
+                  <option value="{{ c['category'] }}">
+                {% endfor %}
+              </datalist>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Marca</label>
+            <div class="form-control form-control--plain">
+              <input name="brand" placeholder="tonton">
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid--3 gap-3 mb-0">
+          <div class="form-group mb-0">
+            <label class="form-label">Tamanho</label>
+            <div class="form-control form-control--plain">
+              <input name="size" placeholder="P, M, G, 38…">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">Cor</label>
+            <div class="form-control form-control--plain">
+              <input name="color" placeholder="tangerina">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">Unidade</label>
+            <div class="form-control form-control--plain">
+              <select name="unit">
+                <option value="un" selected>un (peça)</option>
+                <option value="m">m (metro)</option>
+                <option value="kg">kg (quilo)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% include '_clothing_fields.html' %}
+
+      <div class="card">
+        <div class="card__title">Precificação</div>
+        <div class="card__sub">custo, preço e margem-alvo</div>
+
+        <div class="grid grid--3 gap-3 mt-3">
+          <div class="form-group">
+            <label class="form-label">Custo *</label>
+            <div class="form-control">
+              <span class="text-muted">R$</span>
+              <input name="cost_price" required placeholder="0,00" inputmode="decimal">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Preço de venda *</label>
+            <div class="form-control">
+              <span class="text-muted">R$</span>
+              <input name="sale_price" required placeholder="0,00" inputmode="decimal">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Margem-alvo (%)</label>
+            <div class="form-control form-control--plain">
+              <input name="target_margin_pct" value="{{ target_margin }}" inputmode="decimal">
+            </div>
+            <div class="form-hint">Padrão da loja: {{ target_margin }}%.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__title">Dados fiscais</div>
+          <div class="card__sub">usados na exportação da pré-nota</div>
+
+          <div class="grid grid--3 gap-3 mt-3">
+            <div class="form-group">
+              <label class="form-label">NCM</label>
+              <div class="form-control form-control--plain">
+                <input name="ncm" placeholder="Ex: 6104.43.00">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">CFOP padrão</label>
+              <div class="form-control form-control--plain">
+                <input name="cfop" placeholder="Ex: 5102">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Origem</label>
+              <div class="form-control form-control--plain">
+                <select name="origin_code">
+                  <option value="">Selecione</option>
+                  <option value="0">0 · Nacional</option>
+                  <option value="1">1 · Estrangeira · importação direta</option>
+                  <option value="2">2 · Estrangeira · adquirida no mercado interno</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid--2 gap-3 mb-0">
+          <div class="form-group mb-0">
+            <label class="form-label">Estoque inicial</label>
+            <div class="form-control form-control--plain">
+              <input name="stock_qty" type="number" min="0" value="0">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">Estoque mínimo</label>
+            <div class="form-control form-control--plain">
+              <input name="stock_min" type="number" min="0" value="2">
+            </div>
+            <div class="form-hint">Dispara alerta de reposição.</div>
+          </div>
+        </div>
+      </div>
+
+      {# ── Variações cor × tamanho ── #}
+      <div class="card">
+        <div class="card__title">Variações (opcional)</div>
+        <div class="card__sub">cadastre tamanhos e cores em lote · custo/preço herdam do produto-pai</div>
+
+        <div class="grid grid--2 gap-3 mt-3">
+          <div class="form-group">
+            <label class="form-label">Tamanhos</label>
+            <div class="form-control form-control--plain">
+              <input id="var-sizes-input" placeholder="2, 4, 6, 8, 10 (anos)"
+                     onchange="rebuildVariantMatrix()" onblur="rebuildVariantMatrix()">
+            </div>
+            <div class="form-hint">Separe por vírgula. Ex: P, M, G, GG</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cores</label>
+            <div class="form-control form-control--plain">
+              <input id="var-colors-input" placeholder="tangerina, preto, off-white"
+                     onchange="rebuildVariantMatrix()" onblur="rebuildVariantMatrix()">
+            </div>
+            <div class="form-hint">Separe por vírgula. Deixe vazio se não houver cor.</div>
+          </div>
+        </div>
+
+        <div id="variant-matrix-wrap" style="margin-top:12px"></div>
+        <div class="form-hint" id="variant-summary" style="margin-top:8px"></div>
+      </div>
+
+    </div>
+
+    {# ── Coluna direita: foto + submit ── #}
+    <div class="flex-col gap-3" style="position:sticky;top:110px">
+
+      <div class="card">
+        <div class="card__title">Foto do produto</div>
+        <div class="card__sub">jpeg/png · até 5 MB</div>
+
+        <label style="display:block;margin-top:14px;cursor:pointer">
+          <div id="img-preview" style="aspect-ratio:3/4;background:var(--gray-100);border:2px dashed var(--gray-300);border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--gray-500)">
+            <div style="text-align:center">
+              <svg style="width:32px;height:32px;margin-bottom:8px"><use xlink:href="#i-upload"/></svg>
+              <div style="font-size:12.5px">Clique para enviar<br>ou arraste aqui</div>
+            </div>
+          </div>
+          <input type="file" name="image" accept="image/*" style="display:none" onchange="previewImage(this)">
+        </label>
+      </div>
+
+      <div class="card">
+        <div class="flex gap-2" style="justify-content:flex-end">
+          <a href="{{ url_for('list_products') }}" class="btn btn--ghost">Cancelar</a>
+          <button type="submit" class="btn btn--lg">
+            <svg><use xlink:href="#i-check"/></svg> Criar produto
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function previewImage(input) {
+  if (!input.files || !input.files[0]) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('img-preview').innerHTML =
+      '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover">';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+// ── Matriz cor × tamanho ──────────────────────────────────────────────
+function parseChips(raw) {
+  return (raw || '')
+    .split(',')
+    .map(function(s){ return s.trim(); })
+    .filter(function(s){ return s.length > 0; })
+    .filter(function(v, i, a){ return a.indexOf(v) === i; }); // dedupe
+}
+
+function rebuildVariantMatrix() {
+  var sizes  = parseChips(document.getElementById('var-sizes-input').value);
+  var colors = parseChips(document.getElementById('var-colors-input').value);
+  var wrap   = document.getElementById('variant-matrix-wrap');
+  var summary = document.getElementById('variant-summary');
+
+  // Preserva valores já digitados antes de rebuild
+  var prev = {};
+  wrap.querySelectorAll('input[data-key]').forEach(function(inp){
+    prev[inp.dataset.key] = inp.value;
+  });
+
+  if (sizes.length === 0) {
+    wrap.innerHTML = '';
+    summary.textContent = '';
+    return;
+  }
+
+  // Sem cor: tabela de uma coluna (qty por tamanho)
+  if (colors.length === 0) colors = [''];
+
+  var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13.5px">';
+  html += '<thead><tr><th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--gray-200)">Tamanho \\ Cor</th>';
+  colors.forEach(function(c){
+    html += '<th style="text-align:center;padding:6px 8px;border-bottom:1px solid var(--gray-200);font-weight:600">'
+         + (c || '<span class="text-muted">—</span>') + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  sizes.forEach(function(sz){
+    html += '<tr><td style="padding:6px 8px;font-weight:600;border-bottom:1px solid var(--gray-100)">' + sz + '</td>';
+    colors.forEach(function(cl){
+      var key = sz + '||' + cl;
+      var val = prev[key] || '';
+      html += '<td style="padding:4px;border-bottom:1px solid var(--gray-100)">'
+           + '<input type="number" min="0" placeholder="0" value="' + val + '"'
+           + ' data-key="' + key + '" data-size="' + sz + '" data-color="' + cl + '"'
+           + ' style="width:100%;padding:6px 8px;border:1px solid var(--gray-200);border-radius:6px;text-align:center"'
+           + ' oninput="syncVariantInputs()">'
+           + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  // Container dos hidden inputs que serão enviados ao backend
+  html += '<div id="variant-hidden"></div>';
+
+  wrap.innerHTML = html;
+  syncVariantInputs();
+}
+
+function syncVariantInputs() {
+  var wrap = document.getElementById('variant-hidden');
+  if (!wrap) return;
+  var inputs = document.querySelectorAll('#variant-matrix-wrap input[data-key]');
+  var hidden = '';
+  var totalUnits = 0, totalSkus = 0;
+
+  inputs.forEach(function(inp){
+    var qty = parseInt(inp.value, 10);
+    if (isNaN(qty) || qty <= 0) return;
+    totalSkus += 1;
+    totalUnits += qty;
+    hidden += '<input type="hidden" name="var_size[]"  value="' + escapeAttr(inp.dataset.size)  + '">';
+    hidden += '<input type="hidden" name="var_color[]" value="' + escapeAttr(inp.dataset.color) + '">';
+    hidden += '<input type="hidden" name="var_qty[]"   value="' + qty + '">';
+  });
+  wrap.innerHTML = hidden;
+
+  var summary = document.getElementById('variant-summary');
+  if (totalSkus > 0) {
+    summary.textContent = totalSkus + ' variação(ões) · ' + totalUnits + ' peça(s) no total.';
+  } else {
+    summary.textContent = 'Preencha as quantidades. Variações com 0 não serão criadas.';
+  }
+}
+
+function escapeAttr(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+{% endblock %}

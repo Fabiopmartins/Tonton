@@ -1,0 +1,46 @@
+═══════════════════════════════════════════════════════════════════════════
+tonton · INTEGRAÇÃO DO LOOKBOOK NO app.py
+═══════════════════════════════════════════════════════════════════════════
+
+3 linhas no fim do app.py — depois de `app = create_app()` e antes do
+`if __name__ == "__main__":`.
+
+LOCALIZAÇÃO (na altura do arquivo atual, ~linha 8897):
+
+    app = create_app()
+    app.jinja_env.filters["as_date"] = _as_date_filter
+    app.jinja_env.filters["format_br_date"] = _format_br_date
+
+    # ╔════════════════════════════════════════════════════════════════╗
+    # ║ ADICIONAR ESTAS 3 LINHAS:                                      ║
+    # ╠════════════════════════════════════════════════════════════════╣
+    from lookbook import lookbook_bp, init_lookbook_db
+    init_lookbook_db(app)
+    app.register_blueprint(lookbook_bp)
+    # ╚════════════════════════════════════════════════════════════════╝
+
+    if __name__ == "__main__":
+        app.run(host="0.0.0.0", port=int(os.environ.get("PORT",5000)), debug=False)
+
+
+O QUE ACONTECE NO STARTUP:
+- init_lookbook_db cria as tabelas `looks` e `look_products` se não existirem
+  (usa o mesmo padrão de migration v10.7 / catalog_hero_images)
+- register_blueprint adiciona as rotas:
+    GET  /looks                        → lista admin
+    GET  /looks/new                    → formulário criar
+    POST /looks/new                    → criar
+    GET  /looks/<id>/edit              → formulário editar
+    POST /looks/<id>/edit              → salvar
+    POST /looks/<id>/delete            → apagar
+    POST /looks/<id>/toggle-publish    → publicar/despublicar
+    GET  /looks/<id>/image             → serve a foto da capa (cache-busted)
+    GET  /catalogo/look/<slug>         → página pública
+
+PRA REVERTER:
+- Apaga as 3 linhas
+- Apaga `lookbook.py`
+- Apaga os 3 templates: looks_list.html, look_form.html, public_look.html
+- Tabelas no Postgres ficam (não dão problema; apague manualmente se quiser)
+
+═══════════════════════════════════════════════════════════════════════════
