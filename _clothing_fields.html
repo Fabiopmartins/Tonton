@@ -1,0 +1,154 @@
+{# ============================================================
+   Ficha técnica de roupa · partial reutilizável
+   Aceita variável `product` (dict) opcional. Se ausente, usa defaults.
+   ============================================================ #}
+{% set _p = product if product is defined and product else {} %}
+{% set _ft = _p.get('fabric_type','') if _p else '' %}
+{% set _fit = _p.get('fit','') if _p else '' %}
+{% set _ln = _p.get('length_class','') if _p else '' %}
+{% set _cw = _p.get('care_wash','') if _p else '' %}
+{% set _cor = _p.get('country_of_origin','BR') if _p else 'BR' %}
+{% set _gsm = _p.get('fabric_weight_gsm','') if _p else '' %}
+{% set _comp = _p.get('composition') if _p else None %}
+
+<div class="card">
+  <div class="card__title">Ficha técnica · roupa</div>
+  <div class="text-muted" style="font-size:12.5px;margin:6px 0 14px">
+    Tudo opcional. Campos vazios não aparecem no catálogo.
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Composição do tecido</label>
+    <div id="comp-rows" style="display:flex;flex-direction:column;gap:6px"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+      <button type="button" class="btn btn--ghost btn--sm" onclick="compAddRow()">
+        + adicionar fibra
+      </button>
+      <span id="comp-total" style="font-size:12.5px;color:var(--gray-700)">Total: 0%</span>
+    </div>
+  </div>
+
+  <div class="grid grid--2 gap-3 mt-3">
+    <div class="form-group mb-0">
+      <label class="form-label">Tipo de tecido</label>
+      <div class="form-control form-control--plain">
+        <select name="fabric_type">
+          <option value="">—</option>
+          {% for v in ['malha','plano','jeans','moletom','tricot','plush','algodão pima','suedine','renda','couro','alfaiataria'] %}
+            <option value="{{ v }}" {% if _ft == v %}selected{% endif %}>{{ v }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-group mb-0">
+      <label class="form-label">Gramatura (g/m²)</label>
+      <div class="form-control form-control--plain">
+        <input name="fabric_weight_gsm" type="number" min="30" max="1500"
+               placeholder="ex: 180" value="{{ _gsm or '' }}">
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid--2 gap-3 mt-3">
+    <div class="form-group mb-0">
+      <label class="form-label">Modelagem</label>
+      <div class="form-control form-control--plain">
+        <select name="fit">
+          <option value="">—</option>
+          {% for v in ['regular','solta','ajustada','oversized','bebê','infantil','juvenil'] %}
+            <option value="{{ v }}" {% if _fit == v %}selected{% endif %}>{{ v }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-group mb-0">
+      <label class="form-label">Comprimento</label>
+      <div class="form-control form-control--plain">
+        <select name="length_class">
+          <option value="">—</option>
+          {% for v in ['curto','medio','longo','midi','mini','maxi'] %}
+            <option value="{{ v }}" {% if _ln == v %}selected{% endif %}>{{ v }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid--2 gap-3 mt-3 mb-0">
+    <div class="form-group mb-0">
+      <label class="form-label">Lavagem</label>
+      <div class="form-control form-control--plain">
+        <select name="care_wash">
+          <option value="">—</option>
+          <option value="wash_30"     {% if _cw=='wash_30'     %}selected{% endif %}>Lavar até 30 °C</option>
+          <option value="wash_40"     {% if _cw=='wash_40'     %}selected{% endif %}>Lavar até 40 °C</option>
+          <option value="wash_60"     {% if _cw=='wash_60'     %}selected{% endif %}>Lavar até 60 °C</option>
+          <option value="hand_wash"   {% if _cw=='hand_wash'   %}selected{% endif %}>Lavar à mão</option>
+          <option value="do_not_wash" {% if _cw=='do_not_wash' %}selected{% endif %}>Não lavar</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group mb-0">
+      <label class="form-label">País de origem</label>
+      <div class="form-control form-control--plain">
+        <input name="country_of_origin" maxlength="2" placeholder="BR" value="{{ _cor }}">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const FIBERS = ['algodão','poliéster','elastano','viscose','linho','lã',
+                  'poliamida','modal','acrílico','seda','tencel','cupro'];
+
+  let initial = [];
+  {% if _comp %}
+    try {
+      const raw = {{ _comp|tojson }};
+      initial = (typeof raw === 'string') ? JSON.parse(raw) : raw;
+      if (!Array.isArray(initial)) initial = [];
+    } catch (e) { initial = []; }
+  {% endif %}
+
+  const wrap = document.getElementById('comp-rows');
+
+  function buildRow(fiber, pct){
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;align-items:center';
+    row.innerHTML = `
+      <select name="comp_fiber[]" style="flex:2;padding:8px;border:1px solid var(--gray-300);border-radius:var(--r-sm);background:#fff">
+        <option value="">selecione…</option>
+        ${FIBERS.map(f => `<option value="${f}" ${f===fiber?'selected':''}>${f}</option>`).join('')}
+      </select>
+      <input type="number" name="comp_pct[]" min="1" max="100" placeholder="%"
+             value="${pct||''}" style="width:80px;padding:8px;border:1px solid var(--gray-300);border-radius:var(--r-sm)">
+      <span style="color:var(--gray-700);font-size:13px">%</span>
+      <button type="button" class="btn btn--ghost btn--sm" style="color:var(--danger)"
+              onclick="this.closest('div').remove(); compRecalc()">×</button>
+    `;
+    row.querySelector('input').addEventListener('input', compRecalc);
+    return row;
+  }
+
+  window.compAddRow = function(fiber, pct){
+    wrap.appendChild(buildRow(fiber, pct));
+    compRecalc();
+  };
+
+  window.compRecalc = function(){
+    const inputs = wrap.querySelectorAll('input[name="comp_pct[]"]');
+    let total = 0;
+    inputs.forEach(i => { const n = parseInt(i.value||0,10); if(!isNaN(n)) total += n; });
+    const el = document.getElementById('comp-total');
+    el.textContent = `Total: ${total}%`;
+    el.style.color = (total === 100) ? '#2c6e49'
+                  : (total === 0)   ? 'var(--gray-700)'
+                                    : 'var(--danger)';
+  };
+
+  if (initial.length){
+    initial.forEach(r => compAddRow(r.fibra, r.percentual));
+  }
+})();
+</script>

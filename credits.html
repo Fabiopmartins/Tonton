@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}{{ customer['name'] }} · tonton{% endblock %}
+{% set page_sub_label = "CRM · perfil" %}
+{% block page_title %}{{ customer['name'] }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('edit_customer', cid=customer['id']) }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-edit"/></svg> Editar
+  </a>
+  <a href="{{ url_for('list_customers') }}" class="btn btn--soft btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+{% endblock %}
+
+{% block body %}
+
+{% set total_spent = sales|sum(attribute='total')|float %}
+{% set sale_count = sales|length %}
+{% set ticket = (total_spent / sale_count) if sale_count else 0 %}
+{% set is_vip = total_spent >= 1000 %}
+
+<div class="grid grid--profile" style="align-items:start">
+
+  {# ── Coluna principal: pedidos + preferências ─────── #}
+  <div class="flex-col gap-3">
+
+    <div class="card card--flush">
+      <div class="card__header">
+        <div>
+          <div class="card__title">Histórico de compras</div>
+          <div class="card__sub">{{ sale_count }} {{ 'pedido' if sale_count == 1 else 'pedidos' }}</div>
+        </div>
+        <a href="{{ url_for('create_sale') }}?customer_id={{ customer['id'] }}" class="btn btn--sm">
+          <svg><use xlink:href="#i-plus"/></svg> Nova venda
+        </a>
+      </div>
+
+      {% if sales %}
+        <div class="table__head" style="grid-template-columns:60px 110px 2fr 110px 100px">
+          <span></span><span>Pedido</span><span>Itens</span><span>Total</span><span>Data</span>
+        </div>
+        {% for s in sales %}
+          <a href="{{ url_for('sale_detail', sid=s['id']) }}" class="table__row" style="grid-template-columns:60px 110px 2fr 110px 100px;text-decoration:none;color:inherit">
+            <div class="thumb thumb--h{{ loop.index0 % 8 }}" style="width:44px;height:54px"></div>
+            <div>
+              <div class="text-mono" style="font-size:12.5px;font-weight:600">#{{ s['sale_number'] or s['id'] }}</div>
+              <span class="chip chip--sm chip--{% if s['status'] == 'cancelled' %}coral{% elif s['status'] == 'returned' %}magenta{% else %}mint{% endif %}" style="margin-top:4px">
+                {{ s['status'] or 'ativa' }}
+              </span>
+            </div>
+            <div class="text-muted" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+              {{ s['items'] or '—' }}
+            </div>
+            <div class="text-price">R$ {{ format_money(s['total']) }}</div>
+            <div class="text-muted" style="font-size:12px">{{ s['created_at'][:10] if s['created_at'] else '—' }}</div>
+          </a>
+        {% endfor %}
+      {% else %}
+        <div class="empty">
+          <div class="empty__title">Nenhuma compra ainda</div>
+          <div class="empty__sub">Esta cliente ainda não realizou pedidos.</div>
+          <a href="{{ url_for('create_sale') }}?customer_id={{ customer['id'] }}" class="btn">
+            <svg><use xlink:href="#i-plus"/></svg> Nova venda
+          </a>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if prefs %}
+      <div class="card">
+        <div class="card__title">Preferências de compra</div>
+        <div class="card__sub">categorias mais frequentes</div>
+        <div class="flex-col gap-2 mt-2">
+          {% set max_qty = prefs[0]['qty'] if prefs else 1 %}
+          {% for p in prefs %}
+            <div>
+              <div class="flex-between" style="font-size:13px;margin-bottom:4px">
+                <span style="font-weight:500">{{ p['category'] }}</span>
+                <span class="text-muted">{{ p['qty'] }} peças</span>
+              </div>
+              <div class="progress">
+                <div class="progress__fill" style="width:{{ (p['qty'] * 100 / max_qty)|round }}%"></div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  {# ── Drawer lateral com perfil ────────────────────── #}
+  <div class="card card--flush" style="position:sticky;top:110px">
+
+    <div class="drawer-hero">
+      <div class="drawer-hero__row">
+        <div class="avatar avatar--lg" style="background:var(--white);color:var(--coral)">
+          {{ customer['name'][:2]|upper }}
+        </div>
+        <div style="position:relative">
+          <div class="drawer-hero__name">{{ customer['name'] }}</div>
+          <div class="drawer-hero__sub">
+            {% if is_vip %}VIP · {% endif %}
+            desde {{ customer['created_at'][:7] if customer['created_at'] else '—' }}
+          </div>
+        </div>
+      </div>
+      <div class="drawer-hero__stats">
+        <div class="stat-block">
+          <div class="stat-block__label">Gastou</div>
+          <div class="stat-block__value">R$ {{ format_money(total_spent) }}</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-block__label">Pedidos</div>
+          <div class="stat-block__value">{{ sale_count }}</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-block__label">Ticket</div>
+          <div class="stat-block__value">R$ {{ format_money(ticket) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding:22px">
+      <div class="flex-col gap-1">
+        {% if customer['email'] %}
+          <div class="info-row">
+            <svg><use xlink:href="#i-mail"/></svg>
+            <a href="mailto:{{ customer['email'] }}" style="color:inherit">{{ customer['email'] }}</a>
+          </div>
+        {% endif %}
+        {% if customer['phone'] %}
+          <div class="info-row">
+            <svg><use xlink:href="#i-phone"/></svg>
+            {{ format_phone_display(customer['phone']) }}
+          </div>
+        {% endif %}
+        {% if customer['instagram'] %}
+          <div class="info-row">
+            <svg><use xlink:href="#i-ig"/></svg>
+            @{{ customer['instagram']|replace('@','') }}
+          </div>
+        {% endif %}
+        {% if customer['birthday'] %}
+          <div class="info-row">
+            <svg><use xlink:href="#i-gift"/></svg>
+            Aniversário · {{ customer['birthday'] }}
+          </div>
+        {% endif %}
+      </div>
+
+      {% if customer['notes'] %}
+        <div class="section-label">Anotações</div>
+        <div style="font-size:13px;color:var(--gray-700);line-height:1.5;padding:10px 12px;background:var(--gray-100);border-radius:var(--r-md)">
+          {{ customer['notes'] }}
+        </div>
+      {% endif %}
+
+      <div class="grid grid--2 gap-1" style="margin-top:20px">
+        {% if customer['phone'] %}
+          <a href="https://wa.me/55{{ customer['phone']|replace(' ','')|replace('-','')|replace('(','')|replace(')','') }}" target="_blank" class="btn btn--soft btn--sm">
+            <svg><use xlink:href="#i-wpp"/></svg> WhatsApp
+          </a>
+        {% endif %}
+        <a href="{{ url_for('create_sale') }}?customer_id={{ customer['id'] }}" class="btn btn--dark btn--sm">
+          <svg><use xlink:href="#i-plus"/></svg> Venda
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

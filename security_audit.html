@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+{% block title %}{% if look %}{{ look.name }}{% else %}Novo look{% endif %} · Lookbook{% endblock %}
+{% set page_sub_label = "lookbook · " ~ ("editar" if look else "novo cadastro") %}
+{% block page_title %}{{ look.name if look else "Novo look" }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('lookbook.list_looks') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+  {% if look %}
+    <a href="{{ url_for('lookbook.public_look', slug=look.slug) }}" target="_blank" class="btn btn--ghost btn--sm">
+      <svg><use xlink:href="#i-eye"/></svg> Ver no catálogo
+    </a>
+  {% endif %}
+{% endblock %}
+
+{% block body %}
+
+<form method="post" enctype="multipart/form-data" id="look-form">
+  {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+  <div class="grid grid--1-2" style="align-items:start;gap:36px">
+
+    {# ═══════════════ COLUNA ESQUERDA — Capa do look ═══════════════ #}
+    <div style="position:sticky;top:110px">
+      <div class="me-card__sub" style="margin-bottom:14px">Foto da combinação</div>
+
+      <label class="me-photo-slot" id="me-photo-main">
+        {% if look and look.image_version and look.image_version > 0 %}
+          <img class="me-photo-slot__img" id="me-photo-preview"
+               src="{{ url_for('lookbook.look_image', look_id=look.id, v=look.image_version) }}"
+               alt="Capa do look">
+        {% else %}
+          <div class="me-photo-slot__placeholder" id="me-photo-placeholder">
+            <div style="text-align:center">
+              <svg style="width:32px;height:32px;margin-bottom:10px;opacity:.5"><use xlink:href="#i-image"/></svg>
+              <div>foto da combinação</div>
+            </div>
+          </div>
+        {% endif %}
+        <input type="file" name="cover_image" accept="image/*" style="display:none" id="me-photo-input"
+               onchange="mePreviewLookImage(this)">
+        <span class="me-photo-slot__overlay" aria-hidden="true">
+          <svg><use xlink:href="#i-image"/></svg>
+          {% if look and look.image_version %}substituir{% else %}adicionar{% endif %}
+        </span>
+      </label>
+
+      <p class="me-thumb-strip__caption">
+        Foto da combinação completa — vestida ou flat lay. Aparece como capa no Instagram e no catálogo.
+      </p>
+    </div>
+
+    {# ═══════════════ COLUNA DIREITA — Blocos numerados ═══════════════ #}
+    <div>
+
+      {# 01 · Nome e voz editorial #}
+      <section class="me-section">
+        <div class="me-section__head">
+          <h2 class="me-section__title">
+            <span class="me-section__title-num">01</span>como ele se chama
+          </h2>
+          <span class="me-section__aside">aparece como título da página</span>
+        </div>
+
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Nome</span>
+          </div>
+          <input name="name" required value="{{ look.name if look else '' }}"
+                 placeholder="Ex: Outono frio · linho e couro" autofocus>
+        </div>
+
+        <div class="me-field-grid">
+          <div class="me-field">
+            <div class="me-field__label">
+              <span class="me-field__name">Eyebrow</span>
+              <span class="me-field__hint">opcional · ex: edição outono 26</span>
+            </div>
+            <input name="eyebrow" value="{{ look.eyebrow if look and look.eyebrow else '' }}"
+                   placeholder="Edição outono 26">
+          </div>
+          <div class="me-field">
+            <div class="me-field__label">
+              <span class="me-field__name">Slug</span>
+              <span class="me-field__hint">URL — gera automático</span>
+            </div>
+            <input name="slug" value="{{ look.slug if look else '' }}"
+                   placeholder="outono-frio-linho">
+          </div>
+        </div>
+
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Voz curatorial</span>
+            <span class="me-field__hint">por que essas peças combinam</span>
+          </div>
+          <textarea name="description" rows="3"
+                    placeholder="O linho lavado pede o couro como contraste. Cinto que marca, sandália que respira — o look que sobrevive a três estações sem cansar.">{{ look.description if look and look.description else '' }}</textarea>
+        </div>
+      </section>
+
+      {# 02 · Peças do look #}
+      <section class="me-section">
+        <div class="me-section__head">
+          <h2 class="me-section__title">
+            <span class="me-section__title-num">02</span>peças deste look
+          </h2>
+          <span class="me-section__aside">2 a 4 peças · arraste pra reordenar</span>
+        </div>
+
+        <div id="look-products-list" class="me-look-products">
+          {# Renderiza produtos já vinculados #}
+          {% for p in look_products %}
+            <div class="me-look-product-row" data-product-id="{{ p.id }}">
+              <span class="me-look-product-row__handle" aria-hidden="true">⋮⋮</span>
+              {% if p.img_id %}
+                <div class="me-look-product-row__thumb"
+                     style="background-image:url('{{ url_for('product_gallery_image', pid=p.id, img_id=p.img_id, v=1) }}')"></div>
+              {% else %}
+                <div class="me-look-product-row__thumb thumb thumb--h{{ loop.index0 % 8 }}"></div>
+              {% endif %}
+              <div style="min-width:0;flex:1">
+                <div style="font-family:var(--f-body);font-size:13.5px;font-weight:500">{{ p.name }}</div>
+                <div style="font-family:var(--f-mono);font-size:10.5px;letter-spacing:.06em;color:var(--gray-500)">R$ {{ '%.2f'|format(p.sale_price|float)|replace('.', ',') }}</div>
+              </div>
+              <button type="button" class="me-look-product-row__remove" aria-label="Remover" onclick="lookRemoveProduct(this)">×</button>
+              <input type="hidden" name="product_ids[]" value="{{ p.id }}">
+            </div>
+          {% endfor %}
+        </div>
+
+        <div class="me-field" style="margin-top:18px">
+          <div class="me-field__label">
+            <span class="me-field__name">Adicionar peça</span>
+          </div>
+          <select id="look-product-picker" onchange="lookAddProduct(this)">
+            <option value="">— escolher peça —</option>
+            {% for p in products %}
+              <option value="{{ p.id }}"
+                      data-name="{{ p.name }}"
+                      data-price="R$ {{ '%.2f'|format(p.sale_price|float)|replace('.', ',') }}"
+                      data-thumb="{% if p.img_id %}{{ url_for('product_gallery_image', pid=p.id, img_id=p.img_id, v=1) }}{% endif %}">
+                {{ p.name }}{% if p.sku %} · {{ p.sku }}{% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      </section>
+
+      {# 03 · Status #}
+      <section class="me-section">
+        <div class="me-section__head">
+          <h2 class="me-section__title">
+            <span class="me-section__title-num">03</span>publicação
+          </h2>
+        </div>
+        <div class="me-field">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px">
+            <input type="checkbox" name="is_published" value="1"
+                   {% if look and look.is_published %}checked{% endif %}>
+            <span>Publicar este look no catálogo público</span>
+          </label>
+          <div class="me-field__hint" style="margin-top:6px;margin-left:28px">
+            Quando marcado, a página fica acessível em <code style="font-size:11px">/catalogo/look/&lt;slug&gt;</code>
+          </div>
+        </div>
+      </section>
+
+      <div class="me-footer-bar">
+        <div class="me-footer-bar__status">
+          <span class="me-footer-bar__dot"></span>
+          {% if look %}
+            <span>{% if look.is_published %}publicado{% else %}rascunho{% endif %}</span>
+            <span style="color:var(--gray-300)">·</span>
+            <span>última edição: {{ look.updated_at|string|truncate(16, true, '') if look.updated_at else 'nunca' }}</span>
+          {% else %}
+            <span>novo · não salvo</span>
+          {% endif %}
+        </div>
+        <div class="me-footer-bar__actions">
+          {% if look %}
+            {# HTML proíbe <form> aninhado. Em vez disso, usamos formaction +
+               formmethod no botão para submeter este botão específico para
+               outra URL, sem precisar de tag <form> própria. O csrf_token do
+               form principal (L20) é enviado junto. #}
+            <button type="submit"
+                    formaction="{{ url_for('lookbook.delete_look', look_id=look.id) }}"
+                    formmethod="post"
+                    class="btn btn--ghost"
+                    style="color:var(--magenta-deep)"
+                    onclick="return confirm('Remover este look? A ação não pode ser desfeita.')">
+              <svg><use xlink:href="#i-trash"/></svg> apagar
+            </button>
+          {% endif %}
+          <button type="submit" class="btn">
+            <svg><use xlink:href="#i-check"/></svg> {% if look %}salvar alterações{% else %}criar look{% endif %}
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function mePreviewLookImage(input) {
+  if (!input.files || !input.files[0]) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var slot = document.getElementById('me-photo-main');
+    var ph   = document.getElementById('me-photo-placeholder');
+    if (ph) ph.style.display = 'none';
+    var existing = document.getElementById('me-photo-preview');
+    if (!existing) {
+      var img = document.createElement('img');
+      img.id = 'me-photo-preview';
+      img.className = 'me-photo-slot__img';
+      img.alt = 'Capa do look';
+      slot.insertBefore(img, slot.firstChild);
+      existing = img;
+    }
+    existing.src = e.target.result;
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function lookAddProduct(select) {
+  var pid = select.value;
+  if (!pid) return;
+  var opt = select.options[select.selectedIndex];
+  var name = opt.dataset.name;
+  var price = opt.dataset.price;
+  var thumb = opt.dataset.thumb;
+
+  var list = document.getElementById('look-products-list');
+  // Já está na lista? não duplica.
+  if (list.querySelector('[data-product-id="' + pid + '"]')) {
+    select.value = '';
+    return;
+  }
+
+  var row = document.createElement('div');
+  row.className = 'me-look-product-row';
+  row.dataset.productId = pid;
+  row.innerHTML =
+    '<span class="me-look-product-row__handle" aria-hidden="true">⋮⋮</span>' +
+    (thumb
+      ? '<div class="me-look-product-row__thumb" style="background-image:url(\'' + thumb + '\')"></div>'
+      : '<div class="me-look-product-row__thumb thumb thumb--h0"></div>') +
+    '<div style="min-width:0;flex:1">' +
+      '<div style="font-family:var(--f-body);font-size:13.5px;font-weight:500">' + escapeHtml(name) + '</div>' +
+      '<div style="font-family:var(--f-mono);font-size:10.5px;letter-spacing:.06em;color:var(--gray-500)">' + escapeHtml(price) + '</div>' +
+    '</div>' +
+    '<button type="button" class="me-look-product-row__remove" aria-label="Remover" onclick="lookRemoveProduct(this)">×</button>' +
+    '<input type="hidden" name="product_ids[]" value="' + pid + '">';
+  list.appendChild(row);
+  select.value = '';
+}
+
+function lookRemoveProduct(btn) {
+  var row = btn.closest('.me-look-product-row');
+  if (row && confirm('Remover esta peça do look?')) row.remove();
+}
+
+function escapeHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+{% endblock %}

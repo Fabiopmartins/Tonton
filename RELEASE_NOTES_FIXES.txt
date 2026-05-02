@@ -1,0 +1,31 @@
+Aplicação corrigida nesta entrega
+
+1. Dashboard
+- Corrigido page_sub_label renderizando Jinja cru.
+- now agora é enviado ao template.
+- Despesas do mês agora usam fechamento correto do mês, sem truncar no dia 28.
+- Vendas canceladas não entram mais em vendas recentes.
+- Top produtos do mês agora respeita o fechamento do mês.
+- Gráfico mensal passou a mostrar resultado operacional mensal.
+- Vendas canceladas não entram mais no gráfico.
+- Eixo Y do gráfico agora mostra escala em reais.
+
+2. PDV / Nova venda
+- Validação de estoque no frontend ao aumentar quantidade.
+- Validação de estoque no backend antes da gravação.
+- Backend não confia mais no preço enviado pelo browser; usa o preço atual do produto no banco.
+- Cupom agora é revalidado no backend (ativo, expiração, limite de usos e compra mínima).
+- Filtro de busca agora combina texto + categoria.
+- Busca considera nome, SKU e categoria.
+- Scanner deixa de ser botão morto: abre câmera quando suportado e oferece busca manual por SKU/nome.
+
+3. Configuração
+- _get_stable_secret_key agora usa o mesmo DB_PATH da aplicação.
+
+Observações
+- A aplicação continua monolítica em app.py; modularização não foi feita nesta entrega.
+- Não removi os estilos inline em massa para evitar regressão visual ampla.
+- A leitura automática real de código por câmera depende de biblioteca/browser; nesta entrega ficou com câmera funcional e fallback manual.
+- Catálogo público redesenhado para uma apresentação mais limpa, com menos elementos visuais e foco na vitrine.
+- Botão de contato do catálogo alterado para abrir o Instagram oficial da marca.
+- Ordenação do catálogo público corrigida para aplicar efetivamente menor/maior preço e mais recentes.

@@ -1,0 +1,573 @@
+{% extends "base.html" %}
+{% block title %}Venda #{{ sale['sale_number'] or sale['id'] }} · tonton{% endblock %}
+{% set page_sub_label = "venda · detalhes" %}
+{% block page_title %}Pedido #{{ sale['sale_number'] or sale['id'] }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('list_sales') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+  <button class="btn btn--ghost btn--sm" onclick="window.print()">
+    <svg><use xlink:href="#i-download"/></svg> Imprimir
+  </button>
+  <a href="{{ url_for('sale_prefatura_pdf', sid=sale['id']) }}" class="btn btn--ghost btn--sm" target="_blank" rel="noopener">
+    <svg><use xlink:href="#i-receipt"/></svg> Pré-nota PDF
+  </a>
+  <a href="{{ url_for('sale_prefatura_csv', sid=sale['id']) }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-download"/></svg> Pré-nota CSV
+  </a>
+  <a href="{{ url_for('sale_prefatura_json', sid=sale['id']) }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-download"/></svg> Pré-nota JSON
+  </a>
+  {% if shipping_ready %}
+    <a href="{{ url_for('sale_dispatch_label', sid=sale['id']) }}" class="btn btn--ghost btn--sm" target="_blank" rel="noopener">
+      <svg><use xlink:href="#i-truck"/></svg> Etiqueta despacho
+    </a>
+  {% endif %}
+  {% if sale['status'] != 'cancelled' %}
+    <button class="btn btn--soft btn--sm" onclick="document.getElementById('cancel-dialog').style.display='flex'">
+      <svg><use xlink:href="#i-x"/></svg> Cancelar venda
+    </button>
+  {% endif %}
+{% endblock %}
+
+{% block body %}
+
+{% set status_tone = 'coral' if sale['status'] == 'cancelled' else ('magenta' if sale['status'] == 'returned' else 'mint') %}
+{% set status_label = 'cancelada' if sale['status'] == 'cancelled' else ('devolvida' if sale['status'] == 'returned' else 'ativa') %}
+
+<div class="grid grid--2-1" style="align-items:start">
+
+  {# ── Coluna principal: itens + devoluções ── #}
+  <div class="flex-col gap-3">
+
+    {# Header da venda #}
+    <div class="card card--flush">
+      <div style="padding:22px;background:var(--grad-soft);border-radius:var(--r-lg) var(--r-lg) 0 0;position:relative">
+        <div class="flex-between" style="align-items:flex-start">
+          <div>
+            <div class="text-eyebrow">✦ pedido · {{ sale['payment_method'] or 'pago' }}</div>
+            <div class="text-display" style="font-size:38px;margin-top:4px">
+              #{{ sale['sale_number'] or sale['id'] }}
+            </div>
+            <div class="text-muted" style="font-size:13px;margin-top:4px">
+              {{ sale['created_at'][:16] if sale['created_at'] else '—' }} · operado por {{ sale['operator_name'] or '—' }}
+            </div>
+          </div>
+          <span class="chip chip--{{ status_tone }}">{{ status_label }}</span>
+        </div>
+
+        {% if sale['status'] == 'cancelled' and sale['cancel_reason'] %}
+          <div style="margin-top:14px;padding:10px 12px;background:var(--danger-bg);border-radius:var(--r-sm);font-size:12.5px;color:var(--danger)">
+            <strong>Motivo do cancelamento:</strong> {{ sale['cancel_reason'] }}
+            {% if sale['cancelled_at'] %}<span class="text-muted" style="color:inherit;opacity:.8"> · {{ sale['cancelled_at'][:16] }}</span>{% endif %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# v9: Status do pagamento — destaque com ações se pendente #}
+    {% if sale['status'] != 'cancelled' %}
+    {% set pstatus = sale['payment_status'] or 'paid' %}
+    <div class="card" style="border-left:4px solid {% if pstatus == 'paid' %}var(--mint-ink){% elif pstatus == 'pending' %}var(--coral-deep){% else %}var(--gray-400){% endif %}">
+      <div class="flex-between" style="align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <div class="kpi__label">Status do pagamento</div>
+          <div style="font-size:18px;font-weight:600;margin-top:4px">
+            {% if pstatus == 'paid' %}
+              ✓ Pagamento confirmado
+            {% elif pstatus == 'pending' %}
+              ⏳ Aguardando pagamento
+            {% elif pstatus == 'failed' %}
+              ✗ Pagamento não recebido
+            {% elif pstatus == 'refunded' %}
+              ↩ Pagamento estornado
+            {% endif %}
+          </div>
+          {% if pstatus == 'paid' and sale['payment_confirmed_at'] %}
+            <div class="text-muted" style="font-size:12px;margin-top:2px">
+              Confirmado em {{ sale['payment_confirmed_at'][:16] }}
+              {% if sale['payment_confirmed_by'] %} por {{ sale['payment_confirmed_by'] }}{% endif %}
+            </div>
+          {% endif %}
+        </div>
+        {% if pstatus == 'pending' %}
+        <div class="flex gap-1" style="flex-wrap:wrap">
+          <form method="post" action="{{ url_for('confirm_payment', sid=sale['id']) }}" style="display:inline">
+            {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+            <button type="submit" class="btn" style="background:var(--mint);color:var(--mint-ink);border:0">
+              <svg><use xlink:href="#i-check"/></svg> Confirmar pagamento
+            </button>
+          </form>
+          <form method="post" action="{{ url_for('cancel_payment', sid=sale['id']) }}" style="display:inline"
+                onsubmit="return confirm('Cancelar a venda por não-pagamento? Estoque será reposto.');">
+            {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+            <button type="submit" class="btn btn--soft">
+              <svg><use xlink:href="#i-x"/></svg> Cancelar por não-pagamento
+            </button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# Itens da venda #}
+    <div class="card card--flush">
+      <div class="card__header">
+        <div>
+          <div class="card__title">Itens vendidos</div>
+          <div class="card__sub">{{ items|length }} {{ 'item' if items|length == 1 else 'itens' }}</div>
+        </div>
+      </div>
+
+      <div class="table__head" style="grid-template-columns:60px 2fr 80px 120px 120px">
+        <span></span><span>Produto</span><span>Qtd</span><span>Unitário</span><span>Total</span>
+      </div>
+      {% for it in items %}
+        {% set _vsize  = it['variant_size']  if 'variant_size'  in it.keys() else None %}
+        {% set _vcolor = it['variant_color'] if 'variant_color' in it.keys() else None %}
+        <div class="table__row" style="grid-template-columns:60px 2fr 80px 120px 120px">
+          <div class="thumb thumb--h{{ loop.index0 % 8 }}" style="width:44px;height:54px"></div>
+          <div>
+            <div style="font-weight:600;font-size:13.5px">{{ it['product_name'] }}</div>
+            {% if _vsize or _vcolor %}
+              <div style="font-size:11.5px;color:var(--coral-deep);font-weight:600;margin-top:1px">
+                {{ _vsize or '—' }} · {{ _vcolor or '—' }}
+              </div>
+            {% endif %}
+            <div class="text-mono" style="font-size:11.5px;color:var(--gray-500)">{{ it['sku'] or '—' }}</div>
+          </div>
+          <div style="font-weight:600">{{ it['qty'] }} {{ it['unit'] or '' }}</div>
+          <div style="font-size:12.5px;color:var(--gray-700)">R$ {{ format_money(it['unit_price']) }}</div>
+          <div class="text-price">R$ {{ format_money((it['unit_price']|float) * (it['qty']|int)) }}</div>
+        </div>
+      {% else %}
+        <div class="empty">
+          <div class="empty__title">Sem itens</div>
+        </div>
+      {% endfor %}
+    </div>
+
+    {# Devoluções (se houver) #}
+    {% if returns %}
+      <div class="card card--flush">
+        <div class="card__header">
+          <div>
+            <div class="card__title">Devoluções</div>
+            <div class="card__sub">{{ returns|length }} {{ 'item devolvido' if returns|length == 1 else 'itens devolvidos' }}</div>
+          </div>
+        </div>
+        <div class="table__head" style="grid-template-columns:2fr 100px 120px 1fr">
+          <span>Produto</span><span>Qtd</span><span>Valor</span><span>Motivo</span>
+        </div>
+        {% for r in returns %}
+          <div class="table__row" style="grid-template-columns:2fr 100px 120px 1fr">
+            <div style="font-weight:600;font-size:13.5px">{{ r['product_name'] }}</div>
+            <div style="color:var(--magenta-deep)">−{{ r['qty'] }}</div>
+            <div class="text-price" style="color:var(--magenta-deep)">− R$ {{ format_money(r['refund_amount']) }}</div>
+            <div class="text-muted" style="font-size:12.5px">{{ r['reason'] or '—' }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {# Crédito gerado (se houver) #}
+    {% if credit %}
+      <div class="card" style="background:var(--grad-soft);border:0">
+        <div class="flex-between">
+          <div>
+            <div class="text-eyebrow" style="color:var(--magenta-deep)">✦ crédito emitido</div>
+            <div class="text-display" style="font-size:26px;margin-top:4px">
+              R$ {{ format_money(credit['balance']) }}
+            </div>
+            <div style="font-size:12.5px;color:var(--plum);margin-top:4px">
+              {{ credit['customer_name'] or '—' }}
+              {% if credit['expires_at'] %}· expira em {{ credit['expires_at'][:10] }}{% endif %}
+            </div>
+          </div>
+          <span class="chip chip--{{ 'mint' if credit['status'] == 'active' else 'neutral' }}">
+            {{ credit['status'] }}
+          </span>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  {# ── Coluna direita: totais + cliente ── #}
+  <div class="flex-col gap-3" style="position:sticky;top:110px">
+
+    {# Totais #}
+    <div class="card">
+      <div class="card__title">Totais</div>
+      <div class="card__sub">do pedido</div>
+
+      <div class="flex-col gap-2 mt-3" style="font-size:13px">
+        <div class="flex-between">
+          <span class="text-muted">Subtotal</span>
+          <span>R$ {{ format_money(sale['subtotal']) }}</span>
+        </div>
+        {% if sale['discount_amount'] and sale['discount_amount']|float > 0 %}
+          <div class="flex-between">
+            <span class="text-muted">Desconto</span>
+            <span style="color:var(--magenta-deep)">− R$ {{ format_money(sale['discount_amount']) }}</span>
+          </div>
+        {% endif %}
+        {% if sale['coupon_code'] %}
+          <div class="flex-between">
+            <span class="text-muted">Cupom aplicado</span>
+            <span class="text-mono" style="color:var(--coral-deep)">{{ sale['coupon_code'] }}</span>
+          </div>
+        {% endif %}
+
+        <div style="height:1px;background:var(--gray-200);margin:6px 0"></div>
+
+        <div class="flex-between" style="align-items:baseline">
+          <span style="font-weight:600;font-size:14px">Total</span>
+          <span class="text-display" style="font-size:38px;color:var(--coral-deep);letter-spacing:-.02em">
+            R$ {{ format_money(sale['total']) }}
+          </span>
+        </div>
+
+        <div class="flex-between mt-2">
+          <span class="text-muted" style="font-size:12px">Forma de pagamento</span>
+          <span class="chip chip--sm chip--{% if sale['payment_method'] == 'pix' %}coral{% elif sale['payment_method'] == 'card' %}magenta{% else %}neutral{% endif %}">
+            {{ sale['payment_method'] or '—' }}
+          </span>
+        </div>
+      </div>
+
+      {% if sale['notes'] %}
+        <div class="section-label">Observações</div>
+        <div style="font-size:12.5px;color:var(--gray-700);line-height:1.5;padding:10px;background:var(--gray-100);border-radius:var(--r-sm)">
+          {{ sale['notes'] }}
+        </div>
+      {% endif %}
+    </div>
+
+    {# ─────────  PIX dinâmico — multi-PSP  ───────── #}
+    {% if sale['status'] != 'cancelled' and sale['total'] and sale['total']|float > 0 %}
+    <div class="card pix-card" id="pix-card"
+         data-sale-id="{{ sale['id'] }}"
+         data-charge-id="{{ active_charge['id'] if active_charge else '' }}"
+         data-charge-status="{{ active_charge['status'] if active_charge else '' }}">
+
+      <div class="flex-between" style="align-items:flex-start">
+        <div>
+          <div class="card__title">Cobrar via PIX</div>
+          <div class="card__sub">
+            {% if pix_accounts %}escolha a conta de recebimento{% else %}sem contas cadastradas{% endif %}
+          </div>
+        </div>
+        <span class="chip chip--sm chip--mint" id="pix-status-chip">
+          {% if active_charge %}{{ active_charge['status'] }}{% else %}—{% endif %}
+        </span>
+      </div>
+
+      {# Sem contas cadastradas → CTA para configurar #}
+      {% if not pix_accounts %}
+        <div class="mt-3" style="background:#fff5f5;border:1px solid #ffd0d0;color:#9a0000;padding:12px;border-radius:8px;font-size:12.5px;line-height:1.5">
+          <strong>Nenhuma conta PIX cadastrada.</strong>
+          <div style="margin-top:6px">
+            <a href="{{ url_for('list_pix_accounts') }}" style="color:#9a0000;font-weight:700;text-decoration:underline">
+              Cadastrar conta agora →
+            </a>
+          </div>
+        </div>
+      {% else %}
+
+        {# Já existe cobrança ativa — mostra direto #}
+        {% if active_charge %}
+          <div id="pix-result" class="mt-3">
+            <div style="background:#fff;padding:12px;border-radius:var(--r-md);border:1px solid var(--gray-200);text-align:center">
+              <img id="pix-qr-img" alt="QR Code PIX"
+                   src="{{ url_for('pix_charge_qr', charge_id=active_charge['id']) }}"
+                   style="max-width:240px;width:100%;height:auto;display:block;margin:0 auto"
+                   onerror="this.style.display='none'">
+            </div>
+
+            <div class="text-muted mt-2" style="font-size:11px;text-align:center">
+              <span id="pix-provider-label">{{ active_charge['provider']|upper }}</span>
+              · R$ <span id="pix-amount-label">{{ format_money(active_charge['amount']) }}</span>
+            </div>
+
+            <div class="section-label">Código copia-e-cola</div>
+            <div style="position:relative">
+              <textarea id="pix-brcode-text" readonly rows="3"
+                        style="width:100%;font-family:var(--f-mono);font-size:10.5px;padding:10px;padding-right:42px;border:1px solid var(--gray-300);border-radius:var(--r-sm);resize:none;background:var(--gray-100);color:var(--gray-900);word-break:break-all">{{ active_charge['brcode'] or '' }}</textarea>
+              <button type="button" id="pix-copy-btn" title="Copiar código"
+                      style="position:absolute;top:6px;right:6px;width:32px;height:32px;border:0;background:var(--coral-deep);color:#fff;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center">
+                <svg style="width:14px;height:14px"><use xlink:href="#i-check"/></svg>
+              </button>
+            </div>
+            <div id="pix-copy-feedback" style="font-size:11px;text-align:center;color:var(--mint-ink);font-weight:600;margin-top:6px" hidden>
+              ✓ código copiado
+            </div>
+
+            {# Botão marcar como pago — só se ainda não pago #}
+            {% if active_charge['status'] != 'paid' %}
+              <form method="post" action="{{ url_for('pix_charge_mark_paid', charge_id=active_charge['id']) }}" style="margin-top:10px"
+                    onsubmit="return confirm('Marcar esta cobrança como paga? Confirme antes que o valor caiu na conta.');">
+                {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+                <button type="submit" class="btn btn--ghost" style="width:100%;font-size:12px">
+                  <svg><use xlink:href="#i-check"/></svg> Marcar como pago manualmente
+                </button>
+              </form>
+            {% else %}
+              <div style="background:var(--mint);color:var(--mint-ink);padding:10px 12px;border-radius:8px;margin-top:10px;font-size:12.5px;text-align:center;font-weight:600">
+                ✓ Pago
+                {% if active_charge['paid_at'] %}<span style="font-weight:400"> · {{ active_charge['paid_at'][:16] }}</span>{% endif %}
+                {% if active_charge['payer_name'] %}<div style="font-size:11px;font-weight:400;margin-top:2px">por {{ active_charge['payer_name'] }}</div>{% endif %}
+              </div>
+            {% endif %}
+          </div>
+        {% else %}
+          {# Sem cobrança ainda — seletor de conta #}
+          <form id="pix-create-form" class="mt-3" onsubmit="return false">
+            <label class="form-label">Receber em</label>
+            <div class="form-control form-control--plain">
+              <select name="account_id" id="pix-account-select">
+                {% for a in pix_accounts %}
+                  <option value="{{ a['id'] }}" {% if a['is_default']|int %}selected{% endif %}>
+                    {{ a['label'] }} ({{ a['provider']|upper }}){% if a['is_default']|int %} ★ padrão{% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <button type="button" id="pix-generate-btn" class="btn btn--lg mt-2" style="width:100%">
+              <svg><use xlink:href="#i-qr"/></svg> Gerar QR PIX
+            </button>
+          </form>
+        {% endif %}
+
+        <div id="pix-loading" class="mt-3 text-muted" style="font-size:12px;text-align:center;padding:10px" hidden>
+          gerando cobrança…
+        </div>
+        <div id="pix-error" class="mt-3" hidden
+             style="background:#fff5f5;border:1px solid #ffd0d0;color:#9a0000;padding:10px 12px;border-radius:8px;font-size:12px;line-height:1.5">
+          <span id="pix-error-msg"></span>
+        </div>
+      {% endif %}
+    </div>
+
+    <style>
+      .pix-card .section-label{
+        font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;
+        color:var(--gray-700);font-weight:700;margin:14px 0 6px;
+      }
+      #pix-copy-btn:hover{ background:var(--magenta-deep); }
+      #pix-copy-btn:active{ transform:scale(.95); }
+      #pix-status-chip[data-status="paid"]{ background:var(--mint); color:var(--mint-ink); }
+      #pix-status-chip[data-status="expired"]{ background:#fff0e0; color:#a04020; }
+      #pix-status-chip[data-status="cancelled"]{ background:var(--gray-200); color:var(--gray-700); }
+    </style>
+
+    <script>
+    (function(){
+      const card     = document.getElementById('pix-card');
+      const saleId   = card.dataset.saleId;
+      const loading  = document.getElementById('pix-loading');
+      const errBox   = document.getElementById('pix-error');
+      const errMsg   = document.getElementById('pix-error-msg');
+      const chip     = document.getElementById('pix-status-chip');
+      const csrf     = '{{ session.get("csrf_token", "") }}';
+
+      function show(el){ if(el) el.hidden = false; }
+      function hide(el){ if(el) el.hidden = true; }
+      function setStatus(s){
+        if(!chip) return;
+        chip.textContent = s || '—';
+        chip.dataset.status = s || '';
+      }
+
+      // ── Geração de cobrança (quando ainda não existe) ──
+      const genBtn = document.getElementById('pix-generate-btn');
+      if (genBtn) {
+        genBtn.addEventListener('click', async () => {
+          const sel = document.getElementById('pix-account-select');
+          if (!sel || !sel.value) { return; }
+          hide(errBox); show(loading); genBtn.disabled = true;
+          try {
+            const fd = new FormData();
+            fd.append('account_id', sel.value);
+            fd.append('csrf_token', csrf);
+            const r = await fetch(`/sales/${saleId}/charge-pix`, {
+              method: 'POST', body: fd, credentials: 'same-origin'
+            });
+            // Tenta parsear como JSON; se vier HTML/texto, captura como erro útil
+            let data;
+            try {
+              data = await r.json();
+            } catch (parseErr) {
+              hide(loading);
+              errMsg.textContent = `Servidor retornou resposta inválida (HTTP ${r.status}). Verifique os logs.`;
+              show(errBox);
+              genBtn.disabled = false;
+              return;
+            }
+            hide(loading);
+            if (!data.ok) {
+              errMsg.textContent = data.error || `Erro ao gerar cobrança (HTTP ${r.status}).`;
+              show(errBox);
+              genBtn.disabled = false;
+              return;
+            }
+            // Cobrança criada — recarrega preservando a âncora #pix-card (autoscroll).
+            // Limpa ?autogen para não disparar de novo no reload.
+            location.href = location.pathname + '#pix-card';
+          } catch (e) {
+            hide(loading);
+            errMsg.textContent = 'Falha de conexão. Confira sua internet e tente de novo.';
+            show(errBox);
+            genBtn.disabled = false;
+          }
+        });
+
+        // Auto-disparo: vindo de /sales/new com ?autogen=1 (cobrança ainda não criada)
+        if (new URLSearchParams(location.search).get('autogen') === '1') {
+          setTimeout(() => genBtn.click(), 150);
+        }
+      }
+
+      // ── Copy ──
+      const copyBtn = document.getElementById('pix-copy-btn');
+      const txt     = document.getElementById('pix-brcode-text');
+      const fb      = document.getElementById('pix-copy-feedback');
+      if (copyBtn && txt) {
+        copyBtn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(txt.value);
+          } catch {
+            txt.select();
+            document.execCommand('copy');
+          }
+          show(fb);
+          setTimeout(() => hide(fb), 2000);
+        });
+      }
+
+      // ── Polling de status (a cada 5s, máx 12min, só se charge existe e não está paga) ──
+      const chargeId     = card.dataset.chargeId;
+      const chargeStatus = card.dataset.chargeStatus;
+      const TERMINAL = ['paid', 'expired', 'cancelled', 'refunded'];
+      if (chargeId && chargeStatus && !TERMINAL.includes(chargeStatus)) {
+        let elapsed = 0;
+        const MAX_MS = 12 * 60 * 1000;
+        const tick = async () => {
+          if (elapsed >= MAX_MS) return;
+          elapsed += 5000;
+          try {
+            const r = await fetch(`/pix-charges/${chargeId}/status`, { credentials: 'same-origin' });
+            const data = await r.json();
+            if (data.ok) {
+              setStatus(data.status);
+              if (TERMINAL.includes(data.status)) {
+                // Pago/expirado → recarrega para refletir UI
+                if (data.status === 'paid') location.reload();
+                return;
+              }
+            }
+          } catch (e) { /* silencioso, tenta de novo */ }
+          setTimeout(tick, 5000);
+        };
+        setTimeout(tick, 5000);
+      }
+    })();
+    </script>
+    {% endif %}
+
+    {# Cliente #}
+    <div class="card">
+      <div class="card__title">Cliente</div>
+
+      {% if sale['customer_id'] %}
+        <div class="flex-center gap-2 mt-3">
+          <div class="avatar avatar--md">{{ (sale['customer_name'] or '??')[:2]|upper }}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:13.5px">{{ sale['customer_name'] }}</div>
+            {% if sale['customer_phone'] %}
+              <div class="text-muted" style="font-size:12px">{{ format_phone_display(sale['customer_phone']) }}</div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="flex gap-2 mt-2">
+          <a href="{{ url_for('customer_detail', cid=sale['customer_id']) }}" class="btn btn--ghost btn--sm" style="flex:1">
+            <svg><use xlink:href="#i-eye"/></svg> Perfil
+          </a>
+          {% if sale['customer_phone'] %}
+            <a href="https://wa.me/55{{ sale['customer_phone']|replace(' ','')|replace('-','')|replace('(','')|replace(')','') }}" target="_blank" class="btn btn--soft btn--sm" style="flex:1">
+              <svg><use xlink:href="#i-wpp"/></svg> WhatsApp
+            </a>
+          {% endif %}
+        </div>
+      {% elif sale['buyer_name_free'] %}
+        <div class="mt-2" style="padding:12px;background:var(--gray-100);border-radius:var(--r-sm);font-size:13px">
+          <div class="text-muted" style="font-size:11.5px">Cliente avulso</div>
+          <div style="font-weight:600;margin-top:2px">{{ sale['buyer_name_free'] }}</div>
+        </div>
+      {% else %}
+        <div class="text-muted" style="font-size:12.5px;padding:20px 0;text-align:center">Sem cliente associado</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card__title">Despacho</div>
+      <div class="card__sub">destinatário e endereço</div>
+      {% if shipping_ready %}
+        <div class="flex-col gap-2 mt-3" style="font-size:13px;color:var(--ink-soft)">
+          {% for line in _shipping_lines(shipping) %}
+            <div>{{ line }}</div>
+          {% endfor %}
+        </div>
+        <a href="{{ url_for('sale_dispatch_label', sid=sale['id']) }}" class="btn btn--soft btn--full btn--sm mt-3" target="_blank" rel="noopener">
+          <svg><use xlink:href="#i-truck"/></svg> Gerar etiqueta de despacho
+        </a>
+      {% else %}
+        <div class="text-muted mt-2" style="font-size:12.5px">Sem endereço salvo nesta venda.</div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+{# ── Diálogo de cancelamento (modal simples) ── #}
+{% if sale['status'] != 'cancelled' %}
+<div id="cancel-dialog" style="display:none;position:fixed;inset:0;background:rgba(26,15,10,.6);z-index:100;align-items:center;justify-content:center;padding:20px">
+  <form method="post" action="{{ url_for('cancel_sale', sid=sale['id']) }}" class="card" style="max-width:480px;width:100%">
+    {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+    <div class="card__title">Cancelar venda?</div>
+    <div class="card__sub">Ação irreversível</div>
+
+    <div class="form-group mt-3">
+      <label class="form-label">Motivo *</label>
+      <div class="form-control form-control--plain">
+        <input name="reason" required placeholder="Ex: Cliente desistiu, erro de cobrança…">
+      </div>
+    </div>
+
+    <label class="checkbox mb-2">
+      <input type="checkbox" name="restock" value="1" checked>
+      <span class="checkbox__box"><svg><use xlink:href="#i-check"/></svg></span>
+      Devolver itens ao estoque
+    </label>
+
+    <label class="checkbox">
+      <input type="checkbox" name="gen_credit" value="1">
+      <span class="checkbox__box"><svg><use xlink:href="#i-check"/></svg></span>
+      Gerar crédito para a cliente no valor total
+    </label>
+
+    <div class="flex gap-2 mt-3" style="justify-content:flex-end">
+      <button type="button" class="btn btn--ghost" onclick="document.getElementById('cancel-dialog').style.display='none'">
+        Manter venda
+      </button>
+      <button type="submit" class="btn btn--danger">
+        <svg><use xlink:href="#i-x"/></svg> Confirmar cancelamento
+      </button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

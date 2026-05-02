@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Novo vale-presente · tonton{% endblock %}
+{% set page_sub_label = "marketing · novo vale" %}
+{% block page_title %}Emitir vale-presente{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('list_cards') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+{% endblock %}
+
+{% block body %}
+
+{% if visible_code %}
+  {# Tela pós-emissão: código visível uma única vez #}
+  <div class="card" style="background:var(--grad-hero);color:var(--white);border:0;text-align:center;padding:40px;box-shadow:var(--sh-glow)">
+    <div class="text-eyebrow" style="color:rgba(255,255,255,.9)">✦ vale criado</div>
+    <div class="text-display" style="font-size:52px;margin-top:10px;letter-spacing:-.02em">Anote o código</div>
+    <div class="text-mono" style="font-size:32px;margin-top:18px;padding:16px 24px;background:rgba(255,255,255,.2);border-radius:var(--r-md);display:inline-block;letter-spacing:.18em;font-weight:700;backdrop-filter:blur(8px)">
+      {{ visible_code }}
+    </div>
+    <p style="margin-top:20px;opacity:.92;font-size:14px;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.55">
+      Este código completo aparece apenas nesta tela. Apenas os últimos 4 dígitos ficam no sistema depois.
+    </p>
+    <div class="flex gap-2" style="justify-content:center;margin-top:24px">
+      <a href="{{ url_for('list_cards') }}" class="btn btn--dark" style="background:var(--white);color:var(--plum)">
+        <svg><use xlink:href="#i-check"/></svg> Concluir
+      </a>
+      <a href="{{ url_for('create_card') }}" class="btn btn--ghost" style="background:transparent;border-color:rgba(255,255,255,.4);color:var(--white)">
+        Emitir outro
+      </a>
+    </div>
+  </div>
+{% else %}
+
+<form method="post">
+  {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+  <div class="grid grid--2-1" style="align-items:start">
+
+    <div class="flex-col gap-3">
+
+      <div class="card">
+        <div class="card__title">Para quem é o presente</div>
+        <div class="card__sub">dados da pessoa presenteada</div>
+
+        <div class="form-group mt-3">
+          <label class="form-label">Nome da presenteada *</label>
+          <div class="form-control form-control--plain">
+            <input name="recipient_name" required autofocus id="f-recipient" oninput="updatePreview()" placeholder="Ex: Sofia Almeida">
+          </div>
+        </div>
+
+        <div class="grid grid--2 gap-3 mb-0">
+          <div class="form-group mb-0">
+            <label class="form-label">E-mail</label>
+            <div class="form-control">
+              <svg><use xlink:href="#i-mail"/></svg>
+              <input name="recipient_email" type="email" placeholder="sofia@email.com">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">WhatsApp</label>
+            <div class="form-control">
+              <svg><use xlink:href="#i-wpp"/></svg>
+              <input name="recipient_phone" placeholder="(31) 99999-8888" inputmode="tel">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">Valor e validade</div>
+        <div class="card__sub">saldo inicial e prazo</div>
+
+        <div class="grid grid--2 gap-3 mt-3 mb-0">
+          <div class="form-group mb-0">
+            <label class="form-label">Valor *</label>
+            <div class="form-control">
+              <span class="text-muted">R$</span>
+              <input name="initial_value" id="f-value" required placeholder="200,00" inputmode="decimal" oninput="updatePreview()">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">Expira em</label>
+            <div class="form-control">
+              <svg><use xlink:href="#i-calendar"/></svg>
+              <input name="expires_at" type="date">
+            </div>
+            <div class="form-hint">Vazio = sem validade.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">Quem está presenteando</div>
+        <div class="card__sub">para rastreamento e contato</div>
+
+        <div class="grid grid--2 gap-3 mt-3">
+          <div class="form-group">
+            <label class="form-label">Nome do comprador</label>
+            <div class="form-control form-control--plain">
+              <input name="buyer_name" placeholder="Ex: Maria Santos">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Telefone</label>
+            <div class="form-control">
+              <svg><use xlink:href="#i-phone"/></svg>
+              <input name="buyer_phone" placeholder="(31) 99999-8888" inputmode="tel">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Referência do pedido</label>
+          <div class="form-control form-control--plain">
+            <input name="order_reference" placeholder="Ex: IG-DM 22/abr · venda online">
+          </div>
+          <div class="form-hint">Opcional. Ajuda a conciliar depois.</div>
+        </div>
+
+        <div class="form-group mb-0">
+          <label class="form-label">Mensagem / observações</label>
+          <div class="form-control form-control--plain">
+            <textarea name="notes" rows="2" placeholder="Ex: Enviar junto com embalagem de presente"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">Entrega</div>
+        <div class="card__sub">quando e como disponibilizar</div>
+
+        <div class="flex-col gap-2 mt-3">
+          <label class="checkbox" style="padding:12px;background:var(--coral-glow);border-radius:var(--r-md);width:100%">
+            <input type="checkbox" name="release_now" checked>
+            <span class="checkbox__box"><svg><use xlink:href="#i-check"/></svg></span>
+            <div>
+              <div style="font-weight:600;color:var(--coral-deep)">Liberar imediatamente</div>
+              <div class="text-muted" style="font-size:11.5px">Vale já pode ser resgatado.</div>
+            </div>
+          </label>
+          <label class="checkbox" style="padding:12px;background:var(--gray-100);border-radius:var(--r-md);width:100%">
+            <input type="checkbox" name="send_email_now">
+            <span class="checkbox__box"><svg><use xlink:href="#i-check"/></svg></span>
+            <div>
+              <div style="font-weight:600">Enviar e-mail para a presenteada</div>
+              <div class="text-muted" style="font-size:11.5px">Requer e-mail da presenteada preenchido.</div>
+            </div>
+          </label>
+          <label class="checkbox" style="padding:12px;background:var(--gray-100);border-radius:var(--r-md);width:100%">
+            <input type="checkbox" name="open_whatsapp_now">
+            <span class="checkbox__box"><svg><use xlink:href="#i-check"/></svg></span>
+            <div>
+              <div style="font-weight:600">Abrir WhatsApp para enviar</div>
+              <div class="text-muted" style="font-size:11.5px">Abre janela com mensagem pronta.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+    </div>
+
+    {# ── Preview do cartão ── #}
+    <div class="flex-col gap-3" style="position:sticky;top:110px">
+      <div>
+        <div class="section-label" style="margin-top:0">preview</div>
+
+        <div style="background:var(--grad-hero);border-radius:var(--r-xl);padding:28px;color:var(--white);position:relative;overflow:hidden;box-shadow:var(--sh-glow)">
+          <div style="position:absolute;top:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:var(--magenta);opacity:.5;filter:blur(30px)"></div>
+          <div style="position:relative">
+            <div class="text-mono" style="font-size:10.5px;letter-spacing:.24em;opacity:.9">✦ VALE PRESENTE</div>
+            <div class="text-display" style="font-size:18px;margin-top:4px;font-style:italic">tonton</div>
+            <div style="margin-top:30px">
+              <div class="text-mono" style="font-size:10px;letter-spacing:.18em;opacity:.8">saldo</div>
+              <div id="preview-value" class="text-display" style="font-size:46px;line-height:1;letter-spacing:-.03em;margin-top:4px">R$ 200,00</div>
+            </div>
+            <div style="margin-top:24px">
+              <div class="text-mono" style="font-size:10px;letter-spacing:.14em;opacity:.8">presenteada</div>
+              <div id="preview-recipient" style="font-size:14px;margin-top:2px;font-weight:500">Nome da cliente</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="flex gap-2" style="justify-content:flex-end">
+          <a href="{{ url_for('list_cards') }}" class="btn btn--ghost">Cancelar</a>
+          <button type="submit" class="btn btn--lg">
+            <svg><use xlink:href="#i-check"/></svg> Emitir vale
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</form>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updatePreview() {
+  var rec = document.getElementById('f-recipient').value || 'Nome da cliente';
+  var val = document.getElementById('f-value').value || '0,00';
+  document.getElementById('preview-recipient').textContent = rec;
+  document.getElementById('preview-value').textContent = 'R$ ' + val;
+}
+</script>
+{% endblock %}

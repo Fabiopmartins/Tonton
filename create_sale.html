@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Auditoria · tonton{% endblock %}
+{% set page_sub_label = "segurança · auditoria" %}
+{% block page_title %}Auditoria de segurança{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('list_users') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+{% endblock %}
+
+{% block body %}
+
+<style>
+  .audit-toolbar{
+    display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+    padding:14px 16px; background:var(--gray-100);
+    border-radius:var(--r-md); margin-bottom:14px;
+  }
+  .audit-search{ flex:1; min-width:240px; position:relative; }
+  .audit-search svg{
+    position:absolute; left:12px; top:50%; transform:translateY(-50%);
+    width:16px; height:16px; color:var(--gray-600); pointer-events:none;
+  }
+  .audit-search input{
+    width:100%; padding:10px 14px 10px 36px;
+    border:1px solid var(--gray-300); border-radius:var(--r-md);
+    background:#fff; font-size:13px;
+  }
+  .audit-search input:focus{
+    outline:none; border-color:var(--coral-deep);
+    box-shadow:0 0 0 3px rgba(255,107,58,.12);
+  }
+
+  .action-tag{
+    display:inline-block; padding:3px 9px; border-radius:6px;
+    font-size:10.5px; font-weight:700; letter-spacing:.3px;
+    font-family:var(--f-mono);
+  }
+  .action-tag--success{ background:#d6f5e4; color:#1b7a42; }
+  .action-tag--warn{ background:#fff3cd; color:#856404; }
+  .action-tag--danger{ background:#ffe0e0; color:#9a0000; }
+  .action-tag--info{ background:var(--gray-200); color:var(--gray-900); }
+  .action-tag--alert{
+    background:#9a0000; color:#fff;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(154,0,0,.5); }
+    50%{ box-shadow:0 0 0 6px rgba(154,0,0,0); }
+  }
+
+  .audit-row{
+    display:grid;
+    grid-template-columns:160px 200px 200px 1fr 130px;
+    gap:12px;
+    padding:12px 16px;
+    border-bottom:1px solid var(--gray-200);
+    font-size:12.5px;
+    align-items:center;
+  }
+  .audit-row:hover{ background:var(--gray-100); }
+  .audit-row[hidden]{ display:none !important; }
+  .audit-when{ font-family:var(--f-mono); font-size:11.5px; color:var(--gray-700); }
+  .audit-actor{ font-weight:600; color:var(--gray-900); }
+  .audit-actor__email{ font-size:10.5px; color:var(--gray-600); }
+  .audit-target{ color:var(--gray-700); }
+  .audit-detail{ color:var(--gray-700); font-size:11.5px; word-break:break-word; }
+  .audit-ip{ font-family:var(--f-mono); font-size:11px; color:var(--gray-600); text-align:right; }
+
+  @media (max-width: 900px){
+    .audit-row{ grid-template-columns:1fr; gap:4px; padding:14px 16px; }
+    .audit-ip{ text-align:left; }
+  }
+</style>
+
+<!-- KPIs rápidos -->
+{% set count_alerts  = events|selectattr('action', 'equalto', 'role_hmac_mismatch')|list|length %}
+{% set count_logins  = events|selectattr('action', 'equalto', 'login_success')|list|length %}
+{% set count_changes = events|selectattr('action', 'in', ['user_created','user_deactivated','user_reactivated','user_deleted','role_changed'])|list|length %}
+
+<div class="grid grid--3 mb-3">
+  <div class="card kpi">
+    <div class="kpi__label">Eventos recentes</div>
+    <div class="kpi__value">{{ events|length }}</div>
+    <div class="text-muted" style="font-size:11.5px">últimos 200 registros</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Mudanças sensíveis</div>
+    <div class="kpi__value kpi__value--coral">{{ count_changes }}</div>
+    <div class="text-muted" style="font-size:11.5px">criação · perfil · status</div>
+  </div>
+  <div class="card kpi" style="{% if count_alerts %}background:#fff5f5;border:1px solid #ffd0d0{% endif %}">
+    <div class="kpi__label" {% if count_alerts %}style="color:#9a0000"{% endif %}>Alertas críticos</div>
+    <div class="kpi__value" style="color:{{ '#9a0000' if count_alerts else 'var(--gray-700)' }}">{{ count_alerts }}</div>
+    <div class="text-muted" style="font-size:11.5px">mismatch de integridade</div>
+  </div>
+</div>
+
+<div class="card card--flush">
+  <div class="card__header">
+    <div>
+      <div class="card__title">Log de eventos</div>
+      <div class="card__sub">imutável · ordenado do mais recente para o mais antigo</div>
+    </div>
+  </div>
+
+  <div class="audit-toolbar" style="margin:14px 16px">
+    <div class="audit-search">
+      <svg><use xlink:href="#i-search"/></svg>
+      <input id="auditSearch" type="search" placeholder="Buscar por ação, usuário ou IP…" autocomplete="off">
+    </div>
+    <select id="auditFilter" class="filter-pill" style="padding:8px 12px;cursor:pointer">
+      <option value="all">Todas as ações</option>
+      <option value="login_success">Login OK</option>
+      <option value="user_created">Criação</option>
+      <option value="user_deactivated">Desativação</option>
+      <option value="user_deleted">Exclusão</option>
+      <option value="role_changed">Mudança de perfil</option>
+      <option value="password_changed">Troca de senha</option>
+      <option value="password_reset_requested">Reset enviado</option>
+      <option value="sudo_granted">Sudo OK</option>
+      <option value="sudo_denied">Sudo negado</option>
+      <option value="role_hmac_mismatch">⚠ Mismatch HMAC</option>
+    </select>
+  </div>
+
+  <!-- Header -->
+  <div class="audit-row" style="background:var(--gray-100);font-weight:700;font-size:11px;letter-spacing:.4px;text-transform:uppercase;color:var(--gray-700)">
+    <span>Quando</span>
+    <span>Ação</span>
+    <span>Quem</span>
+    <span>Detalhes</span>
+    <span style="text-align:right">IP</span>
+  </div>
+
+  <div id="auditRows">
+  {% for ev in events %}
+    {% set act = ev['action'] %}
+    {% if act == 'role_hmac_mismatch' %}
+      {% set tag_class = 'action-tag--alert' %}
+    {% elif act in ['user_deleted','sudo_denied'] %}
+      {% set tag_class = 'action-tag--danger' %}
+    {% elif act in ['user_deactivated','password_reset_requested'] %}
+      {% set tag_class = 'action-tag--warn' %}
+    {% elif act in ['login_success','user_created','user_reactivated','sudo_granted','password_changed'] %}
+      {% set tag_class = 'action-tag--success' %}
+    {% else %}
+      {% set tag_class = 'action-tag--info' %}
+    {% endif %}
+
+    <div class="audit-row"
+         data-action="{{ act }}"
+         data-search="{{ (act ~ ' ' ~ (ev['actor_email'] or '') ~ ' ' ~ (ev['ip'] or '') ~ ' ' ~ (ev['before_value'] or '') ~ ' ' ~ (ev['after_value'] or ''))|lower }}">
+      <span class="audit-when">{{ ev['at'][:19].replace('T',' ') if ev['at'] else '—' }}</span>
+      <span><span class="action-tag {{ tag_class }}">{{ act }}</span></span>
+      <span>
+        {% if ev['actor_email'] %}
+          <div class="audit-actor">{{ ev['actor_email'].split('@')[0] }}</div>
+          <div class="audit-actor__email">{{ ev['actor_email'] }}</div>
+        {% else %}
+          <span class="text-muted">sistema</span>
+        {% endif %}
+      </span>
+      <span class="audit-detail">
+        {% if ev['target_id'] %}<span class="audit-target">→ user #{{ ev['target_id'] }}</span>{% endif %}
+        {% if ev['before_value'] %}<div><strong>de:</strong> {{ ev['before_value'] }}</div>{% endif %}
+        {% if ev['after_value'] %}<div><strong>para:</strong> {{ ev['after_value'] }}</div>{% endif %}
+        {% if ev['extra'] %}<div class="text-muted">{{ ev['extra'] }}</div>{% endif %}
+      </span>
+      <span class="audit-ip">{{ ev['ip'] or '—' }}</span>
+    </div>
+  {% else %}
+    <div class="empty">
+      <div class="empty__title">Sem eventos</div>
+      <div class="empty__sub">Ações sensíveis aparecerão aqui automaticamente.</div>
+    </div>
+  {% endfor %}
+  </div>
+
+  <div id="auditEmpty" class="empty" style="display:none">
+    <div class="empty__title">Nenhum resultado</div>
+    <div class="empty__sub">Ajuste a busca ou o filtro.</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const search = document.getElementById('auditSearch');
+  const filter = document.getElementById('auditFilter');
+  const rows   = Array.from(document.querySelectorAll('#auditRows .audit-row'));
+  const empty  = document.getElementById('auditEmpty');
+
+  function apply(){
+    const q = (search.value || '').trim().toLowerCase();
+    const f = filter.value;
+    let visible = 0;
+    rows.forEach(r => {
+      const matchQ = !q || (r.dataset.search || '').includes(q);
+      const matchF = f === 'all' || r.dataset.action === f;
+      const show = matchQ && matchF;
+      r.hidden = !show;
+      if (show) visible++;
+    });
+    empty.style.display = visible === 0 && rows.length > 0 ? '' : 'none';
+  }
+  search.addEventListener('input', apply);
+  filter.addEventListener('change', apply);
+})();
+</script>
+
+{% endblock %}

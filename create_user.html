@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Clientes · tonton{% endblock %}
+{% set page_sub_label = "CRM · base ativa" %}
+{% block page_title %}Clientes{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('birthdays') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-gift"/></svg> Aniversários
+  </a>
+  <a href="{{ url_for('create_customer') }}" class="btn">
+    <svg><use xlink:href="#i-plus"/></svg> Adicionar
+  </a>
+{% endblock %}
+
+{% block body %}
+
+{% set total = customers|length %}
+{% set with_purchases = customers|selectattr('sale_count', 'gt', 0)|list|length %}
+{% set total_spent = customers|sum(attribute='total_spent') %}
+{% set vip_count = customers|selectattr('total_spent', 'ge', 1000)|list|length %}
+
+<div class="grid grid--kpi mb-3">
+  <div class="card kpi">
+    <div class="kpi__label">Cadastros</div>
+    <div class="kpi__value kpi__value--coral">{{ total }}</div>
+    <div class="text-muted" style="font-size:11.5px">base completa</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Compraram ao menos 1×</div>
+    <div class="kpi__value kpi__value--magenta">{{ with_purchases }}</div>
+    <div class="text-muted" style="font-size:11.5px">{{ ((with_purchases * 100) / total)|round if total else 0 }}% da base</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">VIPs (&gt; R$ 1k)</div>
+    <div class="kpi__value kpi__value--deep">{{ vip_count }}</div>
+    <div class="text-muted" style="font-size:11.5px">segmento premium</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Faturamento acumulado</div>
+    <div class="kpi__value kpi__value--plum">R$ {{ format_money(total_spent) }}</div>
+    <div class="text-muted" style="font-size:11.5px">LTV histórico</div>
+  </div>
+</div>
+
+<div class="card card--flush">
+
+  <form method="get" class="filterbar">
+    <div class="search-pill" style="flex:1;width:auto">
+      <svg><use xlink:href="#i-search"/></svg>
+      <input type="search" name="q" value="{{ q }}" placeholder="Nome, e-mail, telefone…">
+    </div>
+    <button type="submit" class="btn btn--soft btn--sm">Buscar</button>
+  </form>
+
+  <div class="table__head" style="grid-template-columns:2.5fr 1fr 1fr 1fr 120px 100px">
+    <span>Cliente</span><span>Total gasto</span><span>Pedidos</span><span>Ticket</span><span>Contato</span><span></span>
+  </div>
+
+  {% for c in customers %}
+    {% set ticket = (c['total_spent']|float / c['sale_count']) if c['sale_count'] else 0 %}
+    {% set is_vip = c['total_spent']|float >= 1000 %}
+    <a href="{{ url_for('customer_detail', cid=c['id']) }}" class="table__row" style="grid-template-columns:2.5fr 1fr 1fr 1fr 120px 100px;text-decoration:none;color:inherit">
+
+      <div class="flex-center gap-2">
+        <div class="avatar avatar--h{{ loop.index0 % 6 }}">
+          {{ c['name'][:2]|upper }}
+        </div>
+        <div>
+          <div class="flex-center gap-2">
+            <span style="font-size:13.5px;font-weight:600">{{ c['name'] }}</span>
+            {% if is_vip %}<span class="chip chip--sm chip--magenta">VIP</span>{% endif %}
+          </div>
+          <div class="text-muted" style="font-size:11.5px">
+            {{ c['email'] or (format_phone_display(c['phone']) if c['phone'] else '—') }}
+          </div>
+        </div>
+      </div>
+
+      <div class="text-price">R$ {{ format_money(c['total_spent']) }}</div>
+
+      <div style="font-size:13px;color:var(--gray-700)">{{ c['sale_count'] or 0 }}</div>
+
+      <div style="font-size:12.5px;color:var(--gray-700)">
+        {% if ticket %}R$ {{ format_money(ticket) }}{% else %}—{% endif %}
+      </div>
+
+      <div class="flex gap-1">
+        {% if c['phone'] %}
+          <a href="https://wa.me/55{{ c['phone']|replace(' ','')|replace('-','')|replace('(','')|replace(')','') }}" target="_blank" class="icon-btn" style="width:28px;height:28px;color:var(--coral-deep)" onclick="event.stopPropagation()">
+            <svg style="width:14px;height:14px"><use xlink:href="#i-wpp"/></svg>
+          </a>
+        {% endif %}
+        {% if c['email'] %}
+          <a href="mailto:{{ c['email'] }}" class="icon-btn" style="width:28px;height:28px" onclick="event.stopPropagation()">
+            <svg style="width:14px;height:14px"><use xlink:href="#i-mail"/></svg>
+          </a>
+        {% endif %}
+      </div>
+
+      <button class="icon-btn" style="width:30px;height:30px;background:transparent" onclick="event.preventDefault()" aria-label="Mais">
+        <svg><use xlink:href="#i-chevron"/></svg>
+      </button>
+    </a>
+  {% else %}
+    <div class="empty">
+      <div class="empty__title">Sem clientes ainda</div>
+      <div class="empty__sub">Cadastre sua primeira cliente para começar o CRM.</div>
+      <a href="{{ url_for('create_customer') }}" class="btn"><svg><use xlink:href="#i-plus"/></svg> Adicionar</a>
+    </div>
+  {% endfor %}
+
+</div>
+
+{% endblock %}

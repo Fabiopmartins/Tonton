@@ -1,0 +1,64 @@
+<!--
+  ISO 3758 · símbolos de lavagem (apenas a família washtub)
+  Sprite SVG para reuso via <svg><use href="#wash-30"/></svg>
+  Inclui em base.html antes do </body> (ou via Jinja include).
+  Stroke usa currentColor — herda a cor do contexto.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+
+  <!-- Washtub base (forma trapezoidal arredondada com linha d'água) -->
+  <symbol id="wash-base" viewBox="0 0 64 64">
+    <!-- corpo da tina: trapézio invertido com cantos suavizados -->
+    <path d="M8 18 Q8 16 10 16 L54 16 Q56 16 56 18 L52 48 Q51 52 47 52 L17 52 Q13 52 12 48 Z"
+          fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+    <!-- linha d'água ondulada no topo da tina -->
+    <path d="M10 18 Q14 22 18 18 T26 18 T34 18 T42 18 T50 18 T56 18"
+          fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+  </symbol>
+
+  <!-- 30°C -->
+  <symbol id="wash-30" viewBox="0 0 64 64">
+    <use href="#wash-base"/>
+    <text x="32" y="42" text-anchor="middle"
+          font-family="Inter, system-ui, sans-serif" font-size="15" font-weight="600"
+          fill="currentColor">30</text>
+  </symbol>
+
+  <!-- 40°C -->
+  <symbol id="wash-40" viewBox="0 0 64 64">
+    <use href="#wash-base"/>
+    <text x="32" y="42" text-anchor="middle"
+          font-family="Inter, system-ui, sans-serif" font-size="15" font-weight="600"
+          fill="currentColor">40</text>
+  </symbol>
+
+  <!-- 60°C -->
+  <symbol id="wash-60" viewBox="0 0 64 64">
+    <use href="#wash-base"/>
+    <text x="32" y="42" text-anchor="middle"
+          font-family="Inter, system-ui, sans-serif" font-size="15" font-weight="600"
+          fill="currentColor">60</text>
+  </symbol>
+
+  <!-- Lavar à mão: tub com mão estilizada dentro -->
+  <symbol id="wash-hand" viewBox="0 0 64 64">
+    <use href="#wash-base"/>
+    <!-- mão simplificada: palma + 4 dedinhos -->
+    <path d="M22 30 Q22 26 26 26 L26 24 Q26 22 28 22 Q30 22 30 24 L30 26
+             L31 26 L31 23 Q31 21 33 21 Q35 21 35 23 L35 26
+             L36 26 L36 24 Q36 22 38 22 Q40 22 40 24 L40 27
+             Q40 28 40.5 28 Q42 28 42 30 L42 38 Q42 44 36 44 L28 44 Q22 44 22 38 Z"
+          fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linejoin="round" stroke-linecap="round"/>
+  </symbol>
+
+  <!-- Não lavar: tub com X sobreposto -->
+  <symbol id="wash-no" viewBox="0 0 64 64">
+    <use href="#wash-base"/>
+    <line x1="10" y1="14" x2="54" y2="54"
+          stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+    <line x1="54" y1="14" x2="10" y2="54"
+          stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+  </symbol>
+
+</svg>

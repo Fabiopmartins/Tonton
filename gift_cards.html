@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Vale •••• {{ card['code_last4'] }} · tonton{% endblock %}
+{% set page_sub_label = "marketing · vale-presente" %}
+{% block page_title %}Vale •••• {{ card['code_last4'] }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('list_cards') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+  {% if card['status'] == 'active' %}
+    <a href="{{ url_for('redeem') }}?code_last4={{ card['code_last4'] }}" class="btn">
+      <svg><use xlink:href="#i-qr"/></svg> Resgatar
+    </a>
+  {% endif %}
+{% endblock %}
+
+{% block body %}
+
+<div class="grid grid--2-1" style="align-items:start">
+
+  {# ── Cartão visual + resgates ── #}
+  <div class="flex-col gap-3">
+
+    {# Cartão-presente visual #}
+    <div style="background:var(--grad-hero);border-radius:var(--r-xl);padding:36px;color:var(--white);position:relative;overflow:hidden;box-shadow:var(--sh-glow)">
+      <div style="position:absolute;top:-60px;right:-60px;width:220px;height:220px;border-radius:50%;background:var(--magenta);opacity:.5;filter:blur(30px)"></div>
+      <div style="position:absolute;bottom:-40px;left:-40px;width:160px;height:160px;border-radius:50%;background:var(--coral-glow);opacity:.3;filter:blur(40px)"></div>
+
+      <div style="position:relative">
+        <div class="flex-between" style="align-items:flex-start">
+          <div>
+            <div class="text-mono" style="font-size:11px;letter-spacing:.24em;opacity:.9">✦ VALE PRESENTE</div>
+            <div class="text-display" style="font-size:22px;margin-top:6px;font-style:italic">tonton</div>
+          </div>
+          <span class="chip chip--sm" style="background:rgba(255,255,255,.22);color:var(--white);backdrop-filter:blur(8px)">
+            {{ card['status'] }}
+          </span>
+        </div>
+
+        <div style="margin-top:40px">
+          <div class="text-mono" style="font-size:10.5px;letter-spacing:.2em;opacity:.85">saldo atual</div>
+          <div class="text-display" style="font-size:64px;line-height:1;letter-spacing:-.03em;margin-top:6px">
+            R$ {{ format_money(card['current_balance']) }}
+          </div>
+          {% if card['current_balance']|float < card['initial_value']|float %}
+            <div class="text-mono" style="font-size:11px;margin-top:4px;opacity:.8">de R$ {{ format_money(card['initial_value']) }}</div>
+          {% endif %}
+        </div>
+
+        <div class="flex-between" style="margin-top:36px;align-items:flex-end">
+          <div>
+            <div class="text-mono" style="font-size:10.5px;letter-spacing:.12em;opacity:.8">presenteada</div>
+            <div style="font-size:15px;font-weight:500;margin-top:2px">{{ card['recipient_name'] or '—' }}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="text-mono" style="font-size:10.5px;letter-spacing:.12em;opacity:.8">código</div>
+            <div class="text-mono" style="font-size:18px;font-weight:700;letter-spacing:.16em;margin-top:2px">•••• {{ card['code_last4'] }}</div>
+          </div>
+        </div>
+
+        {% if card['expires_at'] %}
+          <div class="text-mono" style="font-size:10.5px;margin-top:18px;opacity:.8;letter-spacing:.1em">
+            válido até {{ card['expires_at'][:10] }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Histórico de resgates #}
+    <div class="card card--flush">
+      <div class="card__header">
+        <div>
+          <div class="card__title">Resgates</div>
+          <div class="card__sub">{{ redemptions|length }} registros</div>
+        </div>
+      </div>
+      {% if redemptions %}
+        <div class="table__head" style="grid-template-columns:130px 130px 2fr 120px">
+          <span>Data</span><span>Valor</span><span>Observações</span><span>Operador</span>
+        </div>
+        {% for r in redemptions %}
+          <div class="table__row" style="grid-template-columns:130px 130px 2fr 120px">
+            <div class="text-mono" style="font-size:12px">{{ r['created_at'][:16] if r['created_at'] else '—' }}</div>
+            <div class="text-price" style="color:var(--magenta-deep)">− R$ {{ format_money(r['amount']) }}</div>
+            <div class="text-muted" style="font-size:12.5px">{{ r['note'] or '—' }}</div>
+            <div style="font-size:12px">{{ r['operator_name'] or '—' }}</div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty">
+          <div class="empty__title">Sem resgates ainda</div>
+          <div class="empty__sub">O vale ainda não foi utilizado.</div>
+        </div>
+      {% endif %}
+    </div>
+
+    {# Auditoria #}
+    {% if audits %}
+      <div class="card card--flush">
+        <div class="card__header">
+          <div>
+            <div class="card__title">Auditoria</div>
+            <div class="card__sub">últimas 30 ações</div>
+          </div>
+        </div>
+        {% for a in audits %}
+          <div class="table__row" style="grid-template-columns:130px 150px 2fr 100px">
+            <div class="text-mono" style="font-size:11.5px;color:var(--gray-700)">{{ a['created_at'][:16] if a['created_at'] else '—' }}</div>
+            <span class="chip chip--sm chip--neutral">{{ a['action'] }}</span>
+            <div class="text-muted" style="font-size:12px">{{ a['details'] or '—' }}</div>
+            <div class="text-muted" style="font-size:11.5px">{{ a['actor_name'] or '—' }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  {# ── Dados do vale ── #}
+  <div class="card" style="position:sticky;top:110px">
+    <div class="card__title">Informações</div>
+    <div class="card__sub">dados do registro</div>
+
+    <div class="section-label">Presenteada</div>
+    <div class="flex-col gap-1">
+      <div class="info-row">
+        <svg><use xlink:href="#i-users"/></svg>
+        {{ card['recipient_name'] or '—' }}
+      </div>
+      {% if card['recipient_email'] %}
+        <div class="info-row">
+          <svg><use xlink:href="#i-mail"/></svg>
+          <a href="mailto:{{ card['recipient_email'] }}" style="color:inherit">{{ card['recipient_email'] }}</a>
+        </div>
+      {% endif %}
+      {% if card['recipient_phone'] %}
+        <div class="info-row">
+          <svg><use xlink:href="#i-wpp"/></svg>
+          {{ format_phone_display(card['recipient_phone']) }}
+        </div>
+      {% endif %}
+    </div>
+
+    {% if card['buyer_name'] or card['buyer_phone'] or card['order_reference'] %}
+      <div class="section-label">Comprador</div>
+      <div class="flex-col gap-1">
+        {% if card['buyer_name'] %}<div class="info-row"><svg><use xlink:href="#i-users"/></svg>{{ card['buyer_name'] }}</div>{% endif %}
+        {% if card['buyer_phone'] %}<div class="info-row"><svg><use xlink:href="#i-phone"/></svg>{{ format_phone_display(card['buyer_phone']) }}</div>{% endif %}
+        {% if card['order_reference'] %}<div class="info-row"><svg><use xlink:href="#i-receipt"/></svg>ref {{ card['order_reference'] }}</div>{% endif %}
+      </div>
+    {% endif %}
+
+    <div class="section-label">Metadados</div>
+    <div class="flex-col gap-1" style="font-size:12.5px;color:var(--gray-700)">
+      <div>Emitido: <strong>{{ card['created_at'][:10] if card['created_at'] else '—' }}</strong></div>
+      <div>Valor inicial: <strong>R$ {{ format_money(card['initial_value']) }}</strong></div>
+      {% if card['expires_at'] %}<div>Expira: <strong>{{ card['expires_at'][:10] }}</strong></div>{% endif %}
+      {% if card['last_sent_at'] %}<div>Último e-mail: {{ card['last_sent_at'][:16] }}</div>{% endif %}
+      {% if card['last_whatsapp_at'] %}<div>Último WhatsApp: {{ card['last_whatsapp_at'][:16] }}</div>{% endif %}
+    </div>
+
+    {% if card['notes'] %}
+      <div class="section-label">Observações</div>
+      <div style="font-size:12.5px;color:var(--gray-700);padding:10px;background:var(--gray-100);border-radius:var(--r-sm);line-height:1.4">
+        {{ card['notes'] }}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

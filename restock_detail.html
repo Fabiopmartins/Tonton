@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Novo crédito · tonton{% endblock %}
+{% set page_sub_label = "operação · novo crédito" %}
+{% block page_title %}Novo crédito manual{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('list_credits') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+{% endblock %}
+
+{% block body %}
+
+<form method="post">
+  {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+  <div class="grid grid--2-1" style="align-items:start">
+
+    <div class="card">
+      <div class="card__title">Dados do crédito</div>
+      <div class="card__sub">vale-troca para uso futuro</div>
+
+      <div class="form-group mt-3">
+        <label class="form-label">Cliente</label>
+        <div class="form-control form-control--plain">
+          <select name="customer_id">
+            <option value="">— Selecionar ou usar nome avulso abaixo —</option>
+            {% for c in customers %}
+              <option value="{{ c['id'] }}">{{ c['name'] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Ou nome da cliente (avulsa)</label>
+        <div class="form-control form-control--plain">
+          <input name="customer_name" placeholder="Maria Silva">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Valor *</label>
+        <div class="form-control">
+          <span class="text-muted">R$</span>
+          <input name="amount" required placeholder="0,00" inputmode="decimal" autofocus>
+        </div>
+        <div class="form-hint">Valor disponível para uso em compras futuras.</div>
+      </div>
+
+      <div class="form-group mb-0">
+        <label class="form-label">Motivo</label>
+        <div class="form-control form-control--plain">
+          <textarea name="reason" rows="3" placeholder="Ex: Troca de peça, devolução parcial, cortesia…"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex-col gap-3" style="position:sticky;top:110px">
+
+      <div class="card" style="background:var(--grad-soft);border:0">
+        <div class="text-eyebrow" style="color:var(--magenta-deep)">✦ contexto</div>
+        <div class="text-display" style="font-size:20px;margin-top:6px;color:var(--plum);line-height:1.25">
+          Créditos manuais servem para casos especiais.
+        </div>
+        <div class="text-muted" style="font-size:12.5px;margin-top:10px;color:var(--plum)">
+          Cancelamentos de venda já geram crédito automaticamente quando marcados. Use esta tela só para vale-troca, cortesia ou ajuste manual.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="flex gap-2" style="justify-content:flex-end">
+          <a href="{{ url_for('list_credits') }}" class="btn btn--ghost">Cancelar</a>
+          <button type="submit" class="btn btn--lg">
+            <svg><use xlink:href="#i-check"/></svg> Emitir crédito
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</form>
+
+{% endblock %}

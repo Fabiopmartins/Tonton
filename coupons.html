@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+{% block title %}Painel · tonton{% endblock %}
+{% set page_sub_label = now.strftime('%A · %d de %b')|lower if now else 'hoje' %}
+{% block page_title %}Olá, {{ current_user['display_name'].split()[0] }} ✶{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('create_sale') }}" class="btn">
+    <svg><use xlink:href="#i-plus"/></svg> Nova venda
+  </a>
+{% endblock %}
+
+{% block body %}
+<div class="dashboard-page">
+
+{# ── KPIs principais ───────────────────────────────────── #}
+<div class="grid grid--kpi mb-3 dash-block dash-block--kpis">
+
+  <div class="card kpi">
+    <div class="kpi__label">Receita · mês</div>
+    <div class="kpi__value kpi__value--coral">R$ {{ format_money(op) }}</div>
+    <div class="kpi__meta">
+      {% if rev_growth is not none %}
+        <span class="chip chip--sm chip--{{ 'mint' if rev_growth >= 0 else 'coral' }}">
+          {{ '▲' if rev_growth >= 0 else '▼' }} {{ '%.1f'|format(rev_growth|float) }}%
+        </span>
+      {% else %}
+        <span class="chip chip--sm">novo</span>
+      {% endif %}
+      <span>vs. mês passado</span>
+    </div>
+  </div>
+
+  <div class="card kpi">
+    <div class="kpi__label">Vendas</div>
+    <div class="kpi__value kpi__value--magenta">{{ sales_count or 0 }}</div>
+    <div class="kpi__meta">
+      <span class="chip chip--sm chip--magenta">ticket</span>
+      <span>R$ {{ format_money((rev / sales_count) if sales_count else 0) }}</span>
+    </div>
+  </div>
+
+  <div class="card kpi">
+    <div class="kpi__label">Margem bruta</div>
+    <div class="kpi__value kpi__value--deep">{{ '%.1f'|format(gross_pct|float) }}%</div>
+    <div class="kpi__meta">
+      <span class="chip chip--sm chip--coral">R$ {{ format_money(gross) }}</span>
+      <span>após CMV</span>
+    </div>
+  </div>
+
+  <div class="card kpi">
+    <div class="kpi__label">Clientes</div>
+    <div class="kpi__value kpi__value--plum">{{ customer_count }}</div>
+    <div class="kpi__meta">
+      <span class="chip chip--sm chip--mint">+{{ new_customers }}</span>
+      <span>novos este mês</span>
+    </div>
+  </div>
+
+</div>
+
+{# ── Chart + Saúde financeira ─────────────────────────── #}
+<div class="grid grid--2-1 mb-3 dash-block dash-block--analytics">
+
+  <div class="card">
+    <div class="flex-between" style="align-items:flex-end;margin-bottom:18px">
+      <div>
+        <div class="kpi__label">Resultado · últimos 6 meses</div>
+        <div class="text-display" style="font-size:44px;letter-spacing:-.02em;margin-top:4px">R$ {{ format_money(rev) }}</div>
+        <div class="flex gap-1 mt-1">
+          {% if rev_growth is not none %}
+            <span class="chip chip--sm chip--{{ 'mint' if rev_growth >= 0 else 'coral' }}">
+              {{ '▲' if rev_growth >= 0 else '▼' }} {{ '%.1f'|format(rev_growth|float) }}%
+            </span>
+          {% endif %}
+          <span class="chip chip--sm">mês atual R$ {{ format_money(op) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-wrap">
+      {# area chart construído server-side com SVG puro #}
+      {% set w = 600 %}{% set h = 220 %}{% set plot_x0 = 56 %}{% set plot_w = w - plot_x0 - 10 %}{% set step = plot_w / ((chart_months|length) - 1 if chart_months|length > 1 else 1) %}
+      <svg viewBox="0 0 {{ w }} {{ h }}" preserveAspectRatio="none" aria-label="Resultado mensal">
+        <defs>
+          <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ff6b3a" stop-opacity=".35"/>
+            <stop offset="100%" stop-color="#ff6b3a" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        {# grid lines #}
+        {% for y in [40, 90, 140, 190] %}
+          <line x1="56" x2="{{ w }}" y1="{{ y }}" y2="{{ y }}" stroke="var(--gray-200)"/>
+        {% endfor %}
+        <line x1="56" x2="56" y1="20" y2="{{ h - 20 }}" stroke="var(--gray-300)"/>
+        {% set tick_ns = namespace(i=0) %}
+        {% for t in chart_ticks %}
+          {% set ty = [20, 57.5, 95, 132.5, 170][tick_ns.i] %}
+          <text x="0" y="{{ ty + 4 }}" font-size="11" fill="var(--gray-500)">R$ {{ format_money(t) }}</text>
+          {% set tick_ns.i = tick_ns.i + 1 %}
+        {% endfor %}
+        {# path #}
+        {% set ns = namespace(pts='', area='', i=0) %}
+        {% for m in chart_months %}
+          {% set x = (plot_x0 + (step * ns.i))|round(1) %}
+          {% set y = (h - 20 - ((m.plot / (chart_max_v or 1)) * (h - 60)))|round(1) %}
+          {% if ns.i == 0 %}
+            {% set ns.pts = 'M ' ~ x ~ ' ' ~ y %}
+            {% set ns.area = 'M ' ~ plot_x0 ~ ' ' ~ h %}
+            {% set ns.area = ns.area ~ ' L ' ~ x ~ ' ' ~ y %}
+          {% else %}
+            {% set ns.pts = ns.pts ~ ' L ' ~ x ~ ' ' ~ y %}
+            {% set ns.area = ns.area ~ ' L ' ~ x ~ ' ' ~ y %}
+          {% endif %}
+          {% set ns.i = ns.i + 1 %}
+        {% endfor %}
+        {% if chart_months %}
+          <path d="{{ ns.area }} L {{ plot_x0 + plot_w }} {{ h }} Z" fill="url(#gRev)"/>
+          <path d="{{ ns.pts }}" fill="none" stroke="var(--coral)" stroke-width="2.5" stroke-linecap="round"/>
+          {% set ns2 = namespace(i=0) %}
+          {% for m in chart_months %}
+            {% set x = (plot_x0 + (step * ns2.i))|round(1) %}
+            {% set y = (h - 20 - ((m.plot / (chart_max_v or 1)) * (h - 60)))|round(1) %}
+            <circle cx="{{ x }}" cy="{{ y }}" r="4" fill="var(--white)" stroke="var(--coral)" stroke-width="2.5"/>
+            {% set ns2.i = ns2.i + 1 %}
+          {% endfor %}
+        {% endif %}
+      </svg>
+    </div>
+    <div class="chart-legend">
+      {% for m in chart_months %}<span>{{ m.label|lower }} · R$ {{ format_money(m.result) }}</span>{% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="kpi__label">Saúde financeira · mês</div>
+    <div class="flex-col gap-3 mt-2">
+      {% set total_base = (rev|float) if (rev|float) > 0 else 1 %}
+      {% set rev_pct = 100 %}
+      {% set cogs_pct = ((cogs_v|float) / total_base * 100)|round %}
+      {% set exp_pct  = ((exp_v|float)  / total_base * 100)|round %}
+      {% set op_pct_disp = (op_pct|float)|round %}
+
+      {% for r in [
+        {'n': 'Receita', 'v': 'R$ ' ~ format_money(rev),   'p': rev_pct,  'c': 'var(--coral)'},
+        {'n': 'CMV',     'v': 'R$ ' ~ format_money(cogs_v),'p': cogs_pct, 'c': 'var(--magenta)'},
+        {'n': 'Despesas','v': 'R$ ' ~ format_money(exp_v), 'p': exp_pct,  'c': 'var(--coral-deep)'},
+        {'n': 'Resultado','v': 'R$ ' ~ format_money(op),   'p': op_pct_disp if op_pct_disp >= 0 else 0, 'c': 'var(--plum)'}
+      ] %}
+        <div>
+          <div class="flex-between" style="font-size:12.5px;margin-bottom:6px">
+            <span style="font-weight:500">{{ r.n }}</span>
+            <span class="text-muted">{{ r.v }} <span style="color:var(--ink);font-weight:600;margin-left:4px">{{ r.p }}%</span></span>
+          </div>
+          <div class="progress">
+            <div class="progress__fill" style="width:{{ r.p }}%;background:{{ r.c }}"></div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div style="margin-top:20px;padding:14px;background:var(--grad-soft);border-radius:var(--r-md)">
+      <div class="text-mono" style="font-size:11px;letter-spacing:.12em;color:var(--magenta-deep);text-transform:uppercase">✦ insight</div>
+      <div style="font-size:13px;margin-top:4px;line-height:1.45;color:var(--plum)">
+        {% if op_pct|float > 20 %}
+          Margem operacional saudável — vale reinvestir em estoque.
+        {% elif op_pct|float > 0 %}
+          Resultado positivo. Atente para despesas antes de expandir.
+        {% else %}
+          Resultado negativo. Revise despesas fixas urgentemente.
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{# ── Vendas recentes + Top produtos ────────────────────── #}
+<div class="grid grid--2-1 dash-block dash-block--operational">
+
+  <div class="card card--flush">
+    <div class="card__header">
+      <div>
+        <div class="card__title">Vendas recentes</div>
+        <div class="card__sub">últimas 6</div>
+      </div>
+      <a href="{{ url_for('list_sales') }}" style="font-size:12.5px;font-weight:600">Ver todas →</a>
+    </div>
+
+    {% if recent_sales %}
+      {% for s in recent_sales %}
+        <a href="{{ url_for('sale_detail', sid=s['id']) }}" class="table__row" style="grid-template-columns:60px 1fr 1fr 110px 110px;text-decoration:none;color:inherit">
+          <div class="thumb thumb--h{{ loop.index0 % 8 }}" style="width:44px;height:54px"></div>
+          <div>
+            <div class="text-mono" style="font-size:11.5px;color:var(--gray-500);letter-spacing:.08em">#{{ s['sale_number'] or s['id'] }}</div>
+            <div style="font-weight:600;font-size:13.5px">{{ s['customer_name'] or 'Cliente avulso' }}</div>
+          </div>
+          <div style="font-size:12.5px;color:var(--gray-700);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            {{ s['items'] or '—' }}
+          </div>
+          <div class="text-price">R$ {{ format_money(s['total']) }}</div>
+          <span class="chip chip--mint">{{ (s['payment_method'] or 'pago')|lower }}</span>
+        </a>
+      {% endfor %}
+    {% else %}
+      <div class="empty">
+        <div class="empty__title">Nenhuma venda ainda</div>
+        <div class="empty__sub">Registre sua primeira venda no PDV.</div>
+        <a href="{{ url_for('create_sale') }}" class="btn"><svg><use xlink:href="#i-plus"/></svg>Nova venda</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card__title">Mais vendidos</div>
+    <div class="card__sub mt-0">últimos 30 dias · por lucro bruto</div>
+
+    <div class="flex-col gap-2 mt-3">
+      {% for p in top_products %}
+        <div class="flex-center gap-2">
+          <div class="text-display" style="font-size:24px;color:var(--coral-soft);width:26px">{{ loop.index }}</div>
+          <div class="thumb thumb--h{{ loop.index0 % 8 }}" style="width:46px;height:56px"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p['name'] }}</div>
+            <div style="font-size:11.5px;color:var(--gray-500)">{{ p['units_sold']|int }} un · R$ {{ format_money(p['revenue']) }}</div>
+          </div>
+          <span class="chip chip--sm chip--mint">{{ '%.0f'|format(p['margin_pct']|float) }}%</span>
+        </div>
+      {% else %}
+        <div class="text-muted" style="font-size:12.5px;padding:20px 0">Sem vendas este mês.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+{# ── Alertas: estoque baixo + vales expirando ───────────── #}
+{% if low_stock or expiring_cards %}
+<div class="grid grid--2 mt-3 dash-block dash-block--alerts">
+
+  {% if low_stock %}
+    <div class="card card--flush">
+      <div class="card__header">
+        <div>
+          <div class="card__title">Estoque baixo</div>
+          <div class="card__sub">reposição urgente</div>
+        </div>
+        <a href="{{ url_for('list_products') }}?low_stock=1" style="font-size:12.5px;font-weight:600">Ver todos →</a>
+      </div>
+      {% for p in low_stock %}
+        <a href="{{ url_for('product_detail', pid=p['id']) }}" class="table__row" style="grid-template-columns:1fr 90px 120px;text-decoration:none;color:inherit">
+          <div style="min-width:0">
+            <div style="font-weight:600;font-size:13.5px">{{ p['name'] }}</div>
+            <div class="text-mono" style="font-size:11px;color:var(--gray-500)">{{ p['sku'] or '—' }}</div>
+          </div>
+          <div style="font-size:13px;color:{{ 'var(--magenta)' if p['stock_qty']|int == 0 else 'var(--coral-deep)' }};font-weight:600">
+            {{ p['stock_qty'] }} un
+          </div>
+          <span class="chip chip--sm chip--{{ 'coral' if p['stock_qty']|int == 0 else 'sun' }}">
+            {{ 'esgotado' if p['stock_qty']|int == 0 else 'baixo' }}
+          </span>
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if expiring_cards %}
+    <div class="card card--flush">
+      <div class="card__header">
+        <div>
+          <div class="card__title">Vales expirando</div>
+          <div class="card__sub">próximos 7 dias</div>
+        </div>
+        <a href="{{ url_for('list_cards') }}" style="font-size:12.5px;font-weight:600">Ver todos →</a>
+      </div>
+      {% for c in expiring_cards %}
+        <a href="{{ url_for('card_detail', card_id=c['id']) }}" class="table__row" style="grid-template-columns:60px 1fr 100px;text-decoration:none;color:inherit">
+          <div style="width:44px;height:54px;border-radius:var(--r-sm);background:var(--grad-hero);display:grid;place-items:center;color:var(--white)">
+            <svg style="width:18px;height:18px"><use xlink:href="#i-card"/></svg>
+          </div>
+          <div>
+            <div style="font-weight:600;font-size:13.5px">{{ c['recipient_name'] or '—' }}</div>
+            <div class="text-mono" style="font-size:11px;color:var(--gray-500)">•••• {{ c['code_last4'] }}</div>
+          </div>
+          <div class="text-price">R$ {{ format_money(c['current_balance']) }}</div>
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {# Clientes inativos a reengajar #}
+  {% if inactive_customers %}
+    <div class="card card--flush">
+      <div class="card__header">
+        <div>
+          <div class="card__title">Reengajar clientes</div>
+          <div class="card__sub">sem comprar há mais de {{ inactive_days }} dias · top valor</div>
+        </div>
+        <a href="{{ url_for('atender_cliente') }}" style="font-size:12.5px;font-weight:600">Atender →</a>
+      </div>
+      {% for c in inactive_customers %}
+        <a href="{{ url_for('atender_cliente', q=c['phone']) }}" class="table__row" style="grid-template-columns:1fr 110px 110px;text-decoration:none;color:inherit">
+          <div>
+            <div style="font-weight:600;font-size:13.5px">{{ c['name'] }}</div>
+            <div class="text-muted" style="font-size:11px">{{ c['phone'] }} · {{ c['sale_count'] }} compra(s)</div>
+          </div>
+          <div class="text-muted" style="font-size:12px">
+            {{ c['last_purchase'][:10] if c['last_purchase'] else '—' }}
+          </div>
+          <div class="text-price">R$ {{ format_money(c['total_spent']) }}</div>
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+</div>
+{% endif %}
+
+</div> {# /.dashboard-page #}
+{% endblock %}

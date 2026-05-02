@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Nova cliente · tonton{% endblock %}
+{% set page_sub_label = "CRM · cadastro" %}
+{% block page_title %}Nova cliente{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('list_customers') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+{% endblock %}
+
+{% block body %}
+
+<form method="post">
+  {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+  <div class="grid grid--2-1" style="align-items:start">
+
+    <div class="card">
+      <div class="card__title">Dados pessoais</div>
+      <div class="card__sub">as informações mínimas para começar</div>
+
+      <div class="form-group mt-3">
+        <label class="form-label">Nome completo *</label>
+        <div class="form-control form-control--plain">
+          <input name="name" required autofocus placeholder="Ex: Maria Silva">
+        </div>
+      </div>
+
+      <div class="grid grid--2 gap-3">
+        <div class="form-group">
+          <label class="form-label">Telefone</label>
+          <div class="form-control">
+            <svg><use xlink:href="#i-phone"/></svg>
+            <input name="phone" placeholder="(31) 99999-8888" inputmode="tel">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">E-mail</label>
+          <div class="form-control">
+            <svg><use xlink:href="#i-mail"/></svg>
+            <input name="email" type="email" placeholder="maria@email.com">
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid--2 gap-3">
+        <div class="form-group">
+          <label class="form-label">Instagram</label>
+          <div class="form-control">
+            <svg><use xlink:href="#i-ig"/></svg>
+            <input name="instagram" placeholder="@maria">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Aniversário</label>
+          <div class="form-control">
+            <svg><use xlink:href="#i-gift"/></svg>
+            <input name="birthday" type="date">
+          </div>
+          <div class="form-hint">Usado nos envios do programa de aniversário.</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Anotações internas</label>
+        <div class="form-control form-control--plain">
+          <textarea name="notes" rows="3" placeholder="Preferências de estilo, alergias, observações de entrega…"></textarea>
+        </div>
+      </div>
+
+      <label class="checkbox" style="padding:12px;background:var(--coral-glow);border-radius:var(--r-md);width:100%">
+        <input type="checkbox" name="whatsapp_opt_in" value="1" checked>
+        <span class="checkbox__box"><svg><use xlink:href="#i-check"/></svg></span>
+        <div>
+          <div style="font-weight:600;color:var(--coral-deep)">Permite contato via WhatsApp</div>
+          <div class="text-muted" style="font-size:11.5px">Campanhas, lançamentos e lembretes.</div>
+        </div>
+      </label>
+    </div>
+
+    <div class="card" style="position:sticky;top:110px">
+      <div class="card__title">Pronta para receber</div>
+      <div class="card__sub">o que acontece depois</div>
+
+      <div class="flex-col gap-2 mt-3">
+        <div class="info-row">
+          <svg><use xlink:href="#i-check"/></svg>
+          <span>Entra na base do CRM imediatamente</span>
+        </div>
+        <div class="info-row">
+          <svg><use xlink:href="#i-check"/></svg>
+          <span>Pode ser atribuída a vendas no PDV</span>
+        </div>
+        <div class="info-row">
+          <svg><use xlink:href="#i-check"/></svg>
+          <span>Começa a acumular histórico de compras</span>
+        </div>
+        <div class="info-row">
+          <svg><use xlink:href="#i-check"/></svg>
+          <span>Elegível para programa VIP (≥ R$ 1k)</span>
+        </div>
+      </div>
+
+      <div class="flex gap-2 mt-3">
+        <a href="{{ url_for('list_customers') }}" class="btn btn--ghost" style="flex:1">Cancelar</a>
+        <button type="submit" class="btn btn--lg" style="flex:2">
+          <svg><use xlink:href="#i-check"/></svg> Cadastrar
+        </button>
+      </div>
+    </div>
+
+  </div>
+</form>
+
+{% endblock %}

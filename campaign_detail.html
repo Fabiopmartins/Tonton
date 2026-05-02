@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}Nova conta PIX · tonton{% endblock %}
+{% set page_sub_label = "configurações · pagamentos · nova" %}
+{% block page_title %}Nova conta PIX{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('list_pix_accounts') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+{% endblock %}
+
+{% block body %}
+
+<style>
+  .provider-pick{
+    display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; margin:14px 0;
+  }
+  .provider-pick label{
+    position:relative; display:block;
+    padding:16px 16px 16px 48px;
+    background:var(--gray-100); border:2px solid transparent;
+    border-radius:var(--r-md); cursor:pointer; transition:all .18s ease;
+  }
+  .provider-pick label:hover{ background:var(--gray-200); }
+  .provider-pick input[type=radio]{
+    position:absolute; top:20px; left:16px;
+    width:20px; height:20px; accent-color:var(--coral-deep); cursor:pointer;
+  }
+  .provider-pick label:has(input:checked){
+    background:var(--coral-glow); border-color:var(--coral-deep);
+    box-shadow:0 0 0 4px rgba(255,107,58,.15);
+  }
+  .provider-pick__name{ font-weight:700; font-size:14px; color:var(--gray-900); }
+  .provider-pick__desc{ font-size:11.5px; color:var(--gray-700); margin-top:2px; }
+  textarea.pem{
+    width:100%; min-height:120px; padding:10px; font-family:var(--f-mono);
+    font-size:11px; border:1px solid var(--gray-300); border-radius:var(--r-sm);
+    resize:vertical; line-height:1.4;
+  }
+  .provider-section{ display:none; }
+  .provider-section.is-visible{ display:block; animation: fade-in .25s ease-out; }
+  @keyframes fade-in{ from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+</style>
+
+<form method="post">
+  {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+  <div class="grid grid--2-1" style="align-items:start">
+
+    <div class="card">
+      <div class="card__title">Provider</div>
+      <div class="card__sub">escolha o tipo de conta</div>
+
+      <div class="provider-pick" id="provider-pick">
+        <label>
+          <input type="radio" name="provider" value="manual" checked>
+          <div class="provider-pick__name">📱 Manual <span style="font-size:10px;background:var(--gray-200);padding:2px 6px;border-radius:4px;margin-left:4px">sem PSP</span></div>
+          <div class="provider-pick__desc">QR copia-e-cola, sem confirmação automática. Operador valida no app.</div>
+        </label>
+        <label>
+          <input type="radio" name="provider" value="inter">
+          <div class="provider-pick__name">🟧 Banco Inter PJ</div>
+          <div class="provider-pick__desc">Confirmação automática via webhook. Exige cert .p12.</div>
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Rótulo da conta *</label>
+        <div class="form-control">
+          <input name="label" required maxlength="60" placeholder="Ex: Inter PJ Tonton / MP Conta Principal">
+        </div>
+        <div class="form-hint">Nome interno para identificar essa conta na tela de venda.</div>
+      </div>
+
+      <label class="checkbox" style="padding:12px;background:var(--grad-soft);border-radius:var(--r-md);width:100%;margin:14px 0">
+        <input type="checkbox" name="is_default">
+        <span class="checkbox__box"><svg><use xlink:href="#i-check"/></svg></span>
+        <div>
+          <div style="font-weight:600;color:var(--plum)">Tornar padrão para este provider</div>
+          <div class="text-muted" style="font-size:11.5px;color:var(--plum)">Selecionada por padrão na tela de venda.</div>
+        </div>
+      </label>
+
+      {# ────── Manual ────── #}
+      <div class="provider-section is-visible" data-section="manual">
+        <div class="card__title" style="font-size:14px;margin-top:14px">Configuração Manual</div>
+        <div class="grid grid--2 gap-3">
+          <div class="form-group">
+            <label class="form-label">Tipo da chave</label>
+            <div class="form-control form-control--plain">
+              <select name="key_type">
+                <option value="">— escolha —</option>
+                <option value="cpf">CPF</option>
+                <option value="cnpj">CNPJ</option>
+                <option value="email">E-mail</option>
+                <option value="phone">Telefone</option>
+                <option value="evp">Aleatória (EVP)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Chave PIX</label>
+            <div class="form-control"><input name="pix_key" placeholder="conforme o tipo"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nome do recebedor</label>
+            <div class="form-control"><input name="merchant_name" maxlength="25" placeholder="MAX 25 ASCII"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cidade</label>
+            <div class="form-control"><input name="merchant_city" maxlength="15" placeholder="MAX 15 ASCII"></div>
+          </div>
+        </div>
+      </div>
+
+      {# ────── Inter ────── #}
+      <div class="provider-section" data-section="inter">
+        <div class="card__title" style="font-size:14px;margin-top:14px">Credenciais Inter PJ</div>
+        <div class="text-muted" style="font-size:11.5px;margin-bottom:10px">
+          Obtenha as credenciais no Internet Banking PJ → Aplicações → Cobrança PIX.
+        </div>
+
+        <div class="grid grid--2 gap-3">
+          <div class="form-group">
+            <label class="form-label">Client ID</label>
+            <div class="form-control"><input name="client_id" placeholder="UUID fornecido pelo Inter" autocomplete="off"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Client Secret</label>
+            <div class="form-control"><input name="client_secret" type="password" placeholder="••••••" autocomplete="off"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Chave PIX vinculada</label>
+            <div class="form-control"><input name="pix_key" placeholder="chave registrada na conta Inter"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Webhook secret (opcional)</label>
+            <div class="form-control"><input name="webhook_secret" placeholder="se você configurar no Inter" autocomplete="off"></div>
+            <div class="form-hint">Header X-Inter-Webhook-Secret. Vazio = aceita qualquer (proteja com mTLS).</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Certificado público (cert.pem)</label>
+          <textarea name="cert_pem" class="pem" placeholder="-----BEGIN CERTIFICATE-----&#10;MIIE...&#10;-----END CERTIFICATE-----" autocomplete="off"></textarea>
+          <div class="form-hint">
+            Extraído do .p12: <code>openssl pkcs12 -in inter.p12 -nokeys -out cert.pem -nodes</code>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Chave privada (key.pem)</label>
+          <textarea name="key_pem" class="pem" placeholder="-----BEGIN PRIVATE KEY-----&#10;MII...&#10;-----END PRIVATE KEY-----" autocomplete="off"></textarea>
+          <div class="form-hint">
+            <code>openssl pkcs12 -in inter.p12 -nocerts -out key.pem -nodes</code>
+            · armazenada cifrada (Fernet AES-128).
+          </div>
+        </div>
+
+        <div style="background:#fff5f5;border:1px solid #ffd0d0;color:#9a0000;padding:10px 12px;border-radius:8px;font-size:12px;margin-top:10px">
+          <strong>Importante:</strong> a chave privada nunca deve sair deste app. Armazene o .p12 original em local seguro e não comite no Git.
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="position:sticky;top:110px">
+      <div class="card__title">Como vai aparecer</div>
+      <div class="card__sub">na tela de venda</div>
+
+      <div class="flex-col gap-2 mt-3" style="font-size:12.5px">
+        <div class="info-row"><svg><use xlink:href="#i-check"/></svg> Operador vê dropdown de contas ativas</div>
+        <div class="info-row"><svg><use xlink:href="#i-check"/></svg> Conta padrão pré-selecionada</div>
+        <div class="info-row"><svg><use xlink:href="#i-check"/></svg> QR gerado on-demand</div>
+        <div class="info-row"><svg><use xlink:href="#i-check"/></svg> Status atualiza por webhook (Inter) ou manual</div>
+      </div>
+
+      <div class="flex gap-2 mt-3">
+        <a href="{{ url_for('list_pix_accounts') }}" class="btn btn--ghost" style="flex:1">Cancelar</a>
+        <button type="submit" class="btn btn--lg" style="flex:2">
+          <svg><use xlink:href="#i-check"/></svg> Cadastrar
+        </button>
+      </div>
+
+      <div class="text-muted mt-2" style="font-size:11px;text-align:center">
+        Credenciais cifradas com PSP_CREDENTIALS_KEY (Fernet).
+      </div>
+    </div>
+
+  </div>
+</form>
+
+<script>
+(function(){
+  const radios = document.querySelectorAll('input[name=provider]');
+  const sections = document.querySelectorAll('.provider-section');
+  function update(){
+    const sel = document.querySelector('input[name=provider]:checked')?.value || 'manual';
+    sections.forEach(s => s.classList.toggle('is-visible', s.dataset.section === sel));
+  }
+  radios.forEach(r => r.addEventListener('change', update));
+  update();
+})();
+</script>
+
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Definir nova senha · tonton{% endblock %}
+
+{% block shell %}
+<div class="login-split">
+  <div class="login-split__form">
+    <a href="{{ url_for('login') }}" style="text-decoration:none">
+      <img src="{{ url_for('static', filename='brand/male-wordmark.jpg') }}" alt="tonton" style="height:30px;mix-blend-mode:multiply">
+    </a>
+
+    <div class="login-split__form-wrap">
+      <div class="text-eyebrow">novo começo</div>
+      <h1 class="login-heading">Nova senha,<br><em>novo começo.</em></h1>
+      <p class="text-muted" style="font-size:14.5px;margin:0 0 32px;line-height:1.55">
+        Escolha uma senha forte — 10+ caracteres, com letras e números.
+      </p>
+
+      <form method="post" autocomplete="on">
+        {% if session.get('csrf_token') %}
+          <input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">
+        {% endif %}
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, msg in messages %}
+              <div class="flash flash--{{ category if category in ['success','error','warning','info'] else 'info' }} mb-2">
+                <svg style="width:16px;height:16px"><use xlink:href="#{% if category == 'success' %}i-check{% else %}i-x{% endif %}"/></svg>
+                <span>{{ msg }}</span>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <div class="form-group">
+          <label class="form-label">Nova senha *</label>
+          <div class="form-control">
+            <input name="password" type="password" required minlength="10" autofocus placeholder="mínimo 10 caracteres">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Confirme a senha *</label>
+          <div class="form-control">
+            <input name="password_confirm" type="password" required minlength="10">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn--lg btn--full">
+          Salvar nova senha
+          <svg><use xlink:href="#i-check"/></svg>
+        </button>
+
+        <div style="margin-top:20px;text-align:center;font-size:13px">
+          <a href="{{ url_for('login') }}">← Voltar para o login</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="login-split__art">
+    <div class="login-quote">
+      <div class="login-quote__eyebrow">✦ seguro e simples</div>
+      <div class="login-quote__text">
+        "Cada acesso é uma porta — e você é a única com a chave."
+      </div>
+      <div class="login-quote__attr">— Lorena Silva de Souza, fundadora</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
