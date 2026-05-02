@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="pt-BR"{% if active_theme and active_theme.slug %} data-theme="{{ active_theme.slug }}"{% endif %}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>{% block title %}tonton · Painel{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  {# Favicon SVG: vetorial, escala perfeita em qualquer densidade.
+     Fallback PNG mantido para browsers muito velhos (IE11, etc.). #}
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='brand/favicon.svg') }}">
+  <link rel="alternate icon" type="image/png" href="{{ url_for('static', filename='brand/male-monogram.jpg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=soft-coral-2">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style-refinements.css') }}?v=editorial-1">
+  <script>
+    // Aplica tema antes de renderizar para evitar flash branco em modo escuro
+    (function() {
+      try {
+        var t = localStorage.getItem('tonton-theme');
+        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch(e) {}
+    })();
+  </script>
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <defs>
+    <symbol id="i-home"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8v10a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-bag"   viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7z"/><path d="M9 7a3 3 0 0 1 6 0"/></symbol>
+    <symbol id="i-tag"   viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-grid"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-cart"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.5 12h11l2-8H6"/><circle cx="9" cy="20" r="1.2" fill="currentColor"/><circle cx="18" cy="20" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2 21c.5-4 3.5-6 7-6s6.5 2 7 6"/><circle cx="17.5" cy="9" r="2.5"/><path d="M22 18c-.3-2.5-2-4-4.5-4"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 4 3 5-7"/></symbol>
+    <symbol id="i-cog"   viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-bell"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8z"/><path d="M10 20a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-plus"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-arrow-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-chevron-d" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-8-5.5-8-12a5 5 0 0 1 8-4 5 5 0 0 1 8 4c0 6.5-8 12-8 12z"/></symbol>
+    <symbol id="i-star"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.8 6.4.6-4.8 4.4 1.4 6.4L12 16.8 6.4 20.2 7.8 13.8 3 9.4l6.4-.6z"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v5c0 5-3.4 9.4-8 10-4.6-.6-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-11"/></symbol>
+    <symbol id="i-x"     viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></symbol>
+    <symbol id="i-sun"   viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></symbol>
+    <symbol id="i-moon"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+    <symbol id="i-message" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="i-menu"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></symbol>
+    <symbol id="i-qr"    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2M14 19h2M19 19h2M14 21v-2"/></symbol>
+    <symbol id="i-card"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></symbol>
+    <symbol id="i-cash"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-pix"   viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l4 4-4 4-4-4z"/><path d="M12 14l4 4-4 4-4-4z"/><path d="M2 12l4-4 4 4-4 4z"/><path d="M14 12l4-4 4 4-4 4z"/></symbol>
+    <symbol id="i-truck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="12" height="9" rx="1"/><path d="M14 10h5l3 3v3h-8"/><circle cx="6" cy="19" r="1.5"/><circle cx="18" cy="19" r="1.5"/></symbol>
+    <symbol id="i-pkg"   viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></symbol>
+    <symbol id="i-receipt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18l-3-2-3 2-2-2-3 2-3-2z"/><path d="M9 8h6M9 12h6M9 16h3"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></symbol>
+    <symbol id="i-eye"   viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17V3M5 10l7-7 7 7"/><path d="M3 21h18"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v14M5 12l7 7 7-7"/><path d="M3 21h18"/></symbol>
+    <symbol id="i-edit"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l11-11-4-4L4 16z"/><path d="M14 6l4 4"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></symbol>
+    <symbol id="i-wpp"   viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 3.5A10 10 0 0 0 4.2 17.8L3 21l3.3-1.1A10 10 0 1 0 20.5 3.5z"/><path d="M8.5 8.5c.3 2 1.7 4.5 4 6.5s4.5 1.8 5.5 1.2l-1-2.3-2 .3-1.7-1.7.3-2-2.3-1z"/></symbol>
+    <symbol id="i-ig"    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></symbol>
+    <symbol id="i-mail"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 7 9-7"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h4l2 5-3 2a12 12 0 0 0 6 6l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 2 6a2 2 0 0 1 2-2z"/></symbol>
+    <symbol id="i-location" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+    <symbol id="i-gift"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4"/><path d="M4 12v9h16v-9M12 8v13"/><path d="M7 8a2.5 2.5 0 0 1 0-5c2 0 5 5 5 5s3-5 5-5a2.5 2.5 0 0 1 0 5"/></symbol>
+    <symbol id="i-dots"  viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2zM19 14l1 3 3 1-3 1-1 3-1-3-3-1 3-1z"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2s5 4 5 9a5 5 0 0 1-10 0c0-2 1-3 1-3s0 2 2 2c1 0 1-2 1-4s1-4 1-4z"/></symbol>
+    <symbol id="i-trend" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-9M15 6h6v6"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5 4h14l3 8v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/></symbol>
+  </defs>
+</svg>
+
+{#
+  Variáveis derivadas do current_user (sqlite3.Row-safe).
+  Subscript direto funciona em Row, dict e Mapping em geral; evita .get().
+#}
+{% set _user_name = '' %}
+{% set _user_role = '' %}
+{% if current_user %}
+  {% set _user_name = current_user['display_name'] %}
+  {% set _user_role = current_user['role'] %}
+{% endif %}
+{% set _is_admin = (_user_role == 'admin') %}
+
+{% block shell %}
+<div class="app" id="app-shell">
+
+  <aside class="sidebar" id="sidebar">
+    <button type="button" class="icon-btn sidebar__close" id="sidebar-close" aria-label="Fechar menu">
+      <svg><use xlink:href="#i-x"/></svg>
+    </button>
+    <a href="{{ url_for('dashboard') }}" class="sidebar__brand" style="text-decoration:none">
+      <img src="{{ url_for('static', filename='brand/male-wordmark.jpg') }}" alt="tonton" class="sidebar__brand-logo">
+      <div class="sidebar__brand-sub">Loja Infantil</div>
+    </a>
+
+    <nav class="sidebar__nav">
+      <a href="{{ url_for('dashboard') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] == 'dashboard' %} is-active{% endif %}">
+        <svg><use xlink:href="#i-home"/></svg><span class="sidebar__item-label">Painel</span>
+      </a>
+      <a href="{{ url_for('list_sales') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] in ['list_sales','sale_detail'] %} is-active{% endif %}">
+        <svg><use xlink:href="#i-receipt"/></svg><span class="sidebar__item-label">Vendas</span>
+      </a>
+      <a href="{{ url_for('pending_payments') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] == 'pending_payments' %} is-active{% endif %}">
+        <svg><use xlink:href="#i-clock"/></svg>
+        <span class="sidebar__item-label">A receber</span>
+        {% if pending_payments_count and pending_payments_count > 0 %}
+          <span class="sidebar__badge">{{ pending_payments_count if pending_payments_count < 100 else '99+' }}</span>
+        {% endif %}
+      </a>
+      <a href="{{ url_for('create_sale') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] == 'create_sale' %} is-active{% endif %}">
+        <svg><use xlink:href="#i-cart"/></svg><span class="sidebar__item-label">PDV</span>
+      </a>
+      <a href="{{ url_for('list_products') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] in ['list_products','create_product','product_detail','edit_product','product_variants_view','product_price_history'] %} is-active{% endif %}">
+        <svg><use xlink:href="#i-tag"/></svg><span class="sidebar__item-label">Produtos</span>
+      </a>
+      <a href="{{ url_for('produtos_abc') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] == 'produtos_abc' %} is-active{% endif %}">
+        <svg><use xlink:href="#i-chart"/></svg><span class="sidebar__item-label">Curva ABC</span>
+      </a>
+      <a href="{{ url_for('public_catalog') }}" target="_blank" class="sidebar__item">
+        <svg><use xlink:href="#i-grid"/></svg><span class="sidebar__item-label">Catálogo</span>
+      </a>
+      {% if has_endpoint('lookbook.list_looks') %}
+      <a href="{{ url_for('lookbook.list_looks') }}" class="sidebar__item{% if request.endpoint and request.endpoint.startswith('lookbook.') %} is-active{% endif %}">
+        <svg><use xlink:href="#i-sparkle"/></svg><span class="sidebar__item-label">Lookbook</span>
+      </a>
+      {% endif %}
+      <a href="{{ url_for('atender_cliente') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] == 'atender_cliente' %} is-active{% endif %}">
+        <svg><use xlink:href="#i-message"/></svg><span class="sidebar__item-label">Atender</span>
+      </a>
+      <a href="{{ url_for('list_customers') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] in ['list_customers','create_customer','customer_detail','edit_customer'] %} is-active{% endif %}">
+        <svg><use xlink:href="#i-users"/></svg><span class="sidebar__item-label">Clientes</span>
+      </a>
+      <a href="{{ url_for('accounting') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] == 'accounting' %} is-active{% endif %}">
+        <svg><use xlink:href="#i-chart"/></svg><span class="sidebar__item-label">Financeiro</span>
+      </a>
+
+      <div class="sidebar__section">Marketing</div>
+      <a href="{{ url_for('list_campaigns') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] in ['list_campaigns','create_campaign','campaign_detail'] %} is-active{% endif %}">
+        <svg><use xlink:href="#i-mail"/></svg><span class="sidebar__item-label">Campanhas</span>
+      </a>
+      <a href="{{ url_for('list_coupons') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] in ['list_coupons','create_coupon'] %} is-active{% endif %}">
+        <svg><use xlink:href="#i-gift"/></svg><span class="sidebar__item-label">Cupons</span>
+      </a>
+      <a href="{{ url_for('list_cards') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] in ['list_cards','card_detail','create_card'] %} is-active{% endif %}">
+        <svg><use xlink:href="#i-card"/></svg><span class="sidebar__item-label">Vale-Presente</span>
+      </a>
+      <a href="{{ url_for('commercial_calendar') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] == 'commercial_calendar' %} is-active{% endif %}">
+        <svg><use xlink:href="#i-calendar"/></svg><span class="sidebar__item-label">Calendário</span>
+      </a>
+
+      <div class="sidebar__section">Operação</div>
+      <a href="{{ url_for('restock_list') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] in ['restock_list','restock_detail'] %} is-active{% endif %}">
+        <svg><use xlink:href="#i-pkg"/></svg><span class="sidebar__item-label">Reposição</span>
+      </a>
+      <a href="{{ url_for('list_credits') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] in ['list_credits','create_credit'] %} is-active{% endif %}">
+        <svg><use xlink:href="#i-inbox"/></svg><span class="sidebar__item-label">Créditos</span>
+      </a>
+      <a href="{{ url_for('redeem') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] == 'redeem' %} is-active{% endif %}">
+        <svg><use xlink:href="#i-qr"/></svg><span class="sidebar__item-label">Resgatar</span>
+      </a>
+      <a href="{{ url_for('interest_dashboard') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] == 'interest_dashboard' %} is-active{% endif %}">
+        <svg><use xlink:href="#i-heart"/></svg><span class="sidebar__item-label">Interesses</span>
+      </a>
+      <a href="{{ url_for('birthdays') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] == 'birthdays' %} is-active{% endif %}">
+        <svg><use xlink:href="#i-sparkle"/></svg><span class="sidebar__item-label">Aniversários</span>
+      </a>
+      <a href="{{ url_for('reports') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] in ['reports','manage_goals'] %} is-active{% endif %}">
+        <svg><use xlink:href="#i-trend"/></svg><span class="sidebar__item-label">Relatórios</span>
+      </a>
+
+      {% if _is_admin %}
+      <div class="sidebar__section">Sistema</div>
+      <a href="{{ url_for('list_users') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] in ['list_users','create_user'] %} is-active{% endif %}">
+        <svg><use xlink:href="#i-users"/></svg><span class="sidebar__item-label">Usuários</span>
+      </a>
+      <a href="{{ url_for('store_settings_view') }}" class="sidebar__item{% if (request.endpoint or '').split('.')[-1] in ['store_settings_view', 'hero_images_admin'] %} is-active{% endif %}">
+        <svg><use xlink:href="#i-cog"/></svg><span class="sidebar__item-label">Configurações</span>
+      </a>
+      {% endif %}
+
+      {# Sair: visível apenas em mobile via CSS — no desktop fica na topbar #}
+      {% if current_user %}
+      <form method="post" action="{{ url_for('logout') }}" class="sidebar__logout-form">
+        {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+        <button type="submit" class="sidebar__item sidebar__item--logout">
+          <svg><use xlink:href="#i-logout"/></svg><span class="sidebar__item-label">Sair</span>
+        </button>
+      </form>
+      {% endif %}
+    </nav>
+
+    <a href="{{ ui_text('sidebar_promo_url', instagram_url) }}" target="_blank" rel="noopener" class="sidebar__promo" style="text-decoration:none">
+      <span class="sidebar__promo-tag">instagram</span>
+      <div class="sidebar__promo-title">{{ ui_text('sidebar_promo_title', 'Visite o nosso Instagram @tontonlojainfantil') }}</div>
+      {% set _promo_sub = ui_text('sidebar_promo_sub', '') %}
+      {% if _promo_sub %}<div class="sidebar__promo-sub">{{ _promo_sub }}</div>{% endif %}
+    </a>
+  </aside>
+
+  <button type="button" class="app__overlay" id="app-overlay" aria-label="Fechar menu"></button>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar__titles">
+        {% if page_sub_label %}<div class="topbar__sub">{{ page_sub_label }}</div>{% endif %}
+        <h1 class="topbar__title">
+          {% block page_title %}{% endblock %}
+          {% if active_theme and active_theme.slug %}
+            <a href="{{ url_for('store_settings_view', tab='operacao') }}"
+               class="theme-chip"
+               style="margin-left:10px;text-decoration:none;vertical-align:middle"
+               title="Tema sazonal ativo · clique para alterar">
+              {{ active_theme.name }}
+            </a>
+          {% endif %}
+        </h1>
+      </div>
+      <div class="topbar__actions">
+        <button type="button" class="icon-btn topbar__menu-btn" id="sidebar-open" aria-label="Abrir menu">
+          <svg><use xlink:href="#i-menu"/></svg>
+        </button>
+        <div class="search-pill">
+          <svg><use xlink:href="#i-search"/></svg>
+          <input type="search" placeholder="Buscar produtos, pedidos, clientes…" aria-label="Buscar">
+          <span class="search-pill__kbd">⌘K</span>
+        </div>
+        {% block topbar_actions %}{% endblock %}
+        <a href="{{ url_for('notifications_view') }}" class="icon-btn" aria-label="Notificações" title="Notificações">
+          <svg><use xlink:href="#i-bell"/></svg>
+          {% if unread_notifications and unread_notifications > 0 %}
+            <span class="icon-btn__dot icon-btn__dot--count">{{ unread_notifications if unread_notifications < 100 else '99+' }}</span>
+          {% endif %}
+        </a>
+        <button type="button" class="icon-btn" id="theme-toggle" aria-label="Alternar tema" title="Alternar claro/escuro">
+          <svg id="theme-icon-sun"><use xlink:href="#i-sun"/></svg>
+          <svg id="theme-icon-moon" style="display:none"><use xlink:href="#i-moon"/></svg>
+        </button>
+        {% if current_user %}
+        <div class="user-pill" title="{{ _user_name }}">
+          <div class="user-pill__meta">
+            <div class="user-pill__name">{{ _user_name }}</div>
+            <div class="user-pill__role">{% if _user_role %}{{ _user_role[0]|upper }}{{ _user_role[1:] }}{% else %}Usuário{% endif %}</div>
+          </div>
+          <div class="user-pill__avatar">{% if _user_name %}{{ _user_name[:2]|upper }}{% else %}??{% endif %}</div>
+        </div>
+        <form method="post" action="{{ url_for('logout') }}" class="logout-action" style="display:inline">
+          {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+          <button type="submit" class="icon-btn" title="Sair" aria-label="Sair">
+            <svg><use xlink:href="#i-logout"/></svg>
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </header>
+
+    <div class="content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-wrap">
+          {% for category, msg in messages %}
+            <div class="flash flash--{{ 'info' if category == 'info-html' else (category if category in ['success','error','warning','info'] else 'info') }}">
+              <svg style="width:16px;height:16px">
+                <use xlink:href="#{% if category == 'success' %}i-check{% elif category == 'error' or category == 'danger' %}i-x{% else %}i-sparkle{% endif %}"/>
+              </svg>
+              <span>{% if category == 'info-html' %}{{ msg|safe }}{% else %}{{ msg }}{% endif %}</span>
+            </div>
+          {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block body %}{% endblock %}
+    </div>
+  </main>
+</div>
+{% endblock %}
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const app = document.getElementById("app-shell");
+  const sidebar = document.getElementById("sidebar");
+  const openBtn = document.getElementById("sidebar-open");
+  const closeBtn = document.getElementById("sidebar-close");
+  const overlay = document.getElementById("app-overlay");
+
+  if (!app || !sidebar || !openBtn || !closeBtn || !overlay) return;
+
+  const toggleMenu = (open) => {
+    app.classList.toggle("app--nav-open", open);
+    document.body.classList.toggle("body--nav-open", open);
+    openBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+
+  openBtn.addEventListener("click", () => toggleMenu(true));
+  closeBtn.addEventListener("click", () => toggleMenu(false));
+  overlay.addEventListener("click", () => toggleMenu(false));
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") toggleMenu(false);
+  });
+
+  sidebar.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => {
+      if (window.innerWidth <= 780) toggleMenu(false);
+    });
+  });
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 780) toggleMenu(false);
+  });
+
+  // ---------- Kebab menu (click-to-open dropdown with '...' trigger) ----------
+  const closeAllKebabs = (except) => {
+    document.querySelectorAll(".kebab.is-open").forEach((k) => {
+      if (k !== except) {
+        k.classList.remove("is-open");
+        k.classList.remove("kebab--up");
+        const btn = k.querySelector(".kebab__btn");
+        if (btn) btn.setAttribute("aria-expanded", "false");
+        const panel = k.querySelector(".kebab__panel");
+        if (panel) {
+          // Reset coordenadas para nao vazar memoria visual
+          panel.style.top = "";
+          panel.style.left = "";
+        }
+      }
+    });
+  };
+
+  // Posiciona via position:fixed. Alinha pela borda direita do botao.
+  // Se nao couber abaixo, abre acima. Se nao couber a direita, alinha
+  // pela borda esquerda. Sempre clampa dentro da viewport com 8px de margem.
+  const positionKebab = (kebab) => {
+    const panel = kebab.querySelector(".kebab__panel");
+    const btn   = kebab.querySelector(".kebab__btn");
+    if (!panel || !btn) return;
+    const margin = 8;
+    const btnRect = btn.getBoundingClientRect();
+    const panelW  = panel.offsetWidth;
+    const panelH  = panel.offsetHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    // Vertical: prefere abaixo; se nao couber, acima
+    let top = btnRect.bottom + 6;
+    if (top + panelH + margin > vh) {
+      top = btnRect.top - panelH - 6;
+      if (top < margin) top = margin; // ultima cartada: cola no topo
+    }
+
+    // Horizontal: alinha pela direita do botao
+    let left = btnRect.right - panelW;
+    if (left < margin) left = margin;
+    if (left + panelW + margin > vw) left = vw - panelW - margin;
+
+    panel.style.top  = top  + "px";
+    panel.style.left = left + "px";
+  };
+
+  document.querySelectorAll("[data-kebab]").forEach((kebab) => {
+    const btn = kebab.querySelector(".kebab__btn");
+    if (!btn) return;
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = kebab.classList.contains("is-open");
+      closeAllKebabs(isOpen ? null : kebab);
+      if (isOpen) {
+        kebab.classList.remove("is-open");
+        btn.setAttribute("aria-expanded", "false");
+        const panel = kebab.querySelector(".kebab__panel");
+        if (panel) { panel.style.top = ""; panel.style.left = ""; }
+      } else {
+        kebab.classList.add("is-open");
+        btn.setAttribute("aria-expanded", "true");
+        // display:flex agora vale - painel ja tem dimensoes mensuraveis
+        positionKebab(kebab);
+      }
+    });
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("[data-kebab]")) closeAllKebabs();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeAllKebabs();
+  });
+  // Reposiciona em scroll/resize. Como e position:fixed, scroll do body
+  // tambem precisa disparar (o painel nao "desce" sozinho).
+  window.addEventListener("scroll", () => {
+    document.querySelectorAll(".kebab.is-open").forEach(positionKebab);
+  }, { passive: true });
+  // Captura scroll de containers internos tambem (true => capture phase).
+  document.addEventListener("scroll", () => {
+    document.querySelectorAll(".kebab.is-open").forEach(positionKebab);
+  }, { capture: true, passive: true });
+  window.addEventListener("resize", () => {
+    document.querySelectorAll(".kebab.is-open").forEach(positionKebab);
+  });
+});
+
+// Theme toggle (claro/escuro) — persiste em localStorage
+(function() {
+  function syncThemeIcons() {
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    var sun = document.getElementById('theme-icon-sun');
+    var moon = document.getElementById('theme-icon-moon');
+    if (sun)  sun.style.display  = isDark ? 'none' : '';
+    if (moon) moon.style.display = isDark ? '' : 'none';
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    syncThemeIcons();
+    var btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      if (next === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
+      try { localStorage.setItem('tonton-theme', next); } catch(e) {}
+      syncThemeIcons();
+    });
+  });
+})();
+</script>
+
+{# ── Persistência da posição de scroll da sidebar entre navegações.
+   Sem isso, cada clique num item recarrega a página e o navegador
+   reseta scrollTop=0, escondendo o item ativo se ele estava embaixo
+   (ex: Reposição, Calendário, Sistema). Salvamos a posição em
+   sessionStorage no momento do clique e restauramos no load. #}
+<script>
+(function(){
+  var KEY = 'tonton-sidebar-scroll';
+  var nav = document.querySelector('.sidebar__nav');
+  if (!nav) return;
+
+  // Restore scroll position on load — sync (before paint) to avoid flash
+  try {
+    var saved = sessionStorage.getItem(KEY);
+    if (saved !== null) nav.scrollTop = parseInt(saved, 10) || 0;
+  } catch(e) {}
+
+  // Save scroll position when clicking any link inside the nav
+  nav.addEventListener('click', function(e){
+    var link = e.target.closest('a');
+    if (!link) return;
+    try { sessionStorage.setItem(KEY, String(nav.scrollTop)); } catch(e) {}
+  });
+
+  // Also save on scroll (debounced) so back-button + manual scroll work
+  var scrollTimer;
+  nav.addEventListener('scroll', function(){
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(function(){
+      try { sessionStorage.setItem(KEY, String(nav.scrollTop)); } catch(e) {}
+    }, 120);
+  });
+})();
+</script>
+{% block scripts %}{% endblock %}
+{% include '_wash_icons.html' %}
+</body>
+</html>

@@ -1,0 +1,1059 @@
+{% extends "base.html" %}
+{% block title %}{{ store_name }} — {{ tagline or 'catálogo' }}{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='catalog.css', v=asset_v('catalog.css')) }}">
+
+  {# ─── SEO ──────────────────────────────────────────────────────── #}
+  {% set _desc = tagline or 'Coleções curtas, tecidos honestos. Cada peça escolhida para durar mais que uma estação.' %}
+  <meta name="description" content="{{ _desc }}">
+  <link rel="canonical" href="{{ url_for('public_catalog', _external=True) }}">
+
+  {# Open Graph (compartilhamento WhatsApp/Instagram/Facebook).
+     Prioridade da imagem:
+       1. Imagem OG fixa configurada em /settings (sóbria, marca + tagline)
+       2. Foto da peça-capa (hero_product)
+       3. Sem og:image (link aparece sem preview de imagem) #}
+  <meta property="og:title" content="{{ store_name }} — {{ tagline or 'catálogo' }}">
+  <meta property="og:description" content="{{ _desc }}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="{{ url_for('public_catalog', _external=True) }}">
+  <meta property="og:site_name" content="{{ store_name }}">
+  <meta property="og:locale" content="pt_BR">
+  {% if og_image_set %}
+    <meta property="og:image" content="{{ url_for('public_og_image', _external=True) }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="{{ store_name }} — {{ tagline or 'catálogo' }}">
+  {% elif hero_product and hero_product.get('has_image') %}
+    <meta property="og:image" content="{{ url_for('public_product_image', pid=hero_product['id'], v=hero_product.get('primary_image_version', 1), _external=True) }}">
+    <meta property="og:image:alt" content="{{ hero_product['name'] }}">
+  {% endif %}
+
+  {# Twitter Card — usa a mesma imagem do OG #}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ store_name }} — {{ tagline or 'catálogo' }}">
+  <meta name="twitter:description" content="{{ _desc }}">
+  {% if og_image_set %}
+    <meta name="twitter:image" content="{{ url_for('public_og_image', _external=True) }}">
+  {% elif hero_product and hero_product.get('has_image') %}
+    <meta name="twitter:image" content="{{ url_for('public_product_image', pid=hero_product['id'], v=hero_product.get('primary_image_version', 1), _external=True) }}">
+  {% endif %}
+{% endblock %}
+
+{% block shell %}
+<main class="ed">
+
+  {# ───────────────────────── Nav ─────────────────────────
+     Hierarquia clara: marca grande à esquerda (assinatura visual),
+     1 link de seção no centro, 2 ações de canal à direita.
+     Antes: marca minúscula competindo com texto + ícones. #}
+  <header class="ed-nav" aria-label="Navegação principal">
+    <a href="{{ url_for('public_catalog') }}" class="ed-nav__brand" aria-label="{{ store_name }}">
+      <span class="ed-nav__brand-mark">mal<em>ê</em></span>
+    </a>
+    <nav class="ed-nav__links" aria-label="Seções">
+      <a href="{{ url_for('public_catalog') }}" class="is-active">Coleção</a>
+      <a href="{{ url_for('public_about') }}">Sobre</a>
+    </nav>
+    <div class="ed-nav__actions">
+      {% if wa_number %}
+        <a href="{{ wa_link }}"
+           class="ed-nav__action ed-nav__action--whatsapp"
+           target="_blank" rel="noopener"
+           aria-label="Conversar pelo WhatsApp"
+           title="WhatsApp">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M20.52 3.48A11.93 11.93 0 0012 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0012 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 21.82a9.82 9.82 0 01-5-1.36l-.36-.21-3.67.96.98-3.58-.23-.37A9.82 9.82 0 1121.82 12 9.83 9.83 0 0112 21.82zm5.39-7.36c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.95 1.17-.17.2-.35.22-.65.07-.3-.15-1.27-.47-2.42-1.5a9.07 9.07 0 01-1.67-2.07c-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51l-.57-.01c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.49 0 1.47 1.07 2.89 1.22 3.09.15.2 2.1 3.21 5.08 4.5.71.3 1.27.49 1.7.63.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.07-.13-.27-.2-.57-.35z"/>
+          </svg>
+        </a>
+      {% endif %}
+      <a href="{{ instagram_url }}"
+         class="ed-nav__action ed-nav__action--instagram"
+         target="_blank" rel="noopener"
+         aria-label="Instagram {{ instagram }}"
+         title="{{ instagram }}">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <circle cx="17.5" cy="6.5" r="1" fill="currentColor"/>
+        </svg>
+      </a>
+      {% if current_user %}
+        <a href="{{ url_for('dashboard') }}" class="ed-nav__action ed-nav__action--admin" aria-label="Painel" title="Painel">
+          <svg aria-hidden="true"><use xlink:href="#i-cog"/></svg>
+        </a>
+      {% endif %}
+    </div>
+  </header>
+
+  {# ───────────────────────── Hero ──────────────────────── #
+     hero_mode é decidido na rota Python (app.py / public_catalog).
+     Modos:
+       photo    → foto de destaque full-bleed (peça marcada com estrela)
+       cover    → split: texto à esquerda + 1ª peça à direita (catálogo cheio)
+       compact  → faixa fina tipográfica (catálogo médio)
+       minimal  → sem hero (poucas peças — direto ao grid)
+       solo     → hero compacto centralizado (catálogo vazio)
+       store    → carrossel de imagens da loja (vitrine, fachada, ambiente)
+  #}
+  {% set hero_mode = hero_mode or 'minimal' %}
+  {% set cover_product = (hero_mode == 'cover') and products and products[0] or none %}
+
+  {% if hero_mode != 'minimal' %}
+  <section class="ed-hero ed-hero--{{ hero_mode }}" aria-labelledby="ed-hero-title">
+
+    {# Modo photo: foto de destaque full-bleed #}
+    {% if hero_mode == 'photo' %}
+      <img class="ed-hero__img"
+           src="{{ url_for('public_product_image', pid=hero_product['id'], v=hero_product.get('primary_image_version', 1)) }}"
+           alt="" loading="eager" fetchpriority="high">
+      <div class="ed-hero__scrim" aria-hidden="true"></div>
+    {% endif %}
+
+    {# Modo store: carrossel automático com imagens da loja #}
+    {% if hero_mode == 'store' and hero_images %}
+      <div class="ed-hero__carousel" aria-label="Vitrine da loja">
+        {% for img in hero_images %}
+          <figure class="ed-hero__carousel-slide{% if loop.first %} is-active{% endif %}"
+                  data-index="{{ loop.index0 }}">
+            <img src="{{ url_for('public_hero_image', hid=img['id']) }}?v={{ img['image_version'] }}"
+                 alt="{{ img['caption'] or '' }}"
+                 loading="{% if loop.first %}eager{% else %}lazy{% endif %}"
+                 {% if loop.first %}fetchpriority="high"{% endif %}>
+          </figure>
+        {% endfor %}
+      </div>
+      <div class="ed-hero__scrim" aria-hidden="true"></div>
+      {% if hero_images|length > 1 %}
+        <div class="ed-hero__dots" aria-hidden="true">
+          {% for img in hero_images %}
+            <button type="button"
+                    class="ed-hero__dot{% if loop.first %} is-active{% endif %}"
+                    data-index="{{ loop.index0 }}"
+                    aria-label="Ir para imagem {{ loop.index }}"></button>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endif %}
+
+    <div class="ed-hero__inner">
+      {% if hero_mode != 'compact' %}
+      <p class="ed-hero__edition">
+        <span class="ed-rule" aria-hidden="true"></span>
+        {{ ui_text('catalog_season', 'Edição · Outono 26') }}
+      </p>
+      {% endif %}
+
+      {# Título grande do hero — frase-conceito da estação atual.
+         Configurável em /settings (catalog_hero_concept).
+         Default: "Peças que ficam" — chamada universal da marca. #}
+      <h1 id="ed-hero-title" class="ed-hero__title">
+        {% set _concept = ui_text('catalog_hero_concept', '') %}
+        {% if _concept %}
+          {{ _concept }}
+        {% else %}
+          {{ ui_text('catalog_heading_1', 'Peças') }}
+          <em>{{ ui_text('catalog_heading_2', 'que ficam') }}</em>
+        {% endif %}
+      </h1>
+
+      {% if hero_mode != 'compact' %}
+      <p class="ed-hero__lede">
+        {{ ui_text('catalog_subheading', tagline or 'Coleções curtas, tecidos honestos. Cada peça escolhida para durar mais que uma estação.') }}
+      </p>
+      {% endif %}
+
+      {% if hero_mode == 'photo' %}
+        {# Apresentação da peça-capa: nome em destaque + 2 CTAs lado a lado.
+           Antes era um único link "↓ ver peça". Agora: ver coleção (rola pro grid)
+           + conversar (abre WhatsApp da loja). #}
+        <div class="ed-hero__feature-block">
+          <span class="ed-hero__feature-eyebrow">Em destaque</span>
+          <a href="#p-{{ hero_product['id'] }}" class="ed-hero__feature-name-link">
+            <span class="ed-hero__feature-name">{{ hero_product['name'] }}</span>
+          </a>
+        </div>
+        <div class="ed-hero__cta-group" role="group" aria-label="Ações principais">
+          <a href="#ed-grid-anchor" class="ed-hero__cta ed-hero__cta--primary">
+            <span>Ver coleção</span>
+            <span aria-hidden="true">↓</span>
+          </a>
+          {% if wa_number %}
+            <a href="{{ wa_link }}"
+               target="_blank" rel="noopener"
+               class="ed-hero__cta ed-hero__cta--ghost">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M20.52 3.48A11.93 11.93 0 0012 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0012 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 21.82a9.82 9.82 0 01-5-1.36l-.36-.21-3.67.96.98-3.58-.23-.37A9.82 9.82 0 1121.82 12 9.83 9.83 0 0112 21.82zm5.39-7.36c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.95 1.17-.17.2-.35.22-.65.07-.3-.15-1.27-.47-2.42-1.5a9.07 9.07 0 01-1.67-2.07c-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51l-.57-.01c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.49 0 1.47 1.07 2.89 1.22 3.09.15.2 2.1 3.21 5.08 4.5.71.3 1.27.49 1.7.63.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.07-.13-.27-.2-.57-.35z"/>
+              </svg>
+              <span>Conversar</span>
+            </a>
+          {% endif %}
+        </div>
+      {% elif hero_mode in ('cover', 'store') %}
+        <div class="ed-hero__cta-group" role="group" aria-label="Ações principais">
+          <a href="#ed-grid-anchor" class="ed-hero__cta ed-hero__cta--primary">
+            <span>Ver coleção</span>
+            <span aria-hidden="true">↓</span>
+          </a>
+          {% if wa_number %}
+            <a href="{{ wa_link }}"
+               target="_blank" rel="noopener"
+               class="ed-hero__cta ed-hero__cta--ghost">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M20.52 3.48A11.93 11.93 0 0012 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0012 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 21.82a9.82 9.82 0 01-5-1.36l-.36-.21-3.67.96.98-3.58-.23-.37A9.82 9.82 0 1121.82 12 9.83 9.83 0 0112 21.82zm5.39-7.36c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.95 1.17-.17.2-.35.22-.65.07-.3-.15-1.27-.47-2.42-1.5a9.07 9.07 0 01-1.67-2.07c-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51l-.57-.01c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.49 0 1.47 1.07 2.89 1.22 3.09.15.2 2.1 3.21 5.08 4.5.71.3 1.27.49 1.7.63.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.07-.13-.27-.2-.57-.35z"/>
+              </svg>
+              <span>Conversar</span>
+            </a>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+
+    {# Modo cover: primeira peça vira a "capa" à direita #}
+    {% if hero_mode == 'cover' and cover_product %}
+      <a class="ed-hero__cover" href="#p-{{ cover_product['id'] }}"
+         aria-label="Ver {{ cover_product['name'] }}">
+        <figure class="ed-hero__cover-media">
+          {% if cover_product.get('has_image') %}
+            <img src="{{ url_for('public_product_image', pid=cover_product['id'], v=cover_product.get('primary_image_version', 1)) }}"
+                 alt="{{ cover_product['name'] }}" loading="eager" fetchpriority="high">
+          {% else %}
+            <span class="ed-hero__cover-mono" aria-hidden="true">
+              {{ cover_product['name'][:1]|upper }}
+            </span>
+          {% endif %}
+        </figure>
+        <figcaption class="ed-hero__cover-cap">
+          <span class="ed-hero__cover-eyebrow">Em catálogo</span>
+          <span class="ed-hero__cover-name">{{ cover_product['name'] }}</span>
+          {% if show_prices and cover_product.get('min_price') %}
+            <span class="ed-hero__cover-price">R$ {{ format_money(cover_product['min_price']) }}</span>
+          {% endif %}
+        </figcaption>
+      </a>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {# âncora para link "ver coleção" pular direto pro grid #}
+  <span id="ed-grid-anchor" aria-hidden="true"></span>
+
+  {# ───────────────────── Filtros + busca ────────────────── #}
+  <section class="ed-filters" aria-label="Filtros">
+    {# Linha 1: chips de categoria (uso primário) + busca colapsada à direita.
+       Antes: busca dominava o topo; agora aparece só como ícone,
+       expande ao clicar. Ordenação e contador na linha 2. #}
+    <div class="ed-filters__row">
+      <nav class="ed-filters__cats" aria-label="Categorias">
+        <a href="{{ url_for('public_catalog', q=q or none, sort=request.args.get('sort') or none) }}"
+           class="ed-chip{% if not selected_cat %} is-active{% endif %}">Tudo</a>
+        {% for c in categories %}
+          <a href="{{ url_for('public_catalog', cat=c['category'], q=q or none, sort=request.args.get('sort') or none) }}"
+             class="ed-chip{% if selected_cat == c['category'] %} is-active{% endif %}">{{ c['category'] }}</a>
+        {% endfor %}
+      </nav>
+
+      {# Busca colapsada: só ícone até clicar. Quando q está preenchido,
+         abre por padrão (mostra termo ativo). #}
+      <details class="ed-search-details"{% if q %} open{% endif %}>
+        <summary class="ed-search-details__trigger" aria-label="{% if q %}Editar busca{% else %}Buscar peças{% endif %}">
+          <svg aria-hidden="true"><use xlink:href="#i-search"/></svg>
+        </summary>
+        <form method="get" class="ed-search ed-search--collapsed" role="search">
+          {% if selected_cat %}<input type="hidden" name="cat" value="{{ selected_cat }}">{% endif %}
+          {% if request.args.get('sort') %}<input type="hidden" name="sort" value="{{ request.args.get('sort') }}">{% endif %}
+          <input type="search" name="q" value="{{ q }}" placeholder="Buscar peças" aria-label="Buscar peças" autofocus>
+          {% if q %}
+            <a class="ed-search__clear" aria-label="Limpar busca"
+               href="{{ url_for('public_catalog') }}{% if selected_cat %}?cat={{ selected_cat|urlencode }}{% endif %}">×</a>
+          {% endif %}
+        </form>
+      </details>
+    </div>
+
+    {# Linha 2: ordenação + contador (só aparece quando há filtro). #}
+    {% if selected_cat or q or products|length > 4 %}
+    <div class="ed-filters__row ed-filters__row--meta">
+      {% set _current_sort = request.args.get('sort') %}
+      {% set _sort_label = {'price_asc': 'menor preço', 'price_desc': 'maior preço'}.get(_current_sort, 'recentes') %}
+      <details class="ed-sort-menu">
+        <summary class="ed-sort-menu__trigger" aria-label="Abrir opções de ordenação">
+          <span class="ed-sort-menu__label">ordenar:</span>
+          <span class="ed-sort-menu__current">{{ _sort_label }}</span>
+          <span class="ed-sort-menu__chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="ed-sort-menu__panel" role="menu">
+          <a href="{{ url_for('public_catalog', cat=selected_cat or none, q=q or none) }}"
+             class="ed-sort-menu__item{% if not _current_sort %} is-active{% endif %}"
+             role="menuitem">Recentes</a>
+          <a href="{{ url_for('public_catalog', cat=selected_cat or none, q=q or none, sort='price_asc') }}"
+             class="ed-sort-menu__item{% if _current_sort == 'price_asc' %} is-active{% endif %}"
+             role="menuitem">Menor preço</a>
+          <a href="{{ url_for('public_catalog', cat=selected_cat or none, q=q or none, sort='price_desc') }}"
+             class="ed-sort-menu__item{% if _current_sort == 'price_desc' %} is-active{% endif %}"
+             role="menuitem">Maior preço</a>
+        </div>
+      </details>
+
+      {% if selected_cat or q %}
+      <p class="ed-filters__count">
+        {{ products|length }} {{ 'peça' if products|length == 1 else 'peças' }}
+        {%- if selected_cat %} em <em>{{ selected_cat|lower }}</em>{% endif %}
+        {%- if q %} para <em>“{{ q }}”</em>{% endif %}
+      </p>
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
+
+  {# ───────────────────── Grid editorial ───────────────────
+     Ritmo: peças normais em col 4. A cada 7 produtos, um "spread"
+     full-bleed (intermission curatorial). Featured ocupa 8 colunas.
+     Quando há ≤4 peças, ativa modo --compact (centralizado) e
+     desliga o feature aleatório (que faria o catálogo parecer vazio).
+     ─────────────────────────────────────────────────────── #}
+  {% set is_compact = products|length <= 4 %}
+  <section class="ed-grid{% if is_compact %} ed-grid--compact{% endif %}" aria-label="Catálogo">
+    {% if products %}
+      {% for p in products %}
+        {% set idx = loop.index0 %}
+        {% set is_feature = (not is_compact) and idx > 0 and idx % 7 == 0 %}
+        {% set has_tech = p['composition'] or p['care_wash'] or p['fabric_type']
+                       or p['fabric_weight_gsm'] or p['fit'] or p['length_class']
+                       or p['description'] %}
+
+        {# Intermission curatorial — só aparece em catálogos com mais de 12 peças #}
+        {% if (not is_compact) and idx > 0 and idx % 12 == 0 and intermissions %}
+          {% set intermission = intermissions[(idx // 12 - 1) % intermissions|length] %}
+          <aside class="ed-intermission" aria-label="Nota curatorial">
+            <p class="ed-intermission__eyebrow">Da curadoria</p>
+            <p class="ed-intermission__text">{{ intermission }}</p>
+          </aside>
+        {% endif %}
+
+        <article class="ed-card{% if is_feature %} ed-card--feature{% endif %}" id="p-{{ p['id'] }}">
+          <a class="ed-card__link" href="{% if p.get('slug') %}{{ url_for('public_product', slug=p['slug']) }}{% else %}#{% endif %}"
+             data-pid="{{ p['id'] }}"
+             data-slug="{{ p['slug']|e if p['slug'] else '' }}"
+             data-name="{{ p['name']|e }}"
+             data-has-tech="{{ '1' if has_tech else '0' }}"
+             data-image="{% if p.get('has_image') %}{{ url_for('public_product_image', pid=p['id'], v=p.get('primary_image_version', 1)) }}{% endif %}"
+             data-category="{{ p['category']|e if p['category'] else '' }}"
+             data-composition="{{ composition_pretty(p['composition'])|e }}"
+             data-fabric="{{ p['fabric_type']|e if p['fabric_type'] else '' }}"
+             data-gsm="{{ p['fabric_weight_gsm'] or '' }}"
+             data-fit="{{ p['fit']|e if p['fit'] else '' }}"
+             data-length="{{ p['length_class']|e if p['length_class'] else '' }}"
+             data-care="{{ care_wash_label(p['care_wash'])|e if p['care_wash'] else '' }}"
+             data-origin="{{ p['country_of_origin']|e if p['country_of_origin'] else '' }}"
+             data-description="{{ p['description']|e if p['description'] else '' }}"
+             data-price="{% if show_prices %}R$ {{ format_money(p.get('min_price') or p['sale_price']) }}{% endif %}"
+             {% if p['has_variants'] %}
+               data-sizes="{{ (p['available_sizes'] or [])|join(', ')|e }}"
+               data-colors="{{ (p['available_colors'] or [])|join(', ')|e }}"
+               data-images-by-color='{{ (p['images_by_color'] or {})|tojson|e }}'
+               data-sizes-by-color='{{ (p['sizes_by_color'] or {})|tojson|e }}'
+             {% endif %}
+             aria-label="Ver {{ p['name'] }}"
+             onclick="return openProductModal({{ p['id'] }}, this)">
+
+            <figure class="ed-card__media">
+              {% if p.get('has_image') %}
+                <img src="{{ url_for('public_product_image', pid=p['id'], v=p.get('primary_image_version', 1)) }}"
+                     alt="{{ p['name'] }}" loading="lazy" decoding="async">
+              {% else %}
+                <div class="ed-card__placeholder" aria-hidden="true">{{ p['name'][:1]|upper }}</div>
+              {% endif %}
+
+              {# Tags discretas — UMA por vez para não poluir.
+                 Prioridade: estoque baixo > promoção. "Em destaque" foi
+                 removido daqui porque a peça já aparece no hero, redundante. #}
+              {% if p['total_stock']|int > 0 and p['total_stock']|int <= 3 %}
+                <span class="ed-tag ed-tag--scarce">últimas {{ p['total_stock'] }}</span>
+              {% elif has_active_promo(p) %}
+                <span class="ed-tag ed-tag--sale">Em promoção</span>
+              {% endif %}
+            </figure>
+
+            <div class="ed-card__body">
+              <header class="ed-card__head">
+                <h3 class="ed-card__name">{{ p['name'] }}</h3>
+                {# Meta: só categoria. Tam/cor já são mostrados em
+                   .ed-card__variants logo abaixo (swatches + sizes), evita
+                   duplicação visual e respeita o respiro mobile. #}
+                {% if p['category'] %}
+                  <p class="ed-card__meta">{{ p['category'] }}</p>
+                {% endif %}
+              </header>
+
+              {% if p['has_variants'] %}
+                <div class="ed-card__variants">
+                  {% if p['available_colors'] %}
+                    <ul class="ed-swatches" aria-label="Cores disponíveis">
+                      {% for c in p['available_colors'] %}
+                        {% set color_lower = c|lower %}
+                        {% set color_hex = (color_map or {}).get(color_lower, '#d8ccc2') %}
+                        {% set has_img = (p['images_by_color'] or {}).get(color_lower) %}
+                        <li>
+                          <button type="button"
+                                  class="ed-swatch{% if has_img %} ed-swatch--has-img{% endif %}"
+                                  style="--swatch:{{ color_hex }}"
+                                  data-color="{{ color_lower }}"
+                                  title="{{ c }}{% if has_img %} — ver foto{% endif %}"
+                                  aria-label="{{ c }}"
+                                  onclick="return swapVariantImage(event, this)">
+                            <span class="ed-swatch__dot" aria-hidden="true"></span>
+                          </button>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  {% endif %}
+                  {% if p['available_sizes'] %}
+                    <p class="ed-card__sizes">
+                      <span class="ed-card__sizes-label">Tam.</span>
+                      {{ p['available_sizes']|join(' · ') }}
+                    </p>
+                  {% endif %}
+                </div>
+              {% else %}
+                {# Produto SEM variantes: mostra cor/tamanho fixos no mesmo
+                   layout, para consistência visual com produtos com variantes.
+                   Antes: bloco vazio → cards com aspecto desigual no grid. #}
+                {% if p['color'] or p['size'] %}
+                <div class="ed-card__variants ed-card__variants--single">
+                  {% if p['color'] %}
+                    {% set color_lower = p['color']|lower %}
+                    {% set color_hex = (color_map or {}).get(color_lower, '#d8ccc2') %}
+                    <ul class="ed-swatches" aria-label="Cor">
+                      <li>
+                        <span class="ed-swatch ed-swatch--static"
+                              style="--swatch:{{ color_hex }}"
+                              title="{{ p['color'] }}"
+                              aria-label="{{ p['color'] }}">
+                          <span class="ed-swatch__dot" aria-hidden="true"></span>
+                        </span>
+                      </li>
+                    </ul>
+                  {% endif %}
+                  {% if p['size'] %}
+                    <p class="ed-card__sizes">
+                      <span class="ed-card__sizes-label">Tam.</span>
+                      {{ p['size'] }}
+                    </p>
+                  {% endif %}
+                </div>
+                {% endif %}
+              {% endif %}
+
+              <footer class="ed-card__foot">
+                {% if show_prices %}
+                  {% if has_active_promo(p) %}
+                    <span class="ed-price">
+                      <s class="ed-price__old">R$ {{ format_money(p['sale_price']) }}</s>
+                      <span class="ed-price__new">R$ {{ format_money(p['promo_price']) }}</span>
+                    </span>
+                  {% elif p['has_variants'] and p['min_price'] != p['max_price'] %}
+                    <span class="ed-price">
+                      <span class="ed-price__prefix">a partir de</span>
+                      R$ {{ format_money(p['min_price']) }}
+                    </span>
+                  {% else %}
+                    <span class="ed-price">R$ {{ format_money(p['min_price']) }}</span>
+                  {% endif %}
+                {% else %}
+                  <span class="ed-price ed-price--muted">Sob consulta</span>
+                {% endif %}
+                <span class="ed-card__cue ed-card__cue--{{ click_target or 'whatsapp' }}" aria-hidden="true">
+                  {% if (click_target or 'whatsapp') == 'instagram' %}
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                      <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                      <circle cx="17.5" cy="6.5" r="1" fill="currentColor"/>
+                    </svg>
+                    instagram
+                  {% else %}
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="currentColor" d="M20.52 3.48A11.93 11.93 0 0012 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0012 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 21.82a9.82 9.82 0 01-5-1.36l-.36-.21-3.67.96.98-3.58-.23-.37A9.82 9.82 0 1121.82 12 9.83 9.83 0 0112 21.82zm5.39-7.36c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.95 1.17-.17.2-.35.22-.65.07-.3-.15-1.27-.47-2.42-1.5a9.07 9.07 0 01-1.67-2.07c-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51l-.57-.01c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.49 0 1.47 1.07 2.89 1.22 3.09.15.2 2.1 3.21 5.08 4.5.71.3 1.27.49 1.7.63.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.07-.13-.27-.2-.57-.35z"/>
+                    </svg>
+                    whatsapp
+                  {% endif %}
+                </span>
+              </footer>
+            </div>
+          </a>
+        </article>
+      {% endfor %}
+    {% else %}
+      <div class="ed-empty">
+        <p class="ed-empty__eyebrow">Por enquanto</p>
+        <h2 class="ed-empty__title">As peças da semana já partiram.</h2>
+        <p class="ed-empty__lede">A próxima curadoria entra em breve. Acompanhe pelo Instagram para ver primeiro.</p>
+        <a href="{{ instagram_url }}" target="_blank" rel="noopener" class="ed-empty__cta">{{ instagram }} →</a>
+      </div>
+    {% endif %}
+  </section>
+
+  {# ───────────────────────── Manifesto ────────────────── #
+     Só aparece em modos editoriais (cover, photo). Em catálogo pequeno
+     (minimal/compact) não faz sentido manifesto da marca — fica pretensioso.
+  #}
+  {% if hero_mode in ('cover', 'photo') %}
+  <section id="manifesto" class="ed-manifesto" aria-labelledby="ed-manifesto-title">
+    <p class="ed-manifesto__eyebrow">Nossa filosofia</p>
+    <h2 id="ed-manifesto-title" class="ed-manifesto__title">
+      Vestir bem é <em>escolher devagar.</em>
+    </h2>
+    <div class="ed-manifesto__cols">
+      <p>Trabalhamos com coleções curtas. Cada peça é escolhida para entrar no seu armário e ficar — não para ocupar uma estação.</p>
+      <p>Tecidos honestos, modelagens estudadas, acabamentos que sobrevivem a muitas lavagens. O que importa é o tempo de uso, não o tempo de prateleira.</p>
+    </div>
+  </section>
+  {% endif %}
+
+  {# ───────────────────────── Footer ─────────────────────
+     Alma da loja — assinatura visual da marca, não decoração.
+     Estrutura editorial: marca grande + manifesto curto, depois
+     2 colunas funcionais (atendimento + catálogo), opcional
+     newsletter, copyright/crédito.
+     Configurável via /settings: tagline, credo, newsletter, crédito. #}
+  <footer class="ed-foot ed-foot--editorial" aria-label="Rodapé">
+
+    {# ─── Hero do footer: marca + tagline (assinatura editorial) ───
+       Antes tinha um bloco "credo" de 2 linhas aqui — removido por ser
+       redundante: a marca já apareceu gigante no header e a filosofia da
+       marca tem casa própria em /sobre (com mais contexto). Aqui mantém-se
+       só wordmark menor + tagline curta como rúbrica final. #}
+    <div class="ed-foot__hero">
+      <a href="{{ url_for('public_catalog') }}" class="ed-foot__wordmark" aria-label="{{ store_name }}">
+        mal<em>ê</em>
+      </a>
+      {% if tagline %}
+        <p class="ed-foot__tagline">{{ tagline }}</p>
+      {% endif %}
+    </div>
+
+    {# ─── Newsletter (opcional, configurável em /settings) ─── #}
+    {% if newsletter_enabled %}
+    <div class="ed-foot__newsletter" aria-label="Inscrição na newsletter">
+      <p class="ed-foot__newsletter-eyebrow">novidades</p>
+      <p class="ed-foot__newsletter-intro">{{ newsletter_intro }}</p>
+      <form class="ed-foot__newsletter-form" id="ed-foot-news-form" novalidate>
+        <input type="email"
+               name="email"
+               required
+               autocomplete="email"
+               placeholder="seu e-mail"
+               aria-label="Seu e-mail">
+        <button type="submit" aria-label="Inscrever">
+          <span>inscrever</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round" stroke-linejoin="round"
+                  d="M5 12h14M13 6l6 6-6 6"/>
+          </svg>
+        </button>
+      </form>
+      <p class="ed-foot__newsletter-status" id="ed-foot-news-status" role="status" aria-live="polite"></p>
+    </div>
+    {% endif %}
+
+    {# ─── Colunas funcionais ─── #}
+    <div class="ed-foot__cols">
+
+      <div class="ed-foot__col">
+        <p class="ed-foot__label">Atendimento</p>
+        <ul class="ed-foot__list">
+          {% if wa_number %}
+            <li>
+              <a href="{{ wa_link }}" target="_blank" rel="noopener" class="ed-foot__link--wa">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="currentColor" d="M20.52 3.48A11.93 11.93 0 0012 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0012 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 21.82a9.82 9.82 0 01-5-1.36l-.36-.21-3.67.96.98-3.58-.23-.37A9.82 9.82 0 1121.82 12 9.83 9.83 0 0112 21.82zm5.39-7.36c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.95 1.17-.17.2-.35.22-.65.07-.3-.15-1.27-.47-2.42-1.5a9.07 9.07 0 01-1.67-2.07c-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51l-.57-.01c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.49 0 1.47 1.07 2.89 1.22 3.09.15.2 2.1 3.21 5.08 4.5.71.3 1.27.49 1.7.63.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.07-.13-.27-.2-.57-.35z"/>
+                </svg>
+                <span>WhatsApp</span>
+              </a>
+            </li>
+          {% endif %}
+          <li>
+            <a href="{{ instagram_url }}" target="_blank" rel="noopener" class="ed-foot__link--ig">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                <circle cx="17.5" cy="6.5" r="1" fill="currentColor"/>
+              </svg>
+              <span>{{ instagram }}</span>
+            </a>
+          </li>
+          {% if footer_email %}
+            <li>
+              <a href="mailto:{{ footer_email }}" class="ed-foot__link--mail">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                  <path d="M3 7l9 6 9-6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                </svg>
+                <span>{{ footer_email }}</span>
+              </a>
+            </li>
+          {% endif %}
+        </ul>
+      </div>
+
+      <div class="ed-foot__col">
+        <p class="ed-foot__label">Catálogo</p>
+        <ul class="ed-foot__list">
+          <li><a href="{{ url_for('public_catalog') }}">Coleção atual</a></li>
+          <li><a href="{{ url_for('public_about') }}">Sobre a marca</a></li>
+          {% for c in categories[:4] %}
+            <li><a href="{{ url_for('public_catalog', cat=c['category']) }}">{{ c['category']|capitalize }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+
+    </div>
+
+    {# ─── Linha legal: copyright + assinatura editorial + crédito sutil ─── #}
+    <div class="ed-foot__legal-row">
+      <p class="ed-foot__legal">© {{ now.year if now else 2026 }} {{ store_name }} · todos os direitos reservados</p>
+      <p class="ed-foot__legal-aside">moda que fica</p>
+    </div>
+    {% if footer_credit %}
+      <p class="ed-foot__credit">{{ footer_credit }}</p>
+    {% endif %}
+
+    {# ─── Voltar ao topo (sutil) ─── #}
+    <a href="#" class="ed-foot__top" aria-label="Voltar ao topo">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="none" stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round"
+              d="M12 19V5M5 12l7-7 7 7"/>
+      </svg>
+    </a>
+  </footer>
+
+  {% if newsletter_enabled %}
+  {# Captura silenciosa do submit. Sem framework — fetch direto. #}
+  <script>
+  (function() {
+    var form = document.getElementById('ed-foot-news-form');
+    if (!form) return;
+    var status = document.getElementById('ed-foot-news-status');
+    form.addEventListener('submit', function(ev) {
+      ev.preventDefault();
+      var input = form.querySelector('input[name="email"]');
+      var email = (input.value || '').trim();
+      if (!email) return;
+      status.textContent = 'enviando…';
+      status.className = 'ed-foot__newsletter-status is-pending';
+      fetch('{{ url_for("newsletter_subscribe") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email: email})
+      })
+      .then(function(r) { return r.json().then(function(j) { return {ok: r.ok, j: j}; }); })
+      .then(function(res) {
+        if (res.ok && res.j && res.j.ok) {
+          status.textContent = 'pronto. obrigado por entrar.';
+          status.className = 'ed-foot__newsletter-status is-success';
+          input.value = '';
+        } else if (res.j && res.j.error === 'invalid_email') {
+          status.textContent = 'verifique o e-mail.';
+          status.className = 'ed-foot__newsletter-status is-error';
+        } else if (res.j && res.j.error === 'rate_limited') {
+          status.textContent = 'aguarde um instante.';
+          status.className = 'ed-foot__newsletter-status is-error';
+        } else {
+          status.textContent = 'tente de novo em alguns segundos.';
+          status.className = 'ed-foot__newsletter-status is-error';
+        }
+      })
+      .catch(function() {
+        status.textContent = 'sem conexão.';
+        status.className = 'ed-foot__newsletter-status is-error';
+      });
+    });
+  })();
+  </script>
+  {% endif %}
+
+  {# ─────────── Modal de ficha curatorial ─────────────── #}
+  <div id="px-modal" class="ed-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="px-modal-title">
+    <div class="ed-modal__backdrop" onclick="closeProductModal()" aria-hidden="true"></div>
+    <article class="ed-modal__panel" role="document">
+      <div class="ed-modal__topbar">
+        <a id="px-modal-fullpage"
+           class="ed-modal__icon-btn"
+           href="#"
+           aria-label="Ver página completa"
+           title="Ver página completa">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round" stroke-linejoin="round"
+                  d="M14 4h6v6M20 4l-9 9M9 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3"/>
+          </svg>
+        </a>
+        <button type="button"
+                class="ed-modal__icon-btn ed-modal__icon-btn--close"
+                aria-label="Fechar"
+                title="Fechar"
+                onclick="closeProductModal()">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round"
+                  d="M6 6l12 12M18 6L6 18"/>
+          </svg>
+        </button>
+      </div>
+
+      <figure class="ed-modal__media">
+        <img id="px-modal-img" src="" alt="">
+      </figure>
+
+      <div class="ed-modal__body">
+        <p id="px-modal-eyebrow" class="ed-modal__eyebrow"></p>
+        <h2 id="px-modal-title" class="ed-modal__title"></h2>
+        <p id="px-modal-price" class="ed-modal__price"></p>
+
+        {# narrativa em prosa, sem tabs #}
+        <section class="ed-modal__section ed-modal__section--lede">
+          <p id="px-pane-desc-content"></p>
+        </section>
+
+        <section class="ed-modal__section">
+          <h3 class="ed-modal__h">Composição & tecido</h3>
+          <div id="px-pane-comp-content"></div>
+        </section>
+
+        <section class="ed-modal__section">
+          <h3 class="ed-modal__h">Cuidados</h3>
+          <div id="px-pane-care-content"></div>
+        </section>
+
+        <dl id="px-pane-desc-meta" class="ed-modal__meta"></dl>
+
+        <div class="ed-modal__cta-row">
+          <button type="button" class="ed-modal__cta" onclick="modalAskInterest()">
+            <span id="px-cta-label">Conversar sobre essa peça →</span>
+          </button>
+        </div>
+      </div>
+    </article>
+  </div>
+
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ───────── catálogo · modal de detalhes da peça ─────────
+// Adaptado de v10 para o layout editorial (.ed-*). IDs internos do modal
+// (#px-modal, #px-pane-*, #px-cta-label) foram preservados.
+
+function buildCatalogWhatsAppUrl(productName) {
+  var digits = String('{{ wa_number or "" }}').replace(/\D/g, '');
+  if (!digits) return null;
+  var storeName = '{{ store_name|e }}';
+  var message = 'Olá! Tenho interesse neste item do catálogo';
+  if (productName) message += ': ' + productName;
+  if (storeName) message += '. Loja: ' + storeName;
+  return 'https://wa.me/' + digits + '?text=' + encodeURIComponent(message);
+}
+
+// Tracking + redirect (uso interno do modal)
+function trackAndRedirect(pid, productName) {
+  fetch('/api/catalog/interest', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ product_id: pid })
+  }).catch(function(){});
+  var clickTarget = '{{ click_target or "whatsapp" }}';
+  if (clickTarget === 'whatsapp') {
+    var whatsappUrl = buildCatalogWhatsAppUrl(productName);
+    if (whatsappUrl) { window.open(whatsappUrl, '_blank'); return; }
+  }
+  window.open('{{ instagram_url }}', '_blank');
+}
+
+// State do modal
+var _modalCurrentPid = null;
+var _modalCurrentName = '';
+
+// Mapeamento de cuidado de lavagem → ícone (sprite SVG vem do base.html)
+var WASH_ICON_MAP = {
+  'Lavar até 30 °C': { icon: 'wash-30',   label: 'Lavar até 30 °C' },
+  'Lavar até 40 °C': { icon: 'wash-40',   label: 'Lavar até 40 °C' },
+  'Lavar até 60 °C': { icon: 'wash-60',   label: 'Lavar até 60 °C' },
+  'Lavar à mão':     { icon: 'wash-hand', label: 'Lavar à mão (até 40 °C)' },
+  'Não lavar':       { icon: 'wash-no',   label: 'Não lavar — apenas limpeza profissional' }
+};
+
+// Paleta para barra de composição
+var FIBER_COLORS = ['#1a1410', '#b5924c', '#3a6e8a', '#8b3a3a', '#5c5650', '#2c6e49'];
+
+function buildCompositionBar(compositionStr) {
+  if (!compositionStr) return '';
+  var parts = compositionStr.split('·').map(function(s){ return s.trim(); });
+  var rows = [];
+  parts.forEach(function(p, i){
+    var m = p.match(/^(\d+)%\s+(.+)$/);
+    if (m) rows.push({ pct: parseInt(m[1],10), name: m[2], color: FIBER_COLORS[i % FIBER_COLORS.length] });
+  });
+  if (!rows.length) return '<div class="ed-modal__block-lg">' + compositionStr + '</div>';
+
+  var bar = '<div class="ed-comp-bar" role="img" aria-label="Composição: ' + compositionStr + '">';
+  rows.forEach(function(r){
+    bar += '<div class="ed-comp-bar__seg" style="width:' + r.pct + '%;background:' + r.color + '"></div>';
+  });
+  bar += '</div>';
+
+  var legend = '<ul class="ed-comp-legend">';
+  rows.forEach(function(r){
+    legend += '<li><span class="ed-comp-legend__dot" style="background:' + r.color + '"></span>'
+           +  '<span class="ed-comp-legend__pct">' + r.pct + '%</span>'
+           +  '<span class="ed-comp-legend__name">' + r.name + '</span></li>';
+  });
+  legend += '</ul>';
+  return bar + legend;
+}
+
+function buildWashIcon(careLabel) {
+  var m = WASH_ICON_MAP[careLabel];
+  if (!m) return '<div class="ed-modal__block-lg">' + careLabel + '</div>';
+  return '<div class="ed-wash">'
+       +   '<svg class="ed-wash__icon" viewBox="0 0 64 64" aria-hidden="true">'
+       +     '<use href="#' + m.icon + '"></use>'
+       +   '</svg>'
+       +   '<div class="ed-wash__label">' + m.label + '</div>'
+       + '</div>';
+}
+
+// Troca a foto do card ao clicar num swatch de cor
+function swapVariantImage(ev, swatch) {
+  ev.preventDefault();
+  ev.stopPropagation();
+  var card = swatch.closest('.ed-card');
+  if (!card) return false;
+  var link = card.querySelector('.ed-card__link');
+  if (!link) return false;
+
+  var color = swatch.getAttribute('data-color') || '';
+  var raw   = link.getAttribute('data-images-by-color') || '{}';
+  var map;
+  try { map = JSON.parse(raw); } catch(e) { map = {}; }
+  var url = map[color];
+
+  var img = card.querySelector('.ed-card__media img');
+  if (!img) return false;
+
+  if (!card.dataset.originalImg) card.dataset.originalImg = img.getAttribute('src');
+
+  var alreadyActive = swatch.classList.contains('is-active');
+
+  // Limpa estado ativo de todos os swatches
+  card.querySelectorAll('.ed-swatch.is-active').forEach(function(s){
+    s.classList.remove('is-active');
+  });
+
+  if (alreadyActive) {
+    img.setAttribute('src', card.dataset.originalImg);
+    return false;
+  }
+
+  if (url) img.setAttribute('src', url);
+  else     img.setAttribute('src', card.dataset.originalImg);
+  swatch.classList.add('is-active');
+  return false;
+}
+
+// Abre modal de detalhes da peça
+function openProductModal(pid, el) {
+  // Sem ficha técnica → vai direto para WhatsApp/Instagram
+  if (!el || el.getAttribute('data-has-tech') !== '1') {
+    trackAndRedirect(pid, el ? el.getAttribute('data-name') : '');
+    return false;
+  }
+
+  var d = el.dataset;
+  _modalCurrentPid  = pid;
+  _modalCurrentName = d.name || '';
+
+  // Imagem — respeita cor selecionada via swatch (se houver)
+  var img = document.getElementById('px-modal-img');
+  var imgSrc = d.image;
+  var card = el.closest('.ed-card');
+  var activeSwatch = card ? card.querySelector('.ed-swatch.is-active') : null;
+  if (activeSwatch) {
+    var color = activeSwatch.getAttribute('data-color') || '';
+    try {
+      var imgMap = JSON.parse(el.getAttribute('data-images-by-color') || '{}');
+      if (imgMap[color]) imgSrc = imgMap[color];
+    } catch (e) { /* mantém d.image */ }
+  }
+  if (img) {
+    if (imgSrc) { img.src = imgSrc; img.style.display = ''; img.alt = d.name || ''; }
+    else        { img.removeAttribute('src'); img.style.display = 'none'; }
+  }
+
+  // Cabeçalho
+  var elE = document.getElementById('px-modal-eyebrow');
+  var elT = document.getElementById('px-modal-title');
+  var elP = document.getElementById('px-modal-price');
+  if (elE) elE.textContent = d.category || '';
+  if (elT) elT.textContent = d.name || '';
+  if (elP) elP.textContent = d.price || '';
+
+  // Seção: descrição + meta
+  var descEl = document.getElementById('px-pane-desc-content');
+  if (descEl) descEl.textContent = d.description || '';
+
+  var meta = document.getElementById('px-pane-desc-meta');
+  if (meta) {
+    meta.innerHTML = '';
+    function addMeta(label, value) {
+      if (!value) return;
+      meta.innerHTML += '<dt>' + label + '</dt><dd>' + value + '</dd>';
+    }
+    addMeta('Modelagem', d.fit);
+    addMeta('Comprimento', d.length);
+    addMeta('Tamanhos', d.sizes);
+    addMeta('Cores', d.colors);
+    if (d.origin && d.origin !== 'BR') addMeta('Origem', d.origin);
+  }
+
+  // Seção: composição + tecido + gramatura
+  var compEl = document.getElementById('px-pane-comp-content');
+  var hasComp = !!(d.composition || d.fabric || d.gsm);
+  if (compEl) {
+    if (hasComp) {
+      var html = '';
+      if (d.composition) html += buildCompositionBar(d.composition);
+      var extras = '';
+      if (d.fabric) extras += '<div class="ed-modal__row"><span class="ed-modal__row-lbl">Tecido</span> ' + d.fabric + '</div>';
+      if (d.gsm)    extras += '<div class="ed-modal__row"><span class="ed-modal__row-lbl">Gramatura</span> ' + d.gsm + ' g/m²</div>';
+      if (extras)   html += '<div class="ed-modal__extras">' + extras + '</div>';
+      compEl.innerHTML = html;
+      compEl.parentElement.style.display = '';
+    } else {
+      compEl.innerHTML = '';
+      compEl.parentElement.style.display = 'none';
+    }
+  }
+
+  // Seção: cuidados
+  var careEl = document.getElementById('px-pane-care-content');
+  var hasCare = !!d.care;
+  if (careEl) {
+    if (hasCare) {
+      careEl.innerHTML = buildWashIcon(d.care)
+                       + '<div class="ed-modal__tip">Sempre confira a etiqueta da peça antes da primeira lavagem.</div>';
+      careEl.parentElement.style.display = '';
+    } else {
+      careEl.innerHTML = '';
+      careEl.parentElement.style.display = 'none';
+    }
+  }
+
+  // CTA
+  var clickTarget = '{{ click_target or "whatsapp" }}';
+  var ctaLabel = document.getElementById('px-cta-label');
+  if (ctaLabel) {
+    ctaLabel.textContent = (clickTarget === 'whatsapp'
+      ? 'Conversar pelo WhatsApp →'
+      : 'Conversar pelo Instagram →');
+  }
+
+  // Link "ver página completa" — só aparece se o produto tem slug
+  var fullpageLink = document.getElementById('px-modal-fullpage');
+  var slug = d.slug || '';
+  if (fullpageLink) {
+    if (slug) {
+      fullpageLink.href = '/catalogo/' + encodeURIComponent(slug);
+      fullpageLink.style.display = 'inline-grid';
+    } else {
+      fullpageLink.style.display = 'none';
+    }
+  }
+
+  // Mostra
+  var modal = document.getElementById('px-modal');
+  if (modal) {
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+
+  return false;
+}
+
+function closeProductModal() {
+  var modal = document.getElementById('px-modal');
+  if (!modal) return;
+  modal.classList.remove('is-open');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+  _modalCurrentPid = null;
+}
+
+function modalAskInterest() {
+  if (!_modalCurrentPid) return;
+  trackAndRedirect(_modalCurrentPid, _modalCurrentName);
+}
+
+// ESC fecha o modal
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') closeProductModal();
+});
+
+// ───────── carrossel do hero (modo store) ─────────
+(function () {
+  var slides = document.querySelectorAll('.ed-hero__carousel-slide');
+  var dots   = document.querySelectorAll('.ed-hero__dot');
+  if (slides.length < 2) return;  // só roda com 2+ imagens
+
+  var current = 0;
+  var timer;
+  var INTERVAL = 5000;  // 5s entre transições
+
+  function show(idx) {
+    slides.forEach(function (s, i) {
+      s.classList.toggle('is-active', i === idx);
+    });
+    dots.forEach(function (d, i) {
+      d.classList.toggle('is-active', i === idx);
+    });
+    current = idx;
+  }
+
+  function next() {
+    show((current + 1) % slides.length);
+  }
+
+  function start() {
+    stop();
+    timer = setInterval(next, INTERVAL);
+  }
+
+  function stop() {
+    if (timer) { clearInterval(timer); timer = null; }
+  }
+
+  // Click em dot vai para o slide e reinicia o timer
+  dots.forEach(function (d) {
+    d.addEventListener('click', function () {
+      var i = parseInt(d.getAttribute('data-index') || '0', 10);
+      show(i);
+      start();
+    });
+  });
+
+  // Pausa quando aba não está visível (economiza CPU)
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) stop(); else start();
+  });
+
+  // Respeita prefers-reduced-motion (acessibilidade)
+  var reducedMotion = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reducedMotion) start();
+})();
+</script>
+{% endblock %}

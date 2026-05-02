@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+{% block title %}Produtos · tonton{% endblock %}
+{% set page_sub_label = "estoque" %}
+{% block page_title %}Produtos{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('product_labels_batch_ui') }}" class="btn btn--ghost btn--sm"
+     aria-label="Etiquetas em lote" title="Etiquetas em lote">
+    <svg><use xlink:href="#i-tag"/></svg> Etiquetas
+  </a>
+  <a href="{{ url_for('list_products') }}?export=1" class="btn btn--ghost btn--sm"
+     aria-label="Exportar lista" title="Exportar lista">
+    <svg><use xlink:href="#i-download"/></svg> Exportar
+  </a>
+  <a href="{{ url_for('create_product') }}" class="btn">
+    <svg><use xlink:href="#i-plus"/></svg> Novo produto
+  </a>
+{% endblock %}
+
+{% block body %}
+
+{# ── Resumo ──────────────────────────────────────────── #}
+<div class="grid grid--kpi mb-3">
+
+  <div class="card">
+    <div class="kpi__label">Total em catálogo</div>
+    <div class="kpi__value kpi__value--coral">{{ stats['total'] or 0 }}</div>
+    <div class="text-muted" style="font-size:11.5px">ativos no estoque</div>
+  </div>
+
+  <div class="card">
+    <div class="kpi__label">Estoque baixo</div>
+    <div class="kpi__value kpi__value--magenta">{{ stats['low_count'] or 0 }}</div>
+    <div class="text-muted" style="font-size:11.5px">abaixo do mínimo</div>
+  </div>
+
+  <div class="card">
+    <div class="kpi__label">Valor de custo</div>
+    <div class="kpi__value kpi__value--deep">R$ {{ format_money(stats['cost_val']) }}</div>
+    <div class="text-muted" style="font-size:11.5px">investido em peças</div>
+  </div>
+
+  <div class="card">
+    <div class="kpi__label">Valor de venda</div>
+    <div class="kpi__value kpi__value--plum">R$ {{ format_money(stats['sale_val']) }}</div>
+    <div class="text-muted" style="font-size:11.5px">potencial de receita</div>
+  </div>
+
+</div>
+
+<div class="card card--flush">
+
+  {# toolbar #}
+  <form method="get" class="filterbar">
+    <div class="search-pill" style="flex:1;width:auto">
+      <svg><use xlink:href="#i-search"/></svg>
+      <input type="search" name="q" value="{{ q }}" placeholder="Filtrar por nome, SKU, código de barras…">
+    </div>
+
+    <select name="category" class="filter-pill" onchange="this.form.submit()" style="padding-right:12px">
+      <option value="">Todas as categorias</option>
+      {% for c in categories %}
+        <option value="{{ c['category'] }}" {% if c['category'] == selected_category %}selected{% endif %}>{{ c['category'] }}</option>
+      {% endfor %}
+    </select>
+
+    <button class="btn btn--soft btn--sm" type="submit">
+      <svg><use xlink:href="#i-filter"/></svg> Aplicar
+    </button>
+  </form>
+
+  {# tabs #}
+  <div class="tabs">
+    <a href="{{ url_for('list_products') }}" class="tab{% if not low_stock %} is-active{% endif %}">
+      Todos <span class="tab__count">{{ stats['total'] }}</span>
+    </a>
+    <a href="{{ url_for('list_products') }}?low_stock=1" class="tab{% if low_stock %} is-active{% endif %}">
+      Estoque baixo <span class="tab__count">{{ stats['low_count'] }}</span>
+    </a>
+  </div>
+
+  {# header tabela #}
+  <div class="table__head products-table__head">
+    <span>Produto</span><span>SKU</span><span>Preço</span><span>Estoque</span><span>Custo</span><span>Margem</span><span style="text-align:right">Ações</span>
+  </div>
+
+  {% for p in products %}
+    {% set pct = p['stock_qty']|int * 100 // (p['stock_min']|int * 4) if p['stock_min']|int > 0 else 50 %}
+    {% set stock_tone = 'coral' if p['stock_qty']|int == 0 else ('sun' if p['stock_qty']|int <= p['stock_min']|int else 'mint') %}
+    {% set stock_label = 'esgotado' if p['stock_qty']|int == 0 else ('baixo' if p['stock_qty']|int <= p['stock_min']|int else 'ok') %}
+    {% set margin = (((p['sale_price']|float - p['cost_price']|float) / (p['sale_price']|float)) * 100) if p['sale_price']|float > 0 else 0 %}
+
+    <div class="table__row products-table__row" data-pid="{{ p['id'] }}">
+      <div class="products-row__name-wrap">
+        {# Estrelinha de destaque (toggle 1-clique, sem reload) #}
+        <button type="button"
+                class="featured-star{% if p['is_featured'] %} is-featured{% endif %}"
+                data-pid="{{ p['id'] }}"
+                aria-label="{% if p['is_featured'] %}Remover dos destaques{% else %}Marcar como destaque{% endif %}"
+                title="{% if p['is_featured'] %}Em destaque{% else %}Marcar destaque{% endif %}"
+                aria-pressed="{% if p['is_featured'] %}true{% else %}false{% endif %}">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2.5l2.9 6.3 6.9.7-5.2 4.7 1.5 6.8L12 17.3l-6.1 3.7 1.5-6.8L2.2 9.5l6.9-.7L12 2.5z"
+                  fill="currentColor" stroke="currentColor" stroke-width="1.4"
+                  stroke-linejoin="round"/>
+          </svg>
+        </button>
+
+        <a href="{{ url_for('product_detail', pid=p['id']) }}" class="products-row__name" style="text-decoration:none;color:inherit">
+        {% if p['image_mime'] %}
+          <img src="{{ url_for('product_image', pid=p['id']) }}" alt="" style="width:44px;height:54px;object-fit:cover;border-radius:var(--r-sm);flex-shrink:0">
+        {% else %}
+          <div class="thumb thumb--h{{ loop.index0 % 8 }}" style="width:44px;height:54px"></div>
+        {% endif %}
+        <div style="min-width:0">
+          <div style="font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            {{ p['name'] }}
+            {% if not is_clothing_complete(p) %}
+              <span title="Ficha técnica sem composição cadastrada"
+                    aria-label="Ficha incompleta"
+                    style="display:inline-flex;align-items:center;gap:4px;margin-left:8px;
+                           padding:2px 8px;font-size:10.5px;font-weight:500;letter-spacing:.02em;
+                           background:transparent;color:var(--coral-deep);
+                           border:1px solid var(--coral-soft);border-radius:999px;
+                           vertical-align:middle">
+                <span style="width:5px;height:5px;border-radius:50%;background:var(--coral);display:inline-block"></span>
+                ficha
+              </span>
+            {% endif %}
+          </div>
+          <div class="text-muted" style="font-size:11.5px;margin-top:2px">
+            {{ p['category'] or '—' }}{% if p['size'] %} · {{ p['size'] }}{% endif %}{% if p['color'] %} · {{ p['color'] }}{% endif %}
+          </div>
+        </div>
+      </a>
+      </div>{# /products-row__name-wrap #}
+
+      <div class="products-row__sku text-mono" style="font-size:12px;color:var(--gray-700)">
+        <span class="products-row__label">SKU</span>{{ p['sku'] or '—' }}
+      </div>
+
+      <div class="products-row__price" style="font-weight:600;font-size:13.5px">
+        <span class="products-row__label">Preço</span>
+        {% if has_active_promo(p) %}
+          <span style="text-decoration:line-through;color:var(--gray-500);font-weight:500;font-size:11.5px;margin-right:4px">R$ {{ format_money(p['sale_price']) }}</span>
+          <span style="color:var(--magenta)">R$ {{ format_money(p['promo_price']) }}</span>
+        {% else %}
+          R$ {{ format_money(p['sale_price']) }}
+        {% endif %}
+      </div>
+
+      <div class="products-row__stock">
+        <span class="products-row__label">Estoque</span>
+        <span class="flex-center gap-1">
+          <span style="font-weight:600;font-size:13.5px;color:{% if p['stock_qty']|int == 0 %}var(--magenta){% elif p['stock_qty']|int <= p['stock_min']|int %}var(--coral-deep){% else %}var(--ink){% endif %}">
+            {{ p['stock_qty'] }}
+          </span>
+          <div class="progress progress--thin" style="width:48px">
+            <div class="progress__fill" style="width:{{ [pct, 100]|min }}%;background:{% if p['stock_qty']|int == 0 %}var(--magenta){% elif p['stock_qty']|int <= p['stock_min']|int %}var(--coral-deep){% else %}var(--coral){% endif %}"></div>
+          </div>
+        </span>
+      </div>
+
+      <div class="products-row__cost" style="font-size:12.5px;color:var(--gray-700)">
+        <span class="products-row__label">Custo</span>R$ {{ format_money(p['cost_price']) }}
+      </div>
+
+      <div class="products-row__margin">
+        <span class="products-row__label">Margem</span>
+        <span class="chip chip--sm chip--{{ 'mint' if margin >= 40 else 'sun' if margin >= 20 else 'coral' }}">
+          {{ '%.0f'|format(margin) }}%
+        </span>
+      </div>
+
+      <div class="products-row__actions">
+        <div class="kebab" data-kebab>
+          <button type="button" class="kebab__btn" aria-label="Ações do produto" aria-haspopup="menu" aria-expanded="false">
+            <svg><use xlink:href="#i-dots"/></svg>
+          </button>
+          <div class="kebab__panel" role="menu">
+            <a href="{{ url_for('product_detail', pid=p['id']) }}" class="kebab__item" role="menuitem">
+              <svg><use xlink:href="#i-eye"/></svg> Ver detalhes
+            </a>
+            <a href="{{ url_for('edit_product', pid=p['id']) }}" class="kebab__item" role="menuitem">
+              <svg><use xlink:href="#i-edit"/></svg> Editar
+            </a>
+            <a href="{{ url_for('product_variants_view', pid=p['id']) }}" class="kebab__item" role="menuitem">
+              <svg><use xlink:href="#i-grid"/></svg> Variantes
+            </a>
+            <a href="{{ url_for('product_price_history', pid=p['id']) }}" class="kebab__item" role="menuitem">
+              <svg><use xlink:href="#i-trend"/></svg> Histórico de preços
+            </a>
+            <div class="kebab__sep"></div>
+            <form method="post" action="{{ url_for('delete_product', pid=p['id']) }}" onsubmit="return confirm('Apagar este produto? Se houver histórico vinculado, ele será apenas desativado e deixará de aparecer na lista.');" style="margin:0">
+              {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+              <button type="submit" class="kebab__item kebab__item--danger" role="menuitem">
+                <svg><use xlink:href="#i-trash"/></svg> Apagar produto
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="empty">
+      <div class="empty__title">Nenhum produto</div>
+      <div class="empty__sub">Comece cadastrando a primeira peça do seu catálogo.</div>
+      <a href="{{ url_for('create_product') }}" class="btn"><svg><use xlink:href="#i-plus"/></svg> Novo produto</a>
+    </div>
+  {% endfor %}
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+  /* Wrapper que ocupa a primeira coluna do grid (a coluna "Produto" da lista).
+     Junta a estrelinha + o link do nome num único item de grid, preservando
+     o layout original das outras colunas (SKU, Preço, Estoque, etc). */
+  .products-row__name-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .products-row__name-wrap > .products-row__name {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Estrelinha de destaque na lista de produtos */
+  .featured-star {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+    color: var(--gray-300, #d4cfc7);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color .15s ease, background .15s ease, transform .15s ease;
+  }
+  .featured-star svg {
+    width: 18px;
+    height: 18px;
+    transition: transform .2s ease;
+  }
+  .featured-star:hover {
+    background: rgba(232, 80, 26, .08);
+    color: var(--coral, #ff6b3a);
+  }
+  .featured-star:hover svg { transform: scale(1.1); }
+  .featured-star.is-featured {
+    color: var(--coral-deep, #e8501a);
+  }
+  .featured-star.is-featured:hover {
+    color: var(--coral, #ff6b3a);
+    background: rgba(232, 80, 26, .12);
+  }
+  .featured-star:focus-visible {
+    outline: 2px solid var(--coral-deep, #e8501a);
+    outline-offset: 2px;
+  }
+  .featured-star.is-saving {
+    pointer-events: none;
+    opacity: .5;
+  }
+
+  /* Mobile: estrelinha aparece dentro do wrapper, alinhada à esquerda.
+     O CSS global mapeia grid-area: name no .products-row__name, mas como
+     agora o wrapper é o filho direto do grid, replicamos o mapeamento. */
+  @media (max-width: 780px) {
+    .products-row__name-wrap { gap: 8px; grid-area: name; }
+  }
+</style>
+
+<script>
+(function() {
+  const csrfToken = "{{ session.get('csrf_token','') }}";
+
+  document.addEventListener('click', function(ev) {
+    const btn = ev.target.closest('.featured-star');
+    if (!btn) return;
+    ev.preventDefault();
+    if (btn.classList.contains('is-saving')) return;
+
+    const pid = btn.getAttribute('data-pid');
+    if (!pid) return;
+    btn.classList.add('is-saving');
+
+    const fd = new FormData();
+    fd.append('csrf_token', csrfToken);
+
+    fetch('/products/' + pid + '/toggle-featured', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: fd
+    })
+    .then(r => r.ok ? r.json() : Promise.reject(r))
+    .then(data => {
+      if (data && data.is_featured === 1) {
+        btn.classList.add('is-featured');
+        btn.setAttribute('aria-pressed', 'true');
+        btn.setAttribute('aria-label', 'Remover dos destaques');
+        btn.setAttribute('title', 'Em destaque');
+      } else {
+        btn.classList.remove('is-featured');
+        btn.setAttribute('aria-pressed', 'false');
+        btn.setAttribute('aria-label', 'Marcar como destaque');
+        btn.setAttribute('title', 'Marcar destaque');
+      }
+    })
+    .catch(() => {
+      // Falhou — recarrega como fallback honesto
+      window.location.reload();
+    })
+    .finally(() => {
+      btn.classList.remove('is-saving');
+    });
+  });
+})();
+</script>
+{% endblock %}

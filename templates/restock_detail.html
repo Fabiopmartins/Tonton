@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Pedido #{{ order['id'] }} · tonton{% endblock %}
+{% set page_sub_label = "operação · pedido de reposição" %}
+{% block page_title %}Pedido #{{ order['id'] }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('restock_list') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+{% endblock %}
+
+{% block body %}
+
+{% set status_tone = 'mint' if order['status'] == 'received' else ('coral' if order['status'] == 'cancelled' else 'sun') %}
+
+<div class="grid grid--2-1" style="align-items:start">
+
+  <div class="flex-col gap-3">
+
+    {# Hero do pedido #}
+    <div class="card card--flush">
+      <div style="padding:22px;background:var(--grad-soft);border-radius:var(--r-lg) var(--r-lg) 0 0">
+        <div class="flex-between" style="align-items:flex-start">
+          <div>
+            <div class="text-eyebrow">✦ pedido de reposição</div>
+            <div class="text-display" style="font-size:38px;margin-top:4px">#{{ order['id'] }}</div>
+            <div class="text-muted" style="font-size:13px;margin-top:4px">
+              criado {{ order['created_at'][:16] if order['created_at'] else '—' }} · por {{ order['created_by'] or '—' }}
+            </div>
+          </div>
+          <span class="chip chip--{{ status_tone }}">{{ order['status'] }}</span>
+        </div>
+
+        {% if order['supplier'] %}
+          <div class="flex-center gap-2 mt-2" style="font-size:13px;color:var(--plum)">
+            <svg style="width:16px;height:16px"><use xlink:href="#i-truck"/></svg>
+            <span><strong>Fornecedor:</strong> {{ order['supplier'] }}</span>
+          </div>
+        {% endif %}
+        {% if order['notes'] %}
+          <div style="margin-top:12px;padding:10px 12px;background:rgba(255,255,255,.5);border-radius:var(--r-sm);font-size:12.5px;color:var(--plum)">
+            {{ order['notes'] }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Itens do pedido #}
+    <div class="card card--flush">
+      <div class="card__header">
+        <div>
+          <div class="card__title">Itens solicitados</div>
+          <div class="card__sub">{{ items|length }} {{ 'produto' if items|length == 1 else 'produtos' }}</div>
+        </div>
+      </div>
+
+      <div class="table__head" style="grid-template-columns:60px 2fr 100px 110px 100px">
+        <span></span><span>Produto</span><span>SKU</span><span>Quantidade</span><span>Estoque atual</span>
+      </div>
+      {% for it in items %}
+        <div class="table__row" style="grid-template-columns:60px 2fr 100px 110px 100px">
+          <div class="thumb thumb--h{{ loop.index0 % 8 }}" style="width:44px;height:54px"></div>
+          <div>
+            <div style="font-weight:600;font-size:13.5px">{{ it['product_name'] }}</div>
+            {% if 'qty_received' in it.keys() and it['qty_received'] %}
+              <div class="text-muted" style="font-size:11.5px;margin-top:2px">Recebido: {{ it['qty_received'] }} {{ it['unit'] }}</div>
+            {% endif %}
+          </div>
+          <div class="text-mono" style="font-size:12px;color:var(--gray-700)">{{ it['sku'] or '—' }}</div>
+          <div style="font-weight:600;font-size:15px">+{{ it['qty_ordered'] }} {{ it['unit'] }}</div>
+          <div style="font-size:12.5px;color:{% if it['stock_qty']|int == 0 %}var(--magenta){% else %}var(--gray-700){% endif %}">
+            {{ it['stock_qty'] }} {{ it['unit'] }}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# Ações de status #}
+  <div class="card" style="position:sticky;top:110px">
+    <div class="card__title">Atualizar status</div>
+    <div class="card__sub">mover o pedido na esteira</div>
+
+    <form method="post" action="{{ url_for('update_restock_status', oid=order['id']) }}" class="mt-3">
+      {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+      <div class="flex-col gap-2">
+        {% if order['status'] != 'received' %}
+          <button type="submit" name="status" value="received" class="btn btn--full">
+            <svg><use xlink:href="#i-check"/></svg> Marcar como recebido
+          </button>
+          <div class="form-hint">Incrementa o estoque de todos os produtos do pedido.</div>
+        {% endif %}
+
+        {% if order['status'] == 'pending' %}
+          <button type="submit" name="status" value="ordered" class="btn btn--soft btn--full">
+            <svg><use xlink:href="#i-truck"/></svg> Marcar como enviado
+          </button>
+        {% endif %}
+
+        {% if order['status'] != 'cancelled' and order['status'] != 'received' %}
+          <button type="submit" name="status" value="cancelled" class="btn btn--ghost btn--full">
+            <svg><use xlink:href="#i-x"/></svg> Cancelar pedido
+          </button>
+        {% endif %}
+      </div>
+    </form>
+
+    <div style="margin-top:18px;padding:14px;background:var(--grad-soft);border-radius:var(--r-md)">
+      <div class="text-mono" style="font-size:10.5px;letter-spacing:.12em;color:var(--magenta-deep);text-transform:uppercase">✦ lembrete</div>
+      <div style="font-size:12px;margin-top:4px;line-height:1.4;color:var(--plum)">
+        Ao marcar como recebido, o estoque é atualizado automaticamente em lote.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+{% block title %}{{ seo.title }}{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='catalog.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='catalog-product.css') }}">
+
+  {# ─── SEO completo da página individual ─────────────────────────── #}
+  <meta name="description" content="{{ seo.description }}">
+  <link rel="canonical" href="{{ seo.canonical }}">
+
+  {# Open Graph #}
+  <meta property="og:title" content="{{ seo.title }}">
+  <meta property="og:description" content="{{ seo.description }}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="{{ seo.canonical }}">
+  <meta property="og:site_name" content="{{ store_name }}">
+  <meta property="og:locale" content="pt_BR">
+  {% if seo.og_image %}
+    <meta property="og:image" content="{{ seo.og_image }}">
+    <meta property="og:image:alt" content="{{ product['name'] }}">
+  {% endif %}
+
+  {# Twitter Card #}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ seo.title }}">
+  <meta name="twitter:description" content="{{ seo.description }}">
+  {% if seo.og_image %}
+    <meta name="twitter:image" content="{{ seo.og_image }}">
+  {% endif %}
+
+  {# JSON-LD: Schema.org Product (rich snippet do Google) #}
+  <script type="application/ld+json">
+  {{ seo.jsonld|tojson|safe }}
+  </script>
+{% endblock %}
+
+{% block shell %}
+<main class="ed pp">
+
+  {# ───────────────────── Nav ───────────────────── #}
+  <header class="ed-nav" aria-label="Navegação principal">
+    <a href="{{ url_for('public_catalog') }}" class="ed-nav__brand" aria-label="{{ store_name }}">
+      <img src="{{ url_for('static', filename='brand/male-wordmark.jpg') }}" alt="{{ store_name }}">
+    </a>
+    <nav class="ed-nav__links" aria-label="Seções">
+      <a href="{{ url_for('public_catalog') }}">Atual</a>
+      <a href="{{ instagram_url }}" target="_blank" rel="noopener">{{ instagram }}</a>
+    </nav>
+    {% if current_user %}
+      <a href="{{ url_for('dashboard') }}" class="ed-nav__admin" aria-label="Painel">
+        <svg aria-hidden="true"><use xlink:href="#i-cog"/></svg>
+      </a>
+    {% else %}
+      <span class="ed-nav__pad" aria-hidden="true"></span>
+    {% endif %}
+  </header>
+
+  {# ───────── Breadcrumbs ───────── #}
+  <nav class="pp-crumbs" aria-label="Caminho">
+    <a href="{{ url_for('public_catalog') }}">Catálogo</a>
+    {% if product['category'] %}
+      <span class="pp-crumbs__sep" aria-hidden="true">›</span>
+      <a href="{{ url_for('public_catalog_category', cat_slug=product['category']|lower|replace(' ','-')) }}">{{ product['category'] }}</a>
+    {% endif %}
+    <span class="pp-crumbs__sep" aria-hidden="true">›</span>
+    <span class="pp-crumbs__current">{{ product['name'] }}</span>
+  </nav>
+
+  {# ───────── Layout principal: galeria | ficha ───────── #}
+  <article class="pp-grid" itemscope itemtype="https://schema.org/Product">
+
+    {# coluna esquerda: galeria de fotos
+       - Desktop: imagem grande fixa + thumbs clicáveis (#pp-main-img)
+       - Mobile: carrossel com scroll-snap (deslizar com o dedo)
+         Os thumbs continuam funcionando como atalho de teclado/precisão. #}
+    <section class="pp-gallery" aria-label="Galeria de fotos">
+      {% if gallery %}
+        <div class="pp-gallery__main pp-gallery__carousel" role="region" aria-label="Fotos da peça">
+          {% for g in gallery %}
+            <figure class="pp-gallery__slide" data-index="{{ loop.index0 }}">
+              <img {% if loop.first %}id="pp-main-img"{% endif %}
+                   src="{{ g['url'] }}"
+                   alt="{{ product['name'] }}{% if g['color'] %} — {{ g['color'] }}{% endif %}"
+                   loading="{% if loop.first %}eager{% else %}lazy{% endif %}"
+                   {% if loop.first %}fetchpriority="high" itemprop="image"{% endif %}>
+            </figure>
+          {% endfor %}
+        </div>
+        {% if gallery|length > 1 %}
+          <div class="pp-gallery__indicator" aria-hidden="true">
+            {% for g in gallery %}
+              <span class="pp-gallery__dot{% if loop.first %} is-active{% endif %}" data-index="{{ loop.index0 }}"></span>
+            {% endfor %}
+          </div>
+          <div class="pp-gallery__thumbs" role="tablist" aria-label="Outras fotos">
+            {% for g in gallery %}
+              <button type="button"
+                      class="pp-gallery__thumb{% if loop.first %} is-active{% endif %}"
+                      data-src="{{ g['url'] }}"
+                      data-index="{{ loop.index0 }}"
+                      role="tab"
+                      aria-label="Foto {{ loop.index }}{% if g['color'] %} — {{ g['color'] }}{% endif %}"
+                      aria-selected="{% if loop.first %}true{% else %}false{% endif %}">
+                <img src="{{ g['url'] }}" alt="" loading="lazy">
+              </button>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% elif product.get('has_image') %}
+        <figure class="pp-gallery__main">
+          <img src="{{ url_for('public_product_image', pid=product['id'], v=product.get('primary_image_version', 1)) }}"
+               alt="{{ product['name'] }}"
+               loading="eager"
+               fetchpriority="high"
+               itemprop="image">
+        </figure>
+      {% else %}
+        <figure class="pp-gallery__main pp-gallery__main--empty">
+          <span aria-hidden="true">{{ product['name'][:1]|upper }}</span>
+        </figure>
+      {% endif %}
+    </section>
+
+    {# coluna direita: ficha #}
+    <section class="pp-info" aria-label="Detalhes da peça">
+
+      {% if product['category'] %}
+        <p class="pp-info__eyebrow" itemprop="category">{{ product['category'] }}</p>
+      {% endif %}
+
+      <h1 class="pp-info__title" itemprop="name">{{ product['name'] }}</h1>
+
+      {% if show_prices %}
+        <div class="pp-info__price" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
+          {% if has_active_promo(product) %}
+            <s class="pp-price__old">R$ {{ format_money(product['sale_price']) }}</s>
+            <span class="pp-price__new" itemprop="price" content="{{ product['promo_price'] }}">R$ {{ format_money(product['promo_price']) }}</span>
+          {% elif product['has_variants'] and product['min_price'] != product['max_price'] %}
+            <span class="pp-price__prefix">a partir de</span>
+            <span class="pp-price__new" itemprop="price" content="{{ product['min_price'] }}">R$ {{ format_money(product['min_price']) }}</span>
+          {% else %}
+            <span class="pp-price__new" itemprop="price" content="{{ product['min_price'] }}">R$ {{ format_money(product['min_price']) }}</span>
+          {% endif %}
+          <meta itemprop="priceCurrency" content="BRL">
+          <link itemprop="availability" href="https://schema.org/{% if (product.get('total_stock') or 0)|int > 0 %}InStock{% else %}OutOfStock{% endif %}">
+        </div>
+      {% endif %}
+
+      {# Variantes — tamanhos #}
+      {% if product['has_variants'] and product['available_sizes'] %}
+        <div class="pp-variants">
+          <p class="pp-variants__label">Tamanhos disponíveis</p>
+          <ul class="pp-sizes">
+            {% for s in product['available_sizes'] %}
+              <li><span class="pp-size">{{ s }}</span></li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      {# Variantes — cores #}
+      {% if product['has_variants'] and product['available_colors'] %}
+        <div class="pp-variants">
+          <p class="pp-variants__label">Cores</p>
+          <ul class="pp-colors">
+            {% for c in product['available_colors'] %}
+              {% set color_lower = c|lower %}
+              {% set color_hex = (color_map or {}).get(color_lower, '#d8ccc2') %}
+              <li>
+                <span class="pp-color" style="--swatch:{{ color_hex }}" title="{{ c }}">
+                  <span class="pp-color__dot"></span>
+                  <span class="pp-color__name">{{ c }}</span>
+                </span>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      {# Descrição #}
+      {% if product['description'] %}
+        <div class="pp-section">
+          <h2 class="pp-section__h">Sobre a peça</h2>
+          <p class="pp-section__text" itemprop="description">{{ product['description'] }}</p>
+        </div>
+      {% endif %}
+
+      {# Composição + tecido #}
+      {% if product['composition'] or product['fabric_type'] or product['fabric_weight_gsm'] %}
+        <div class="pp-section">
+          <h2 class="pp-section__h">Composição & tecido</h2>
+          <dl class="pp-meta">
+            {% if product['composition'] %}
+              <dt>Composição</dt><dd>{{ composition_pretty(product['composition']) }}</dd>
+            {% endif %}
+            {% if product['fabric_type'] %}
+              <dt>Tecido</dt><dd>{{ product['fabric_type'] }}</dd>
+            {% endif %}
+            {% if product['fabric_weight_gsm'] %}
+              <dt>Gramatura</dt><dd>{{ product['fabric_weight_gsm'] }} g/m²</dd>
+            {% endif %}
+            {% if product['fit'] %}
+              <dt>Modelagem</dt><dd>{{ product['fit'] }}</dd>
+            {% endif %}
+            {% if product['length_class'] %}
+              <dt>Comprimento</dt><dd>{{ product['length_class'] }}</dd>
+            {% endif %}
+          </dl>
+        </div>
+      {% endif %}
+
+      {# Cuidados #}
+      {% if product['care_wash'] %}
+        <div class="pp-section">
+          <h2 class="pp-section__h">Cuidados</h2>
+          <p class="pp-section__text">{{ care_wash_label(product['care_wash']) }}</p>
+          <p class="pp-section__hint">Sempre confira a etiqueta da peça antes da primeira lavagem.</p>
+        </div>
+      {% endif %}
+
+      {# CTAs #}
+      <div class="pp-cta">
+        <button type="button" class="pp-cta__main" id="pp-cta-conversar">
+          {% if click_target == 'whatsapp' %}Conversar pelo WhatsApp →{% else %}Conversar pelo Instagram →{% endif %}
+        </button>
+        <button type="button" class="pp-cta__share" id="pp-share-btn" aria-label="Compartilhar peça">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                  d="M16 6l-4-4-4 4M12 2v13M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>
+          </svg>
+          <span>Compartilhar</span>
+        </button>
+      </div>
+
+    </section>
+  </article>
+
+  {# ───────── Peças relacionadas ───────── #}
+  {% if related %}
+    <section class="pp-related" aria-labelledby="pp-related-h">
+      <h2 id="pp-related-h" class="pp-related__h">Outras peças em <em>{{ product['category']|lower }}</em></h2>
+      <ul class="pp-related__list">
+        {% for r in related %}
+          <li>
+            <a href="{{ url_for('public_product', slug=r['slug']) }}" class="pp-related__card">
+              <figure>
+                {% if r.get('has_image') %}
+                  <img src="{{ url_for('public_product_image', pid=r['id'], v=r.get('primary_image_version', 1)) }}"
+                       alt="{{ r['name'] }}" loading="lazy">
+                {% else %}
+                  <span class="pp-related__placeholder">{{ r['name'][:1]|upper }}</span>
+                {% endif %}
+              </figure>
+              <p class="pp-related__name">{{ r['name'] }}</p>
+              {% if show_prices %}
+                <p class="pp-related__price">
+                  {% if has_active_promo(r) %}R$ {{ format_money(r['promo_price']) }}{% else %}R$ {{ format_money(r['sale_price']) }}{% endif %}
+                </p>
+              {% endif %}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {# ───────── Footer enxuto ───────── #}
+  <footer class="ed-foot" aria-label="Rodapé">
+    <div class="ed-foot__brand">
+      <img src="{{ url_for('static', filename='brand/male-wordmark.jpg') }}" alt="{{ store_name }}">
+      <p>{{ tagline or 'moda que fica' }}</p>
+    </div>
+    <div class="ed-foot__cols">
+      <div>
+        <p class="ed-foot__label">Atendimento</p>
+        {% if wa_number %}<a href="https://wa.me/{{ wa_number }}" target="_blank" rel="noopener">WhatsApp</a>{% endif %}
+        <a href="{{ instagram_url }}" target="_blank" rel="noopener">{{ instagram }}</a>
+      </div>
+      <div>
+        <p class="ed-foot__label">Catálogo</p>
+        <a href="{{ url_for('public_catalog') }}">Ver tudo</a>
+      </div>
+    </div>
+    <p class="ed-foot__legal">© {{ now.year if now else 2026 }} {{ store_name }} · todos os direitos reservados</p>
+  </footer>
+
+  {# Toast de feedback (link copiado, etc) #}
+  <div id="pp-toast" class="pp-toast" role="status" aria-live="polite" aria-hidden="true"></div>
+
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  // ───── Galeria: sincroniza carrossel ↔ thumbs ↔ dots ─────
+  var carousel = document.querySelector('.pp-gallery__carousel');
+  var slides   = document.querySelectorAll('.pp-gallery__slide');
+  var thumbs   = document.querySelectorAll('.pp-gallery__thumb');
+  var dots     = document.querySelectorAll('.pp-gallery__dot');
+
+  function setActive(idx) {
+    thumbs.forEach(function (t, i) {
+      var active = i === idx;
+      t.classList.toggle('is-active', active);
+      t.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    dots.forEach(function (d, i) {
+      d.classList.toggle('is-active', i === idx);
+    });
+  }
+
+  // Click em thumb → rola carrossel até o slide correspondente
+  thumbs.forEach(function (t) {
+    t.addEventListener('click', function () {
+      var idx = parseInt(t.getAttribute('data-index') || '0', 10);
+      setActive(idx);
+      var slide = slides[idx];
+      if (!slide || !carousel) return;
+      // Se é desktop (carrossel não tem scroll horizontal), troca o src do primeiro
+      var isMobileCarousel = carousel.scrollWidth > carousel.clientWidth + 2;
+      if (isMobileCarousel) {
+        slide.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+      } else {
+        // desktop: scroll-snap não rola; substitui o src da imagem visível
+        var firstImg = carousel.querySelector('img');
+        var targetImg = slide.querySelector('img');
+        if (firstImg && targetImg) firstImg.src = targetImg.src;
+      }
+    });
+  });
+
+  // Detecta qual slide está visível durante o swipe (mobile)
+  if (carousel && slides.length > 1) {
+    var scrollTimeout;
+    carousel.addEventListener('scroll', function () {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(function () {
+        var center = carousel.scrollLeft + carousel.clientWidth / 2;
+        var closest = 0;
+        var minDist = Infinity;
+        slides.forEach(function (s, i) {
+          var slideCenter = s.offsetLeft + s.clientWidth / 2;
+          var dist = Math.abs(center - slideCenter);
+          if (dist < minDist) {
+            minDist = dist;
+            closest = i;
+          }
+        });
+        setActive(closest);
+      }, 100);
+    }, { passive: true });
+  }
+
+  // ───── Toast helper ─────
+  var toast = document.getElementById('pp-toast');
+  var toastTimer;
+  function showToast(msg) {
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.add('is-visible');
+    toast.setAttribute('aria-hidden', 'false');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      toast.classList.remove('is-visible');
+      toast.setAttribute('aria-hidden', 'true');
+    }, 2400);
+  }
+
+  // ───── Compartilhar (Web Share API + fallback clipboard) ─────
+  var shareBtn = document.getElementById('pp-share-btn');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', function () {
+      var url = window.location.href;
+      var title = {{ product['name']|tojson }};
+      var text = 'Olha essa peça da {{ store_name|e }}: ' + title;
+      if (navigator.share) {
+        navigator.share({ title: title, text: text, url: url })
+          .catch(function (err) {
+            // Usuário pode ter cancelado — não mostra erro nesse caso
+            if (err && err.name !== 'AbortError') {
+              copyToClipboard(url);
+            }
+          });
+      } else {
+        copyToClipboard(url);
+      }
+    });
+  }
+
+  function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(function () { showToast('Link copiado'); })
+        .catch(function () { showToast('Não foi possível copiar'); });
+    } else {
+      // Fallback antigo
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); showToast('Link copiado'); }
+      catch (e) { showToast('Não foi possível copiar'); }
+      document.body.removeChild(ta);
+    }
+  }
+
+  // ───── CTA "Conversar" (mesma lógica do catálogo) ─────
+  var ctaBtn = document.getElementById('pp-cta-conversar');
+  if (ctaBtn) {
+    ctaBtn.addEventListener('click', function () {
+      var pid = {{ product['id'] }};
+      var name = {{ product['name']|tojson }};
+      // Tracking não-bloqueante
+      fetch('/api/catalog/interest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: pid })
+      }).catch(function () {});
+
+      var clickTarget = {{ click_target|tojson }};
+      if (clickTarget === 'whatsapp') {
+        var digits = String({{ wa_number|tojson }}).replace(/\D/g, '');
+        if (digits) {
+          var msg = 'Olá! Tenho interesse nesta peça: ' + name + ' — ' + window.location.href;
+          window.open('https://wa.me/' + digits + '?text=' + encodeURIComponent(msg), '_blank');
+          return;
+        }
+      }
+      window.open({{ instagram_url|tojson }}, '_blank');
+    });
+  }
+})();
+</script>
+{% endblock %}

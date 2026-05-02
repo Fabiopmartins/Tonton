@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Histórico · {{ product['name'] }} · tonton{% endblock %}
+{% set page_sub_label = "produto · histórico de preços" %}
+{% block page_title %}{{ product['name'] }} · preços{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('product_detail', pid=product['id']) }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+  <a href="{{ url_for('edit_product', pid=product['id']) }}" class="btn">
+    <svg><use xlink:href="#i-edit"/></svg> Editar preços
+  </a>
+{% endblock %}
+
+{% block body %}
+
+<div class="grid grid--3 mb-3">
+  <div class="card kpi">
+    <div class="kpi__label">Preço atual</div>
+    <div class="kpi__value kpi__value--coral">R$ {{ format_money(product['sale_price']) }}</div>
+    <div class="text-muted" style="font-size:11.5px">custo R$ {{ format_money(product['cost_price']) }}</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Registros</div>
+    <div class="kpi__value kpi__value--magenta">{{ history|length }}</div>
+    <div class="text-muted" style="font-size:11.5px">mudanças de preço</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Primeira alteração</div>
+    <div class="text-display" style="font-size:24px;color:var(--plum);line-height:1;margin-top:6px">
+      {% if history %}{{ history[-1]['created_at'][:10] if history[-1]['created_at'] else '—' }}{% else %}—{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card card--flush">
+  <div class="card__header">
+    <div>
+      <div class="card__title">Linha do tempo</div>
+      <div class="card__sub">alterações mais recentes no topo</div>
+    </div>
+  </div>
+
+  {% if history %}
+    <div class="table__head" style="grid-template-columns:140px 130px 130px 130px 1fr 120px">
+      <span>Data</span><span>Custo antes</span><span>Custo depois</span><span>Preço antes</span><span>Preço depois · Δ%</span><span>Operador</span>
+    </div>
+    {% for h in history %}
+      {% set old_price = h['old_sale_price']|float if h['old_sale_price'] else 0 %}
+      {% set new_price = h['new_sale_price']|float if h['new_sale_price'] else 0 %}
+      {% set delta_pct = ((new_price - old_price) / old_price * 100) if old_price > 0 else 0 %}
+      <div class="table__row" style="grid-template-columns:140px 130px 130px 130px 1fr 120px">
+        <div class="text-mono" style="font-size:12px;color:var(--gray-700)">{{ h['created_at'][:16] if h['created_at'] else '—' }}</div>
+        <div style="font-size:12.5px;color:var(--gray-500)">R$ {{ format_money(h['old_cost_price']) }}</div>
+        <div style="font-size:12.5px">R$ {{ format_money(h['new_cost_price']) }}</div>
+        <div style="font-size:12.5px;color:var(--gray-500)">R$ {{ format_money(h['old_sale_price']) }}</div>
+        <div class="flex-center gap-2">
+          <span style="font-weight:600;font-size:13.5px">R$ {{ format_money(h['new_sale_price']) }}</span>
+          {% if delta_pct != 0 %}
+            <span class="chip chip--sm chip--{{ 'mint' if delta_pct > 0 else 'coral' }}">
+              {{ '▲' if delta_pct > 0 else '▼' }} {{ '%.1f'|format(delta_pct|abs) }}%
+            </span>
+          {% endif %}
+        </div>
+        <div class="text-muted" style="font-size:12px">{{ h['changed_by'] or '—' }}</div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">
+      <div class="empty__title">Sem histórico</div>
+      <div class="empty__sub">Alterações de preço aparecerão aqui a partir da próxima edição.</div>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

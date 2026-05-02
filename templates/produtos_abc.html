@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Curva ABC · tonton{% endblock %}
+{% set page_sub_label = "estoque · pareto" %}
+{% block page_title %}Curva ABC de produtos{% endblock %}
+
+{% block topbar_actions %}
+  <form method="get" style="display:inline-flex;gap:8px;align-items:center">
+    <select name="window" class="filter-pill" onchange="this.form.submit()">
+      <option value="30"  {% if window == 30  %}selected{% endif %}>30 dias</option>
+      <option value="60"  {% if window == 60  %}selected{% endif %}>60 dias</option>
+      <option value="90"  {% if window == 90  %}selected{% endif %}>90 dias</option>
+      <option value="180" {% if window == 180 %}selected{% endif %}>180 dias</option>
+      <option value="365" {% if window == 365 %}selected{% endif %}>365 dias</option>
+    </select>
+  </form>
+{% endblock %}
+
+{% block body %}
+
+<div class="grid grid--3 mb-3">
+  <div class="card kpi">
+    <div class="kpi__label">Classe A (80% receita)</div>
+    <div class="kpi__value kpi__value--coral">{{ summary['A']['count'] }}</div>
+    <div class="text-muted" style="font-size:11.5px">
+      R$ {{ "%.0f"|format(summary['A']['revenue']) }} em {{ window }} dias
+    </div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Classe B (15% receita)</div>
+    <div class="kpi__value kpi__value--magenta">{{ summary['B']['count'] }}</div>
+    <div class="text-muted" style="font-size:11.5px">
+      R$ {{ "%.0f"|format(summary['B']['revenue']) }}
+    </div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Classe C (5% receita)</div>
+    <div class="kpi__value">{{ summary['C']['count'] }}</div>
+    <div class="text-muted" style="font-size:11.5px">
+      candidatos a queima · R$ {{ "%.0f"|format(summary['C']['revenue']) }}
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3" style="background:var(--grad-soft);border:0">
+  <div class="text-eyebrow" style="color:var(--magenta-deep)">✦ leitura rápida</div>
+  <div style="font-size:14px;color:var(--plum);line-height:1.5;margin-top:6px">
+    Foco em <strong>Classe A</strong>: garanta estoque, evite ruptura, considere upsell.
+    <strong>Classe C</strong> com cobertura > 90 dias: capital parado — promoção ou desconto.
+    Total no período: <strong>R$ {{ "%.2f"|format(total_revenue) }}</strong>.
+  </div>
+</div>
+
+<div class="card card--flush">
+  <div class="card__header">
+    <div>
+      <div class="card__title">Ranking de produtos</div>
+      <div class="card__sub">ordenado por receita · classe · giro · dias de cobertura</div>
+    </div>
+  </div>
+
+  <div class="table__head" style="grid-template-columns:60px 2fr 100px 90px 110px 110px 100px">
+    <span>Classe</span><span>Produto</span><span>Vendidos</span><span>Estoque</span><span>Receita</span><span>Cobertura</span><span>% acum.</span>
+  </div>
+
+  {% for it in items %}
+    <div class="table__row" style="grid-template-columns:60px 2fr 100px 90px 110px 110px 100px">
+      <span class="chip chip--sm chip--{{ 'coral' if it['class']=='A' else ('magenta' if it['class']=='B' else 'neutral') }}">
+        {{ it['class'] }}
+      </span>
+
+      <div>
+        <div style="font-size:13.5px;font-weight:500">
+          <a href="{{ url_for('product_detail', pid=it['id']) }}" style="color:var(--ink)">{{ it['name'] }}</a>
+        </div>
+        <div class="text-muted text-mono" style="font-size:11px">
+          {{ it['sku'] or '—' }}{% if it['category'] %} · {{ it['category'] }}{% endif %}
+        </div>
+      </div>
+
+      <div style="font-size:13px">
+        {{ it['units_sold'] }}
+        <div class="text-muted" style="font-size:10.5px">un. vendidas</div>
+      </div>
+
+      <div style="font-size:13px">
+        {{ it['stock'] }}
+        {% if it['stock'] == 0 %}
+          <div class="chip chip--sm chip--neutral" style="margin-top:2px">zerado</div>
+        {% endif %}
+      </div>
+
+      <div style="font-weight:600;font-size:13px">R$ {{ "%.0f"|format(it['revenue']) }}</div>
+
+      <div style="font-size:13px">
+        {% if it['days_coverage'] is none %}
+          <span class="text-muted">sem giro</span>
+        {% elif it['days_coverage'] > 90 %}
+          <span style="color:var(--magenta-deep);font-weight:600">{{ it['days_coverage'] }}d</span>
+          <div class="text-muted" style="font-size:10.5px">capital parado</div>
+        {% elif it['days_coverage'] < 7 %}
+          <span style="color:var(--coral);font-weight:600">{{ it['days_coverage'] }}d</span>
+          <div class="text-muted" style="font-size:10.5px">repor já</div>
+        {% else %}
+          {{ it['days_coverage'] }}d
+        {% endif %}
+      </div>
+
+      <div class="text-muted" style="font-size:12px">{{ "%.1f"|format(it['share_cum']) }}%</div>
+    </div>
+  {% else %}
+    <div class="empty">
+      <div class="empty__title">Sem vendas no período</div>
+      <div class="empty__sub">Ajuste a janela ou aguarde mais dados.</div>
+    </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

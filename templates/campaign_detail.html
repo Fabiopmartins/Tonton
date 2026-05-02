@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}{{ campaign['name'] }} · tonton{% endblock %}
+{% set page_sub_label = "marketing · campanha" %}
+{% block page_title %}{{ campaign['name'] }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('list_campaigns') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+  {% if campaign['status'] == 'draft' %}
+    <form method="post" action="{{ url_for('send_campaign', campaign_id=campaign['id']) if 'send_campaign' else '#' }}" style="display:inline" onsubmit="return confirm('Enviar para {{ targets|length }} clientes?')">
+      {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+      <button type="submit" class="btn">
+        <svg><use xlink:href="#i-wpp"/></svg> Enviar agora
+      </button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block body %}
+
+<div class="grid grid--2-1" style="align-items:start">
+
+  <div class="flex-col gap-3">
+
+    {# Mensagem da campanha #}
+    <div class="card">
+      <div class="card__title">Mensagem</div>
+      <div class="card__sub">o que as clientes vão ler</div>
+
+      <div style="margin-top:14px;padding:16px;background:#ece5dd;border-radius:var(--r-md)">
+        <div style="max-width:85%;background:#dcf8c6;padding:12px 14px;border-radius:7px 7px 7px 0;box-shadow:0 1px 0.5px rgba(0,0,0,.13)">
+          <div style="font-size:13.5px;color:#1a0f0a;line-height:1.5;white-space:pre-wrap;font-family:system-ui,-apple-system,sans-serif">{{ campaign['message_template'] }}</div>
+          <div style="font-size:10.5px;color:#8a8a8a;margin-top:6px;text-align:right">16:42 ✓✓</div>
+        </div>
+      </div>
+    </div>
+
+    {# Log de envios #}
+    <div class="card card--flush">
+      <div class="card__header">
+        <div>
+          <div class="card__title">Log de envios</div>
+          <div class="card__sub">{{ logs|length }} registros</div>
+        </div>
+      </div>
+
+      {% if logs %}
+        <div class="table__head" style="grid-template-columns:2fr 140px 120px 100px">
+          <span>Cliente</span><span>Telefone</span><span>Enviado em</span><span>Status</span>
+        </div>
+        {% for log in logs %}
+          <div class="table__row" style="grid-template-columns:2fr 140px 120px 100px">
+            <div class="flex-center gap-2">
+              <div class="avatar avatar--md avatar--h{{ loop.index0 % 6 }}">{{ (log['customer_name'] or '??')[:2]|upper }}</div>
+              <div style="font-size:13px;font-weight:600">{{ log['customer_name'] }}</div>
+            </div>
+            <div class="text-mono" style="font-size:11.5px">{{ format_phone_display(log['phone']) }}</div>
+            <div class="text-muted" style="font-size:11.5px">{{ log['sent_at'][:16] if log['sent_at'] else '—' }}</div>
+            <span class="chip chip--sm chip--{% if log['status'] == 'sent' %}mint{% elif log['status'] == 'failed' %}coral{% else %}neutral{% endif %}">
+              {{ log['status'] }}
+            </span>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty">
+          <div class="empty__sub">Nenhum envio registrado ainda.</div>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  {# ── Sidebar: alvos + metadados ── #}
+  <div class="flex-col gap-3" style="position:sticky;top:110px">
+
+    <div class="card">
+      <div class="card__title">Detalhes</div>
+      <div class="card__sub">metadados</div>
+
+      <div class="flex-col gap-1 mt-3" style="font-size:13px">
+        <div class="info-row"><svg><use xlink:href="#i-check"/></svg> Status: <span class="chip chip--sm chip--{% if campaign['status'] == 'sent' %}mint{% elif campaign['status'] == 'draft' %}sun{% endif %}">{{ campaign['status'] }}</span></div>
+        <div class="info-row"><svg><use xlink:href="#i-users"/></svg> Segmento: {{ campaign['target_filter'] or 'all' }}</div>
+        <div class="info-row"><svg><use xlink:href="#i-calendar"/></svg> Criada: {{ campaign['created_at'][:10] if campaign['created_at'] else '—' }}</div>
+        {% if campaign['sent_at'] %}<div class="info-row"><svg><use xlink:href="#i-check"/></svg> Enviada: {{ campaign['sent_at'][:16] }}</div>{% endif %}
+        <div class="info-row"><svg><use xlink:href="#i-edit"/></svg> Criada por: {{ campaign['created_by'] or '—' }}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__title">Destinatárias</div>
+      <div class="card__sub">{{ targets|length }} clientes no segmento</div>
+
+      <div style="max-height:360px;overflow:auto;margin:14px -22px -22px">
+        {% for t in targets[:30] %}
+          <div class="table__row" style="grid-template-columns:36px 1fr 110px;padding:10px 22px">
+            <div class="avatar avatar--md avatar--h{{ loop.index0 % 6 }}">{{ t['name'][:2]|upper }}</div>
+            <div style="font-size:13px;font-weight:500;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t['name'] }}</div>
+            <div class="text-mono" style="font-size:11px;color:var(--gray-500)">{{ format_phone_display(t['phone']) }}</div>
+          </div>
+        {% endfor %}
+        {% if targets|length > 30 %}
+          <div style="padding:12px 22px;text-align:center;font-size:12px;color:var(--gray-500);background:var(--gray-100)">
+            + {{ targets|length - 30 }} destinatárias
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,481 @@
+{% extends "base.html" %}
+{% block title %}Painel · tonton{% endblock %}
+{# Sub-label do header dinâmico: rótulo varia conforme mês de referência.
+   Mês corrente: 'quinta · 01 de mai · em curso'
+   Mês passado: 'mai 2026 · fechado' (só nome do mês + status, sem dia
+                                       da semana porque seria meio do mês). #}
+{% set _weekdays = ['segunda','terça','quarta','quinta','sexta','sábado','domingo'] %}
+{% set _months_br = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'] %}
+{% if is_current_month %}
+  {% set page_sub_label = (_weekdays[now.weekday()] ~ ' · ' ~ '%02d'|format(now.day) ~ ' de ' ~ _months_br[now.month - 1] ~ ' · em curso') if now else 'em curso' %}
+{% else %}
+  {% set page_sub_label = (_months_br[now.month - 1] ~ ' ' ~ now.year|string ~ ' · fechado') if now else 'fechado' %}
+{% endif %}
+{% block page_title %}Olá, {{ current_user['display_name'].split()[0] }} ✶{% endblock %}
+
+{% block topbar_actions %}
+  {# Em desktop, botão fica no topbar. Em mobile, esconde via CSS e
+     mostra FAB flutuante no canto inferior direito (ver final do body). #}
+  <a href="{{ url_for('create_sale') }}" class="btn topbar-action-primary">
+    <svg><use xlink:href="#i-plus"/></svg> Nova venda
+  </a>
+{% endblock %}
+
+{% block body %}
+<div class="dashboard-page">
+
+{# ── Seletor de mês — fica no corpo, antes dos KPIs ───────
+     Antes estava no topbar; em mobile quebrava o layout
+     ocupando linha cheia entre os ícones. Agora vive próximo
+     dos dados que controla. Sem JS — usa <details> nativo. #}
+{% set _qs_window = '&window=' ~ chart_window if chart_window and chart_window != '6' else '' %}
+<div class="month-picker-row">
+  <div class="month-picker" role="group" aria-label="Selecionar mês">
+    <a href="{{ url_for('dashboard') }}?month={{ prev_month_param }}{{ _qs_window }}"
+       class="month-picker__nav"
+       aria-label="Mês anterior"
+       title="Mês anterior">‹</a>
+
+    <details class="month-picker__menu">
+      <summary class="month-picker__current" aria-label="Abrir lista de meses">
+        <span>{{ ref_label }}</span>
+        <span class="month-picker__chevron" aria-hidden="true"></span>
+      </summary>
+      <div class="month-picker__panel" role="menu">
+        {% for m in month_options %}
+          <a href="{{ url_for('dashboard') }}?month={{ m.param }}{{ _qs_window }}"
+             class="month-picker__item{% if m.is_selected %} is-active{% endif %}{% if m.is_current %} is-today{% endif %}"
+             role="menuitem">
+            {{ m.label }}{% if m.is_current %} <span class="month-picker__hint">hoje</span>{% endif %}
+          </a>
+        {% endfor %}
+      </div>
+    </details>
+
+    {% if next_month_param %}
+      <a href="{{ url_for('dashboard') }}?month={{ next_month_param }}{{ _qs_window }}"
+         class="month-picker__nav"
+         aria-label="Próximo mês"
+         title="Próximo mês">›</a>
+    {% else %}
+      <span class="month-picker__nav month-picker__nav--disabled"
+            aria-disabled="true"
+            title="Você está no mês corrente">›</span>
+    {% endif %}
+  </div>
+
+  {% if not is_current_month %}
+    <a href="{{ url_for('dashboard') }}{% if _qs_window %}?{{ _qs_window[1:] }}{% endif %}"
+       class="month-picker__today"
+       aria-label="Voltar ao mês corrente"
+       title="Voltar ao mês corrente">↺ hoje</a>
+  {% endif %}
+</div>
+
+{# ── Banner de pagamentos pendentes (linha à esquerda, calmo) ── #}
+{% if pending_count and pending_count > 0 %}
+<a href="{{ url_for('pending_payments') }}" class="me-banner" aria-label="Pagamentos pendentes">
+  <div class="me-banner__body">
+    <div class="me-banner__title">
+      {{ pending_count }} venda{{ 's' if pending_count != 1 else '' }} aguardando pagamento
+    </div>
+    <div class="me-banner__sub">
+      a receber <strong>R$ {{ format_money(pending_amount) }}</strong>
+    </div>
+  </div>
+  <span class="me-banner__cue">conferir →</span>
+</a>
+{% endif %}
+
+{# ── KPIs editoriais ───────────────────────────────────── #}
+<div class="me-stat-grid">
+
+  <div class="me-stat">
+    <span class="me-stat__icon" aria-hidden="true"><svg><use xlink:href="#i-trend"/></svg></span>
+    <span class="me-stat__label">Receita · mês</span>
+    <span class="me-stat__num">
+      <span class="me-stat__currency">R$</span>{{ format_money(rev) }}
+    </span>
+    <div class="me-stat__meta">
+      {% if (rev|float) == 0 and (prev_rev|float) > 0 %}
+        {# Mês de referência sem atividade: mostra R$ do mês anterior. #}
+        <span class="me-stat__delta me-stat__delta--neutral">{{ prev_label }}</span>
+        <span>fechou em R$ {{ format_money(prev_rev) }}</span>
+      {% elif rev_growth is not none and (prev_rev|float) > 0 %}
+        {# Comparativo dinâmico: % de crescimento + valor absoluto do mês
+           anterior. Usuário vê os dois sinais — direção e baseline. #}
+        <span class="me-stat__delta {% if rev_growth < 0 %}me-stat__delta--down{% endif %}">
+          {{ '+' if rev_growth >= 0 else '' }}{{ '%.1f'|format(rev_growth|float) }}%
+        </span>
+        <span>vs. {{ prev_label }} (R$ {{ format_money(prev_rev) }})</span>
+      {% else %}
+        <span class="me-stat__delta me-stat__delta--neutral">novo</span>
+        <span>primeira leitura</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="me-stat">
+    <span class="me-stat__icon" aria-hidden="true"><svg><use xlink:href="#i-receipt"/></svg></span>
+    <span class="me-stat__label">Vendas</span>
+    <span class="me-stat__num">{{ sales_count or 0 }}</span>
+    <div class="me-stat__meta">
+      {% if sales_count and sales_count > 0 %}
+        <span>ticket médio R$ {{ format_money(rev / sales_count) }}</span>
+      {% elif prev_sales_count > 0 %}
+        <span class="me-stat__delta me-stat__delta--neutral">{{ prev_label }}</span>
+        <span>{{ prev_sales_count }} venda{{ 's' if prev_sales_count != 1 else '' }} · ticket R$ {{ format_money(prev_rev / prev_sales_count) }}</span>
+      {% else %}
+        <span>ticket médio R$ 0,00</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="me-stat">
+    <span class="me-stat__icon" aria-hidden="true"><svg><use xlink:href="#i-chart"/></svg></span>
+    <span class="me-stat__label">Margem bruta</span>
+    <span class="me-stat__num">{{ '%.1f'|format(gross_pct|float) }}%</span>
+    <div class="me-stat__meta">
+      {% if (rev|float) > 0 %}
+        <span>R$ {{ format_money(gross) }} após CMV</span>
+      {% elif (prev_rev|float) > 0 %}
+        <span class="me-stat__delta me-stat__delta--neutral">{{ prev_label }}</span>
+        <span>fechou em {{ '%.1f'|format(prev_gross_pct|float) }}%</span>
+      {% else %}
+        <span>R$ 0,00 após CMV</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="me-stat">
+    <span class="me-stat__icon" aria-hidden="true"><svg><use xlink:href="#i-users"/></svg></span>
+    <span class="me-stat__label">Clientes</span>
+    <span class="me-stat__num">{{ customer_count }}</span>
+    <div class="me-stat__meta">
+      <span class="me-stat__delta">+{{ new_customers }}</span>
+      <span>novos este mês</span>
+    </div>
+  </div>
+
+</div>
+
+{# ── Resultado (chart) + Saúde financeira ───────────────── #}
+<div class="grid grid--2-1 mb-3">
+
+  <div class="me-card">
+    <div class="me-card__head">
+      <div>
+        <span class="me-card__sub">Resultado · {% if chart_window == '12' %}últimos 12 meses{% elif chart_window == 'ytd' %}YTD ({{ now.year }}){% else %}últimos 6 meses{% endif %}</span>
+        <div style="font-family:var(--f-display);font-style:italic;font-size:13.5px;color:var(--gray-700);margin-top:8px;line-height:1.5">
+          {% if rev_growth is not none %}
+            {% if rev_growth >= 0 %}
+              Tendência de alta · {{ '%.1f'|format(rev_growth|float) }}% vs. semestre anterior
+            {% else %}
+              Tendência de baixa · {{ '%.1f'|format(rev_growth|float) }}% vs. semestre anterior
+            {% endif %}
+          {% else %}
+            Primeira leitura — sem histórico de comparação ainda
+          {% endif %}
+        </div>
+      </div>
+      <div class="me-seg" role="tablist" aria-label="Período">
+        <a href="?window=6"
+           class="me-seg__btn{% if chart_window != '12' and chart_window != 'ytd' %} is-active{% endif %}"
+           role="tab">6 meses</a>
+        <a href="?window=12"
+           class="me-seg__btn{% if chart_window == '12' %} is-active{% endif %}"
+           role="tab">12 meses</a>
+        <a href="?window=ytd"
+           class="me-seg__btn{% if chart_window == 'ytd' %} is-active{% endif %}"
+           role="tab">YTD</a>
+      </div>
+    </div>
+
+    {# Chart com eixos em HTML (sem distorção do preserveAspectRatio).
+       Eixo Y é adaptativo: chart_min_v pode ser negativo (mês com perda).
+       Mapeamento: y_svg = top + ((max - plot) / range) * usable_h
+       onde top=10, bottom=10, usable_h = plot_h - 20 #}
+    <div class="me-chart" style="margin-top:24px">
+      <div class="me-chart__yaxis">
+        {% for t in chart_ticks %}
+          <span>R$ {{ format_money(t)|replace(',00','') }}</span>
+        {% endfor %}
+      </div>
+      <div class="me-chart__plot">
+        <svg viewBox="0 0 600 200" aria-label="Resultado mensal" style="width:100%;height:auto;display:block">
+          <defs>
+            <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#ff6b3a" stop-opacity=".22"/>
+              <stop offset="100%" stop-color="#ff6b3a" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          {# Variáveis de mapeamento Y → SVG #}
+          {% set plot_w = 600 %}{% set plot_h = 200 %}
+          {% set top_pad = 10 %}{% set bot_pad = 10 %}
+          {% set usable_h = plot_h - top_pad - bot_pad %}
+          {% set y_range = (chart_max_v - chart_min_v) if (chart_max_v - chart_min_v) > 0 else 1 %}
+          {# Posição Y do valor zero (para baseline e área negativa) #}
+          {% set zero_y = (top_pad + ((chart_max_v - 0) / y_range) * usable_h)|round(1) %}
+          {# Grid lines horizontais — alinhadas aos chart_ticks #}
+          {% for t in chart_ticks %}
+            {% set y = (top_pad + ((chart_max_v - t) / y_range) * usable_h)|round(1) %}
+            <line x1="0" x2="600" y1="{{ y }}" y2="{{ y }}"
+                  stroke="var(--gray-200)" stroke-width="1"/>
+          {% endfor %}
+          {# Baseline em y=0 (mais escura) quando há valores negativos #}
+          {% if chart_min_v < 0 %}
+            <line x1="0" x2="600" y1="{{ zero_y }}" y2="{{ zero_y }}"
+                  stroke="var(--gray-400, #aaa)" stroke-width="1.2" stroke-dasharray="3,3"/>
+          {% endif %}
+          {# Path da área e linha #}
+          {% set step = plot_w / ((chart_months|length) - 1 if chart_months|length > 1 else 1) %}
+          {% set ns = namespace(pts='', area='', i=0) %}
+          {% for m in chart_months %}
+            {% set x = (step * ns.i)|round(1) %}
+            {% set y = (top_pad + ((chart_max_v - m.plot) / y_range) * usable_h)|round(1) %}
+            {% if ns.i == 0 %}
+              {% set ns.pts = 'M ' ~ x ~ ' ' ~ y %}
+              {# Área parte da baseline em zero (não do bottom do SVG) — fica
+                 visualmente correto com valores negativos. #}
+              {% set ns.area = 'M 0 ' ~ zero_y ~ ' L ' ~ x ~ ' ' ~ y %}
+            {% else %}
+              {% set ns.pts = ns.pts ~ ' L ' ~ x ~ ' ' ~ y %}
+              {% set ns.area = ns.area ~ ' L ' ~ x ~ ' ' ~ y %}
+            {% endif %}
+            {% set ns.i = ns.i + 1 %}
+          {% endfor %}
+          {% if chart_months %}
+            <path d="{{ ns.area }} L {{ plot_w }} {{ zero_y }} Z" fill="url(#gRev)"/>
+            <path d="{{ ns.pts }}" fill="none" stroke="var(--coral)" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+            {% set ns2 = namespace(i=0) %}
+            {% for m in chart_months %}
+              {% set x = (step * ns2.i)|round(1) %}
+              {% set y = (top_pad + ((chart_max_v - m.plot) / y_range) * usable_h)|round(1) %}
+              {# Pontos negativos em cor de alerta. Tooltip nativo do SVG via <title>. #}
+              <circle cx="{{ x }}" cy="{{ y }}" r="3"
+                      fill="var(--white)"
+                      stroke="{% if m.plot < 0 %}#c82c2c{% else %}var(--coral){% endif %}"
+                      stroke-width="1.5">
+                <title>{{ m.label }} · resultado R$ {{ format_money(m.result) }}
+receita R$ {{ format_money(m.rev) }} · CMV R$ {{ format_money(m.cogs) }} · despesas R$ {{ format_money(m.exp) }}</title>
+              </circle>
+              {% set ns2.i = ns2.i + 1 %}
+            {% endfor %}
+          {% endif %}
+        </svg>
+      </div>
+    </div>
+
+    {# Legenda com mês + valor mensal — colunas dinâmicas via CSS var #}
+    <div class="me-chart__xaxis" style="--chart-cols: {{ chart_months|length }}">
+      {% for m in chart_months %}
+        <div class="me-chart__xaxis-item">
+          <span class="me-chart__xaxis-month">{{ m.label|lower }}</span>
+          <span class="me-chart__xaxis-val{% if m.result < 0 %} me-chart__xaxis-val--neg{% endif %}">R$ {{ format_money(m.result)|replace(',00','') }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="me-card">
+    <div class="me-card__head">
+      <div>
+        <span class="me-card__sub">Saúde financeira · mês</span>
+      </div>
+    </div>
+
+    {% set total_base = (rev|float) if (rev|float) > 0 else 1 %}
+    {% set rev_pct = 100 %}
+    {% set cogs_pct = ((cogs_v|float) / total_base * 100)|round %}
+    {% set exp_pct  = ((exp_v|float)  / total_base * 100)|round %}
+    {% set op_pct_disp = (op_pct|float)|round %}
+
+    {% for r in [
+      {'n': 'Receita', 'v': format_money(rev),   'p': rev_pct,  'c': 'var(--coral)'},
+      {'n': 'CMV',     'v': format_money(cogs_v),'p': cogs_pct, 'c': 'var(--magenta)'},
+      {'n': 'Despesas','v': format_money(exp_v), 'p': exp_pct,  'c': 'var(--coral-deep)'},
+      {'n': 'Resultado','v': format_money(op),   'p': op_pct_disp if op_pct_disp >= 0 else 0, 'c': 'var(--plum)'}
+    ] %}
+      <div class="me-bar">
+        <div class="me-bar__head">
+          <span class="me-bar__name">{{ r.n }}</span>
+          <span class="me-bar__val">R$ {{ r.v }}<span class="me-bar__pct">{{ r.p }}%</span></span>
+        </div>
+        <div class="me-bar__track">
+          <div class="me-bar__fill" style="width:{{ r.p }}%;background:{{ r.c }}"></div>
+        </div>
+      </div>
+    {% endfor %}
+
+    <div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--gray-200);font-family:var(--f-display);font-style:italic;font-size:14px;line-height:1.5;color:var(--gray-700)">
+      {% if op_pct|float > 20 %}
+        Margem operacional saudável — vale reinvestir em estoque para outono.
+      {% elif op_pct|float > 0 %}
+        Resultado positivo. Atente para despesas antes de expandir.
+      {% else %}
+        Resultado negativo. Revise despesas fixas urgentemente.
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+{# ── Vendas recentes + Top produtos ────────────────────── #}
+<div class="grid grid--2-1">
+
+  <div class="me-card">
+    <div class="me-card__head">
+      <div>
+        <h2 class="me-card__title">Vendas recentes</h2>
+        <div class="me-card__sub">últimas 6</div>
+      </div>
+      <a href="{{ url_for('list_sales') }}" class="me-card__action">ver todas →</a>
+    </div>
+
+    {% if recent_sales %}
+      <div class="me-feed">
+        {% for s in recent_sales %}
+          <a href="{{ url_for('sale_detail', sid=s['id']) }}" class="me-feed__row">
+            <div class="me-feed__thumb thumb thumb--h{{ loop.index0 % 8 }}"></div>
+            <div>
+              <div class="me-feed__id">#{{ s['sale_number'] or s['id'] }}</div>
+              <div class="me-feed__name">{{ s['customer_name'] or 'Cliente avulso' }}</div>
+            </div>
+            <div class="me-feed__sub">{{ (s['payment_method'] or 'pago')|lower }}</div>
+            <div class="me-feed__price">R$ {{ format_money(s['total']) }}</div>
+            <div class="me-feed__when">
+              {% if s['created_at'] %}{{ s['created_at']|format_br_date }}{% endif %}
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty__title">Nenhuma venda ainda</div>
+        <div class="empty__sub">Registre sua primeira venda no PDV.</div>
+        <a href="{{ url_for('create_sale') }}" class="btn"><svg><use xlink:href="#i-plus"/></svg>Nova venda</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="me-card">
+    <div class="me-card__head">
+      <div>
+        <h2 class="me-card__title">Mais vendidos</h2>
+        <div class="me-card__sub">este mês · por lucro bruto</div>
+      </div>
+    </div>
+
+    <div class="me-rank-list">
+      {% for p in top_products %}
+        <div class="me-rank-list__row">
+          <div class="me-rank-list__num">{{ loop.index }}</div>
+          <div class="me-rank-list__thumb thumb thumb--h{{ loop.index0 % 8 }}"></div>
+          <div style="min-width:0">
+            <div class="me-rank-list__name">{{ p['name'] }}</div>
+            <div class="me-rank-list__sub">{{ p['units_sold']|int }} un · R$ {{ format_money(p['revenue']) }}</div>
+          </div>
+          <span class="me-rank-list__metric">{{ '%.0f'|format(p['margin_pct']|float) }}%</span>
+        </div>
+      {% else %}
+        <div class="text-muted" style="font-size:12.5px;padding:20px 0">Sem vendas este mês.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+{# ── Alertas: estoque baixo + vales expirando ───────────── #}
+{% if low_stock or expiring_cards or inactive_customers %}
+<div class="me-alert-grid mt-3">
+
+  {% if low_stock %}
+    <div class="me-card">
+      <div class="me-card__head">
+        <div>
+          <h2 class="me-card__title">Estoque baixo</h2>
+          <div class="me-card__sub">reposição urgente</div>
+        </div>
+        <a href="{{ url_for('list_products') }}?low_stock=1" class="me-card__action">ver todos →</a>
+      </div>
+      {% for p in low_stock %}
+        <a href="{{ url_for('product_detail', pid=p['id']) }}" class="me-feed__row">
+          <div class="me-feed__thumb thumb thumb--h{{ loop.index0 % 8 }}"></div>
+          <div style="min-width:0">
+            <div class="me-feed__name">{{ p['name'] }}</div>
+            {% if p['sku'] %}<div class="me-feed__id">{{ p['sku'] }}</div>{% endif %}
+          </div>
+          <div style="font-family:var(--f-mono);font-size:12px;color:{{ 'var(--magenta-deep)' if p['stock_qty']|int == 0 else 'var(--coral-deep)' }};font-weight:500;white-space:nowrap">
+            {{ p['stock_qty'] }} un
+          </div>
+          <span class="chip chip--sm chip--{{ 'coral' if p['stock_qty']|int == 0 else 'sun' }}">
+            {{ 'esgotado' if p['stock_qty']|int == 0 else 'baixo' }}
+          </span>
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if expiring_cards %}
+    <div class="me-card">
+      <div class="me-card__head">
+        <div>
+          <h2 class="me-card__title">Vales expirando</h2>
+          <div class="me-card__sub">próximos 7 dias</div>
+        </div>
+        <a href="{{ url_for('list_cards') }}" class="me-card__action">ver todos →</a>
+      </div>
+      {% for c in expiring_cards %}
+        <a href="{{ url_for('card_detail', card_id=c['id']) }}" class="me-feed__row" style="grid-template-columns:48px 1fr auto">
+          <div class="me-feed__thumb" style="background:var(--grad-hero);display:grid;place-items:center">
+            <svg style="width:18px;height:18px;color:var(--white)"><use xlink:href="#i-card"/></svg>
+          </div>
+          <div>
+            <div class="me-feed__name">{{ c['recipient_name'] or '—' }}</div>
+            <div class="me-feed__id">•••• {{ c['code_last4'] }}</div>
+          </div>
+          <div class="me-feed__price">R$ {{ format_money(c['current_balance']) }}</div>
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if inactive_customers %}
+    <div class="me-card">
+      <div class="me-card__head">
+        <div>
+          <h2 class="me-card__title">Reengajar clientes</h2>
+          <div class="me-card__sub">+ de {{ inactive_days }} dias sem comprar · top valor</div>
+        </div>
+        <a href="{{ url_for('atender_cliente') }}" class="me-card__action">atender →</a>
+      </div>
+      {% for c in inactive_customers %}
+        <a href="{{ url_for('atender_cliente', q=c['phone']) }}" class="me-feed__row" style="grid-template-columns:1fr auto auto">
+          <div>
+            <div class="me-feed__name">{{ c['name'] }}</div>
+            <div class="me-feed__id">{{ c['phone'] }} · {{ c['sale_count'] }} compra(s)</div>
+          </div>
+          <div class="me-feed__when">
+            {{ c['last_purchase'][:10] if c['last_purchase'] else '—' }}
+          </div>
+          <div class="me-feed__price">R$ {{ format_money(c['total_spent']) }}</div>
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+</div>
+{% endif %}
+
+</div> {# /.dashboard-page #}
+
+{# ── FAB "Nova venda" — apenas mobile (≤720px). Substitui o botão
+     primário do topbar nessa largura, liberando espaço vertical e
+     dando alvo de toque grande no canto inferior direito (alcance do
+     polegar em iPhones). #}
+<a href="{{ url_for('create_sale') }}" class="dashboard-fab" aria-label="Nova venda">
+  <svg><use xlink:href="#i-plus"/></svg>
+  <span class="dashboard-fab__label">Nova venda</span>
+</a>
+{% endblock %}

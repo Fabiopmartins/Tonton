@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Campanhas · tonton{% endblock %}
+{% set page_sub_label = "marketing · campanhas" %}
+{% block page_title %}Campanhas WhatsApp{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('create_campaign') }}" class="btn">
+    <svg><use xlink:href="#i-plus"/></svg> Nova campanha
+  </a>
+{% endblock %}
+
+{% block body %}
+
+{% set sent_count = campaigns|selectattr('status', 'equalto', 'sent')|list|length %}
+{% set draft_count = campaigns|selectattr('status', 'equalto', 'draft')|list|length %}
+
+<div class="grid grid--3 mb-3">
+  <div class="card kpi">
+    <div class="kpi__label">Base opt-in</div>
+    <div class="kpi__value kpi__value--coral">{{ opt_in_count }}</div>
+    <div class="text-muted" style="font-size:11.5px">clientes autorizaram WhatsApp</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Campanhas enviadas</div>
+    <div class="kpi__value kpi__value--magenta">{{ sent_count }}</div>
+    <div class="text-muted" style="font-size:11.5px">{{ draft_count }} em rascunho</div>
+  </div>
+  <div class="card" style="background:var(--grad-soft);border:0">
+    <div class="text-eyebrow" style="color:var(--magenta-deep)">✦ dica</div>
+    <div class="text-display" style="font-size:20px;margin-top:4px;color:var(--plum);line-height:1.25">
+      Segmente antes de enviar — VIPs respondem melhor a lançamentos exclusivos.
+    </div>
+  </div>
+</div>
+
+<div class="card card--flush">
+  <div class="card__header">
+    <div>
+      <div class="card__title">Todas as campanhas</div>
+      <div class="card__sub">{{ campaigns|length }} registros</div>
+    </div>
+  </div>
+
+  {% if campaigns %}
+    <div class="table__head" style="grid-template-columns:2fr 2fr 120px 100px 110px 100px">
+      <span>Nome</span><span>Mensagem</span><span>Segmentação</span><span>Enviadas</span><span>Criada</span><span>Status</span>
+    </div>
+    {% for c in campaigns %}
+      <a href="{{ url_for('campaign_detail', campaign_id=c['id']) }}" class="table__row" style="grid-template-columns:2fr 2fr 120px 100px 110px 100px;text-decoration:none;color:inherit">
+        <div>
+          <div style="font-size:13.5px;font-weight:600">{{ c['name'] }}</div>
+          <div class="text-muted" style="font-size:11px">por {{ c['created_by'] or '—' }}</div>
+        </div>
+        <div class="text-muted" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          {{ c['message_template'][:80] }}{% if c['message_template']|length > 80 %}…{% endif %}
+        </div>
+        <span class="chip chip--sm">{{ c['target_filter'] or 'all' }}</span>
+        <div style="font-weight:600">{{ c['sent_count'] or 0 }}</div>
+        <div class="text-mono" style="font-size:11.5px;color:var(--gray-700)">{{ c['created_at'][:10] if c['created_at'] else '—' }}</div>
+        <span class="chip chip--sm chip--{% if c['status'] == 'sent' %}mint{% elif c['status'] == 'draft' %}sun{% else %}neutral{% endif %}">
+          {{ c['status'] }}
+        </span>
+      </a>
+    {% endfor %}
+  {% else %}
+    <div class="empty">
+      <div class="empty__title">Nenhuma campanha ainda</div>
+      <div class="empty__sub">Crie a primeira e alcance a base de clientes.</div>
+      <a href="{{ url_for('create_campaign') }}" class="btn"><svg><use xlink:href="#i-plus"/></svg> Nova campanha</a>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

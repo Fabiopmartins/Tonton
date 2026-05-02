@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Pagamentos pendentes · tonton{% endblock %}
+{% set page_sub_label = "vendas · aguardando pagamento" %}
+{% block page_title %}Pagamentos pendentes{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('list_sales') }}" class="btn btn--ghost">
+    <svg><use xlink:href="#i-receipt"/></svg> Todas as vendas
+  </a>
+{% endblock %}
+
+{% block body %}
+
+{# ── KPIs (3 cards, então usamos grid--3 em vez de grid--kpi para não deixar coluna vazia) ── #}
+<div class="grid grid--3 mb-3">
+  <div class="card">
+    <div class="kpi__label">Vendas pendentes</div>
+    <div class="kpi__value kpi__value--coral">{{ items|length }}</div>
+    <div class="text-muted" style="font-size:11.5px">aguardando confirmação</div>
+  </div>
+  <div class="card">
+    <div class="kpi__label">A receber</div>
+    <div class="kpi__value kpi__value--magenta">R$ {{ format_money(total_pending) }}</div>
+    <div class="text-muted" style="font-size:11.5px">soma das pendentes</div>
+  </div>
+  <div class="card">
+    <div class="kpi__label">Atrasadas</div>
+    <div class="kpi__value kpi__value--deep">{{ alert_count }}</div>
+    <div class="text-muted" style="font-size:11.5px">há mais de {{ alert_hours }}h</div>
+  </div>
+</div>
+
+{# ── Lista ─────────────────────────────────────────────── #}
+<div class="card card--flush">
+  {% if items %}
+    {% for it in items %}
+      {% set name = it.customer_name or it.buyer_name_free or 'Cliente avulso' %}
+      <div class="table__row" style="grid-template-columns:60px 1fr 110px 130px 1fr;align-items:center">
+        <div class="thumb thumb--h{{ loop.index0 % 8 }}" style="width:44px;height:54px"></div>
+
+        <div style="min-width:0">
+          <div class="text-mono" style="font-size:11.5px;color:var(--gray-500);letter-spacing:.08em">
+            #{{ it.sale_number or it.id }}
+          </div>
+          <div style="font-weight:600;font-size:13.5px">{{ name }}</div>
+          <div class="text-muted" style="font-size:11.5px">
+            {% if it.is_overdue %}
+              <span class="chip chip--sm chip--coral" style="margin-right:6px">atrasada</span>
+            {% endif %}
+            há {{ '%.1f'|format(it.age_hours) }}h · {{ (it.payment_method or 'pix')|upper }}
+          </div>
+        </div>
+
+        <div class="text-price">R$ {{ format_money(it.total) }}</div>
+
+        <div class="flex gap-1" style="flex-wrap:wrap">
+          <a href="{{ url_for('sale_detail', sid=it.id) }}" class="btn btn--ghost btn--sm">
+            Ver
+          </a>
+          {% if it.pix_brcode %}
+            <button type="button" class="btn btn--ghost btn--sm copy-pix-btn"
+                    data-brcode="{{ it.pix_brcode }}" title="Copiar código PIX para compartilhar">
+              <svg><use xlink:href="#i-qr"/></svg> Link PIX
+            </button>
+          {% endif %}
+        </div>
+
+        <div class="flex gap-1" style="justify-content:flex-end">
+          <form method="post" action="{{ url_for('confirm_payment', sid=it.id) }}" style="display:inline">
+            {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+            <button type="submit" class="btn btn--sm" style="background:var(--mint);color:var(--mint-ink);border:0">
+              <svg><use xlink:href="#i-check"/></svg> Confirmar
+            </button>
+          </form>
+          <form method="post" action="{{ url_for('cancel_payment', sid=it.id) }}" style="display:inline"
+                onsubmit="return confirm('Cancelar a venda #{{ it.sale_number or it.id }} por não-pagamento? Estoque será reposto.');">
+            {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+            <button type="submit" class="btn btn--soft btn--sm" title="Cancelar por não-pagamento">
+              <svg><use xlink:href="#i-x"/></svg>
+            </button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty" style="padding:60px 20px">
+      <div class="empty__title">Nenhum pagamento pendente</div>
+      <div class="empty__sub">Todas as vendas estão com pagamento confirmado.</div>
+      <a href="{{ url_for('list_sales') }}" class="btn">
+        <svg><use xlink:href="#i-receipt"/></svg> Ver todas as vendas
+      </a>
+    </div>
+  {% endif %}
+</div>
+
+<script>
+(function(){
+  document.querySelectorAll('.copy-pix-btn').forEach(function(b){
+    b.addEventListener('click', async function(){
+      var code = b.dataset.brcode || '';
+      try {
+        await navigator.clipboard.writeText(code);
+        var orig = b.innerHTML;
+        b.innerHTML = '✓ copiado';
+        setTimeout(function(){ b.innerHTML = orig; }, 1500);
+      } catch(e) {
+        alert('Falha ao copiar. Código: ' + code.slice(0, 60) + '...');
+      }
+    });
+  });
+})();
+</script>
+
+{% endblock %}

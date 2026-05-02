@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Vendas · tonton{% endblock %}
+{% set page_sub_label = "histórico" %}
+{% block page_title %}Vendas{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('create_sale') }}" class="btn">
+    <svg><use xlink:href="#i-plus"/></svg> Nova venda
+  </a>
+{% endblock %}
+
+{% block body %}
+
+{# ── Resumo do mês ──────────────────────────────────── #}
+<div class="grid grid--4 mb-3">
+
+  <div class="card kpi">
+    <div class="kpi__label">Receita do período</div>
+    <div class="kpi__value kpi__value--coral">R$ {{ format_money(totals['rev']) }}</div>
+    <div class="text-muted" style="font-size:11.5px">vendas ativas</div>
+  </div>
+
+  <div class="card kpi">
+    <div class="kpi__label">Pedidos</div>
+    <div class="kpi__value kpi__value--magenta">{{ totals['cnt'] or 0 }}</div>
+    <div class="text-muted" style="font-size:11.5px">excluindo canceladas</div>
+  </div>
+
+  <div class="card kpi">
+    <div class="kpi__label">Ticket médio</div>
+    <div class="kpi__value kpi__value--deep">
+      R$ {{ format_money((totals['rev']|float / totals['cnt']) if totals['cnt'] else 0) }}
+    </div>
+    <div class="text-muted" style="font-size:11.5px">por pedido</div>
+  </div>
+
+  <div class="card kpi">
+    <div class="kpi__label">Canceladas</div>
+    <div class="kpi__value kpi__value--plum">R$ {{ format_money(cancelled_rev) }}</div>
+    <div class="text-muted" style="font-size:11.5px">recuperáveis</div>
+  </div>
+
+</div>
+
+<div class="card card--flush">
+
+  {# filtros #}
+  <form method="get" class="filterbar">
+    <div class="search-pill" style="flex:1;width:auto">
+      <svg><use xlink:href="#i-search"/></svg>
+      <input type="search" name="q" placeholder="ID, cliente, produto…">
+    </div>
+    <input type="month" name="month" value="{{ month }}" class="form-control form-control--plain" style="max-width:180px" onchange="this.form.submit()">
+    <select name="status" class="filter-pill" onchange="this.form.submit()">
+      <option value="">Todos status</option>
+      <option value="active"    {% if status_filter == 'active' %}selected{% endif %}>Ativas</option>
+      <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Canceladas</option>
+      <option value="returned"  {% if status_filter == 'returned' %}selected{% endif %}>Devolvidas</option>
+    </select>
+    <button type="submit" class="btn btn--soft btn--sm">
+      <svg><use xlink:href="#i-filter"/></svg> Aplicar
+    </button>
+  </form>
+
+  {# header #}
+  <div class="table__head" style="grid-template-columns:32px 180px 1.4fr 1.8fr 120px 110px 120px 80px">
+    <span></span><span>Pedido</span><span>Cliente</span><span>Itens</span><span>Pagamento</span><span>Total</span><span>Status</span><span></span>
+  </div>
+
+  {% for s in sales %}
+    {% set tone = 'neutral' if s['status'] == 'cancelled' else ('magenta' if s['status'] == 'returned' else 'mint') %}
+    {% set status_label = 'cancelada' if s['status'] == 'cancelled' else ('devolvida' if s['status'] == 'returned' else 'ativa') %}
+
+    <a href="{{ url_for('sale_detail', sid=s['id']) }}" class="table__row" style="grid-template-columns:32px 180px 1.4fr 1.8fr 120px 110px 120px 80px;text-decoration:none;color:inherit">
+      <div style="width:18px;height:18px;border-radius:5px;border:1.5px solid var(--gray-300)"></div>
+
+      <div>
+        <div class="text-mono" style="font-size:12.5px;font-weight:600;color:var(--ink)">#{{ s['sale_number'] or s['id'] }}</div>
+        <div class="text-muted" style="font-size:10.5px">{{ s['created_at'][:10] if s['created_at'] else '—' }}</div>
+      </div>
+
+      <div class="flex-center gap-2" style="min-width:0">
+        <div class="avatar avatar--h{{ loop.index0 % 6 }}">
+          {{ (s['customer_name'] or s['buyer_name_free'] or '??')[:2]|upper }}
+        </div>
+        <div style="min-width:0">
+          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            {{ s['customer_name'] or s['buyer_name_free'] or 'Cliente avulso' }}
+          </div>
+        </div>
+      </div>
+
+      <div class="text-muted" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        {{ s['items'] or '—' }}
+      </div>
+
+      <span class="chip chip--sm chip--{% if s['payment_method'] == 'pix' %}coral{% elif s['payment_method'] == 'card' %}magenta{% else %}neutral{% endif %}">
+        {{ s['payment_method'] or '—' }}
+      </span>
+
+      <div class="text-price">R$ {{ format_money(s['total']) }}</div>
+
+      <span class="chip chip--sm chip--{{ tone }}">{{ status_label }}</span>
+
+      <div class="flex gap-1" style="justify-content:flex-end">
+        <button type="button" class="icon-btn" style="width:30px;height:30px" onclick="event.preventDefault();window.location='{{ url_for('sale_detail', sid=s['id']) }}'">
+          <svg><use xlink:href="#i-eye"/></svg>
+        </button>
+      </div>
+    </a>
+  {% else %}
+    <div class="empty">
+      <div class="empty__title">Nenhuma venda no período</div>
+      <div class="empty__sub">Tente mudar o mês ou limpar os filtros.</div>
+      <a href="{{ url_for('create_sale') }}" class="btn"><svg><use xlink:href="#i-plus"/></svg> Nova venda</a>
+    </div>
+  {% endfor %}
+
+</div>
+
+{% endblock %}

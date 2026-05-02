@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% block title %}Editar · {{ product['name'] }} · tonton{% endblock %}
+{% set page_sub_label = "produto · edição" %}
+{% block page_title %}Editar · {{ product['name'] }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('product_detail', pid=product['id']) }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+  <button type="button" class="btn btn--ghost btn--sm" onclick="document.getElementById('delete-product-dialog').style.display='flex'">
+    <svg><use xlink:href="#i-trash"/></svg> Apagar
+  </button>
+{% endblock %}
+
+{% block body %}
+
+<form method="post" enctype="multipart/form-data">
+  {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+  <div class="grid grid--2-1" style="align-items:start">
+
+    <div class="flex-col gap-3">
+
+      <div class="card">
+        <div class="card__title">Informações básicas</div>
+        <div class="card__sub">identificação da peça</div>
+
+        <div class="form-group mt-3">
+          <label class="form-label">Nome *</label>
+          <div class="form-control form-control--plain">
+            <input name="name" required value="{{ product['name'] }}">
+          </div>
+        </div>
+
+        <div class="grid grid--2 gap-3">
+          <div class="form-group">
+            <label class="form-label">SKU</label>
+            <div class="form-control form-control--plain">
+              <input name="sku" value="{{ product['sku'] or '' }}">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Código de barras</label>
+            <div class="form-control form-control--plain">
+              <input name="barcode" value="{{ product['barcode'] or '' }}" inputmode="numeric">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group mb-0">
+          <label class="form-label">Descrição</label>
+          <div class="form-control form-control--plain">
+            <textarea name="description" rows="3">{{ product['description'] or '' }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">Categoria e atributos</div>
+
+        <div class="grid grid--2 gap-3 mt-3">
+          <div class="form-group">
+            <label class="form-label">Categoria</label>
+            <div class="form-control form-control--plain">
+              <input name="category" list="cat-list" value="{{ product['category'] or '' }}">
+              <datalist id="cat-list">
+                {% for c in categories %}<option value="{{ c['category'] }}">{% endfor %}
+              </datalist>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Marca</label>
+            <div class="form-control form-control--plain">
+              <input name="brand" value="{{ product['brand'] or '' }}">
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid--3 gap-3 mb-0">
+          <div class="form-group mb-0">
+            <label class="form-label">Tamanho</label>
+            <div class="form-control form-control--plain">
+              <input name="size" value="{{ product['size'] or '' }}">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">Cor</label>
+            <div class="form-control form-control--plain">
+              <input name="color" value="{{ product['color'] or '' }}">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">Unidade</label>
+            <div class="form-control form-control--plain">
+              <select name="unit">
+                {% for u in ['un','m','kg'] %}
+                  <option value="{{ u }}" {% if product['unit'] == u %}selected{% endif %}>{{ u }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">Exibição no catálogo</div>
+        <label class="checkbox" style="display:flex;gap:12px;align-items:flex-start;padding:14px;margin-top:12px;border:1px solid var(--gray-200);border-radius:var(--r-sm);cursor:pointer">
+          <input type="checkbox" name="is_featured" value="1" {% if product['is_featured'] %}checked{% endif %} style="margin-top:2px;flex-shrink:0;width:16px;height:16px;cursor:pointer">
+          <div>
+            <div style="font-weight:500;font-size:13.5px;color:var(--ink)">Usar como capa do catálogo</div>
+            <div style="font-size:12px;color:var(--gray-700);margin-top:4px;line-height:1.45">Esta peça aparece em destaque no topo do catálogo público, em formato grande, com foto em tela cheia. Se mais de uma peça estiver marcada, a mais recente entra.</div>
+          </div>
+        </label>
+      </div>
+
+      {% include '_clothing_fields.html' %}
+
+      <div class="card">
+        <div class="card__title">Precificação</div>
+
+        <div class="grid grid--3 gap-3 mt-3 mb-0">
+          <div class="form-group mb-0">
+            <label class="form-label">Custo *</label>
+            <div class="form-control">
+              <span class="text-muted">R$</span>
+              <input name="cost_price" required value="{{ format_money(product['cost_price']) }}" inputmode="decimal">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">Preço *</label>
+            <div class="form-control">
+              <span class="text-muted">R$</span>
+              <input name="sale_price" required value="{{ format_money(product['sale_price']) }}" inputmode="decimal">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">Margem-alvo (%)</label>
+            <div class="form-control form-control--plain">
+              <input name="target_margin_pct" value="{{ product['target_margin_pct'] or '' }}" inputmode="decimal">
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__title">Dados fiscais</div>
+          <div class="card__sub">usados na exportação da pré-nota</div>
+
+          <div class="grid grid--3 gap-3 mt-3">
+            <div class="form-group">
+              <label class="form-label">NCM</label>
+              <div class="form-control form-control--plain">
+                <input name="ncm" value="{{ product['ncm'] or '' }}" placeholder="Ex: 6104.43.00">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">CFOP padrão</label>
+              <div class="form-control form-control--plain">
+                <input name="cfop" value="{{ product['cfop'] or '' }}" placeholder="Ex: 5102">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Origem</label>
+              <div class="form-control form-control--plain">
+                <select name="origin_code">
+                  <option value="" {% if not product['origin_code'] %}selected{% endif %}>Selecione</option>
+                  <option value="0" {% if product['origin_code'] == '0' %}selected{% endif %}>0 · Nacional</option>
+                  <option value="1" {% if product['origin_code'] == '1' %}selected{% endif %}>1 · Estrangeira · importação direta</option>
+                  <option value="2" {% if product['origin_code'] == '2' %}selected{% endif %}>2 · Estrangeira · adquirida no mercado interno</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group mt-3 mb-0">
+          <label class="form-label">Estoque mínimo</label>
+          <div class="form-control form-control--plain">
+            <input name="stock_min" type="number" min="0" value="{{ product['stock_min'] }}">
+          </div>
+          <div class="form-hint">Estoque atual ({{ product['stock_qty'] }} {{ product['unit'] }}) é ajustado na tela do produto.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="flex-col gap-3" style="position:sticky;top:110px">
+
+      <div class="card">
+        <div class="card__title">Foto do produto</div>
+        <div class="card__sub">substitua ou remova</div>
+
+        <label style="display:block;margin-top:14px;cursor:pointer">
+          <div id="img-preview" style="aspect-ratio:3/4;background:var(--gray-100);border:2px dashed var(--gray-300);border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;overflow:hidden">
+            {% if image_uri %}
+              <img src="{{ image_uri }}" alt="{{ product['name'] }}" style="width:100%;height:100%;object-fit:cover">
+            {% else %}
+              <div style="text-align:center;color:var(--gray-500)">
+                <svg style="width:32px;height:32px;margin-bottom:8px"><use xlink:href="#i-upload"/></svg>
+                <div style="font-size:12.5px">Adicionar foto</div>
+              </div>
+            {% endif %}
+          </div>
+          <input type="file" name="image" accept="image/*" style="display:none" onchange="previewImage(this)">
+        </label>
+
+        {% if image_uri %}
+          <label class="checkbox mt-2">
+            <input type="checkbox" name="remove_image" value="1">
+            <span class="checkbox__box"><svg><use xlink:href="#i-check"/></svg></span>
+            Remover foto atual
+          </label>
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <div class="flex gap-2" style="justify-content:space-between;align-items:center;flex-wrap:wrap">
+          <button type="button" class="btn btn--ghost" style="color:var(--danger)" onclick="document.getElementById('delete-product-dialog').style.display='flex'">
+            <svg><use xlink:href="#i-trash"/></svg> Apagar produto
+          </button>
+          <div class="flex gap-2">
+            <a href="{{ url_for('product_detail', pid=product['id']) }}" class="btn btn--ghost">Cancelar</a>
+            <button type="submit" class="btn btn--lg">
+              <svg><use xlink:href="#i-check"/></svg> Salvar alterações
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</form>
+
+<div id="delete-product-dialog" style="display:none;position:fixed;inset:0;background:rgba(26,15,10,.6);z-index:100;align-items:center;justify-content:center;padding:20px">
+  <form method="post" action="{{ url_for('delete_product', pid=product['id']) }}" class="card" style="max-width:480px;width:100%">
+    {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+    <div class="card__title">Apagar produto?</div>
+    <div class="card__sub">Essa ação remove o cadastro quando não há histórico vinculado.</div>
+    <div class="mt-3" style="padding:12px;background:var(--gray-100);border-radius:var(--r-sm);font-size:13px;color:var(--ink-soft)">
+      Se já existirem vendas, devoluções ou pedidos de reposição vinculados, o sistema vai apenas desativar o produto para preservar o histórico.
+    </div>
+    <div class="flex gap-2 mt-3" style="justify-content:flex-end">
+      <button type="button" class="btn btn--ghost" onclick="document.getElementById('delete-product-dialog').style.display='none'">Cancelar</button>
+      <button type="submit" class="btn btn--soft">
+        <svg><use xlink:href="#i-trash"/></svg> Confirmar
+      </button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function previewImage(input) {
+  if (!input.files || !input.files[0]) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('img-preview').innerHTML =
+      '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover">';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+</script>
+{% endblock %}

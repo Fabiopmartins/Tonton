@@ -1,0 +1,445 @@
+{% extends "base.html" %}
+{% block title %}{{ product['name'] }} · tonton{% endblock %}
+{% set page_sub_label = "produto · detalhes" %}
+{% block page_title %}{{ product['name'] }}{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('product_gallery', pid=product['id']) }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-eye"/></svg> Galeria
+  </a>
+  <a href="{{ url_for('product_variants_view', pid=product['id']) }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-grid"/></svg> Variantes
+  </a>
+  <a href="{{ url_for('product_price_history', pid=product['id']) }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-trend"/></svg> Preços
+  </a>
+  <a href="{{ url_for('edit_product', pid=product['id']) }}" class="btn">
+    <svg><use xlink:href="#i-edit"/></svg> Editar
+  </a>
+  <button type="button" class="btn btn--ghost btn--sm" style="color:var(--danger)" onclick="document.getElementById('delete-product-dialog').style.display='flex'">
+    <svg><use xlink:href="#i-trash"/></svg> Apagar
+  </button>
+{% endblock %}
+
+{% block body %}
+
+{% set stock_tone = 'coral' if product['stock_qty']|int == 0 else ('sun' if product['stock_qty']|int <= product['stock_min']|int else 'mint') %}
+{% set stock_label = 'esgotado' if product['stock_qty']|int == 0 else ('estoque baixo' if product['stock_qty']|int <= product['stock_min']|int else 'em estoque') %}
+
+<div class="grid grid--2-1" style="align-items:start">
+
+  {# ── Coluna esquerda: hero + métricas + movimentos ── #}
+  <div class="flex-col gap-3">
+
+    {# HERO #}
+    {# Grid 280px (foto) + 1fr (info) no desktop. Em mobile colapsa
+       para 1 coluna — caso contrário a coluna info recebe ~80px e
+       todo o texto do produto (nome, SKU, preço, ficha técnica)
+       fica ilegível e estoura horizontalmente. #}
+    <div class="card card--flush" style="overflow:hidden">
+      <div class="product-hero-grid">
+        {# Imagem #}
+        <div style="background:var(--gray-100);position:relative">
+          {% if image_uri %}
+            <img src="{{ image_uri }}" alt="{{ product['name'] }}" style="width:100%;height:100%;object-fit:cover;min-height:320px">
+          {% else %}
+            <div class="thumb thumb--h{{ (product['id']|int) % 8 }}" style="width:100%;height:100%;min-height:320px;border-radius:0">
+              <span class="thumb__tag">{{ (product['category'] or 'produto')|lower }}</span>
+            </div>
+          {% endif %}
+        </div>
+
+        {# Info principal #}
+        <div style="padding:26px">
+          <div class="flex-between" style="align-items:flex-start;gap:16px">
+            <div>
+              <div class="text-eyebrow">{{ product['brand'] or 'tonton · coleção' }}</div>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
+                <h2 class="text-display" style="font-size:38px;letter-spacing:-.02em;margin:0">{{ product['name'] }}</h2>
+                <button type="button"
+                        class="featured-star{% if product['is_featured'] %} is-featured{% endif %}"
+                        data-pid="{{ product['id'] }}"
+                        aria-label="{% if product['is_featured'] %}Remover dos destaques{% else %}Marcar como destaque{% endif %}"
+                        title="{% if product['is_featured'] %}Em destaque do catálogo{% else %}Marcar como destaque do catálogo{% endif %}"
+                        aria-pressed="{% if product['is_featured'] %}true{% else %}false{% endif %}">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 2.5l2.9 6.3 6.9.7-5.2 4.7 1.5 6.8L12 17.3l-6.1 3.7 1.5-6.8L2.2 9.5l6.9-.7L12 2.5z"
+                          fill="currentColor" stroke="currentColor" stroke-width="1.4"
+                          stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="flex gap-2 mt-1" style="font-size:13px;color:var(--gray-700)">
+                {% if product['sku'] %}<span class="text-mono">{{ product['sku'] }}</span>{% endif %}
+                {% if product['category'] %}<span>·</span><span>{{ product['category'] }}</span>{% endif %}
+                {% if product['size'] %}<span>·</span><span>{{ product['size'] }}</span>{% endif %}
+                {% if product['color'] %}<span>·</span><span>{{ product['color'] }}</span>{% endif %}
+              </div>
+            </div>
+            <span class="chip chip--{{ stock_tone }}">{{ stock_label }}</span>
+          </div>
+
+          <div class="grid grid--3 gap-3 mt-3">
+            <div>
+              <div class="kpi__label">Preço</div>
+              {% if has_active_promo(product) %}
+                <div style="font-size:14px;color:var(--gray-500);text-decoration:line-through;line-height:1;margin-bottom:2px">R$ {{ format_money(product['sale_price']) }}</div>
+                <div class="text-display" style="font-size:32px;color:var(--magenta);line-height:1">
+                  R$ {{ format_money(product['promo_price']) }}
+                </div>
+                {% if product['promo_until'] %}
+                  <div class="text-muted" style="font-size:11px;margin-top:2px">promo até {{ format_date_local(product['promo_until']) }}</div>
+                {% endif %}
+              {% else %}
+                <div class="text-display" style="font-size:32px;color:var(--coral-deep);line-height:1">
+                  R$ {{ format_money(product['sale_price']) }}
+                </div>
+              {% endif %}
+            </div>
+            <div>
+              <div class="kpi__label">Custo</div>
+              <div class="text-display" style="font-size:26px;line-height:1;margin-top:6px;color:var(--gray-700)">
+                R$ {{ format_money(product['cost_price']) }}
+              </div>
+            </div>
+            <div>
+              <div class="kpi__label">Margem atual</div>
+              <div class="text-display" style="font-size:26px;line-height:1;margin-top:6px;color:{{ margin_color or 'var(--plum)' }}">
+                {{ '%.1f'|format(margin|float) }}%
+              </div>
+            </div>
+          </div>
+
+          {% if product['description'] %}
+            <div style="font-size:13.5px;color:var(--gray-700);line-height:1.55;margin-top:20px;padding:14px;background:var(--gray-100);border-radius:var(--r-md)">
+              {{ product['description'] }}
+            </div>
+          {% endif %}
+
+          {# Ficha técnica (renderiza só o que tem) #}
+          {% set has_tech = product['composition'] or product['care_wash'] or product['fabric_type']
+                          or product['fabric_weight_gsm'] or product['fit'] or product['length_class'] %}
+          {% if has_tech %}
+            <div style="margin-top:18px;padding:14px;border:1px solid var(--gray-200);border-radius:var(--r-md)">
+              <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-700);margin-bottom:10px">
+                Ficha técnica
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 18px;font-size:13px">
+                {% if product['composition'] %}
+                  <div><div class="text-muted" style="font-size:11px">Composição</div>
+                    <div>{{ composition_pretty(product['composition']) }}</div></div>
+                {% endif %}
+                {% if product['fabric_type'] %}
+                  <div><div class="text-muted" style="font-size:11px">Tecido</div>
+                    <div>{{ product['fabric_type'] }}</div></div>
+                {% endif %}
+                {% if product['fabric_weight_gsm'] %}
+                  <div><div class="text-muted" style="font-size:11px">Gramatura</div>
+                    <div>{{ product['fabric_weight_gsm'] }} g/m²</div></div>
+                {% endif %}
+                {% if product['fit'] %}
+                  <div><div class="text-muted" style="font-size:11px">Modelagem</div>
+                    <div>{{ product['fit'] }}</div></div>
+                {% endif %}
+                {% if product['length_class'] %}
+                  <div><div class="text-muted" style="font-size:11px">Comprimento</div>
+                    <div>{{ product['length_class'] }}</div></div>
+                {% endif %}
+                {% if product['care_wash'] %}
+                  <div><div class="text-muted" style="font-size:11px">Cuidados</div>
+                    <div>{{ care_wash_label(product['care_wash']) }}</div></div>
+                {% endif %}
+                {% if product['country_of_origin'] and product['country_of_origin'] != 'BR' %}
+                  <div><div class="text-muted" style="font-size:11px">Origem</div>
+                    <div>{{ product['country_of_origin'] }}</div></div>
+                {% endif %}
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# MÉTRICAS DE PRICING #}
+    {% if metrics %}
+    <div class="card">
+      <div class="card__title">Análise de precificação</div>
+      <div class="card__sub">com overhead fixo rateado</div>
+
+      <div class="grid grid--2 gap-3 mt-3">
+        {% for key, label in [
+          ('break_even', 'Break-even'),
+          ('target_price', 'Preço-alvo ({{ target_margin }}%)'),
+          ('current_margin', 'Margem bruta'),
+          ('net_margin', 'Margem líquida')
+        ] %}
+          {% set val = metrics[key] if key in metrics.keys() else None %}
+          {% if val is not none %}
+          <div style="padding:14px;background:var(--gray-100);border-radius:var(--r-md)">
+            <div class="kpi__label" style="font-size:10.5px">{{ label }}</div>
+            <div class="text-display" style="font-size:22px;margin-top:4px">
+              {% if '%' in label %}{{ '%.1f'|format(val|float) }}%{% else %}R$ {{ format_money(val) }}{% endif %}
+            </div>
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# MOVIMENTOS DE ESTOQUE #}
+    <div class="card card--flush">
+      <div class="card__header">
+        <div>
+          <div class="card__title">Movimentos de estoque</div>
+          <div class="card__sub">últimos {{ movements|length }} registros</div>
+        </div>
+      </div>
+
+      {% if movements %}
+        <div class="table__head" style="grid-template-columns:110px 90px 80px 1fr 120px">
+          <span>Data</span><span>Tipo</span><span>Qtd</span><span>Motivo</span><span>Operador</span>
+        </div>
+        {% for m in movements %}
+          <div class="table__row" style="grid-template-columns:110px 90px 80px 1fr 120px">
+            <div class="text-mono" style="font-size:12px;color:var(--gray-700)">{{ m['created_at'][:10] if m['created_at'] else '—' }}</div>
+            <span class="chip chip--sm chip--{% if m['type'] == 'in' %}mint{% elif m['type'] == 'out' %}coral{% else %}neutral{% endif %}">
+              {{ 'entrada' if m['type'] == 'in' else ('saída' if m['type'] == 'out' else m['type']) }}
+            </span>
+            <div style="font-weight:600;font-size:13.5px;color:{% if m['type'] == 'in' %}var(--mint-ink){% else %}var(--coral-deep){% endif %}">
+              {{ '+' if m['type'] == 'in' else '−' }}{{ m['qty'] }}
+            </div>
+            <div class="text-muted" style="font-size:12.5px">{{ m['reason'] or '—' }}</div>
+            <div class="text-muted" style="font-size:12px">{{ m['operator_name'] or '—' }}</div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty">
+          <div class="empty__title">Nenhum movimento ainda</div>
+          <div class="empty__sub">Ajustes de estoque aparecerão aqui.</div>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  {# ── Coluna direita: estoque + ajuste + ações ── #}
+  <div class="flex-col gap-3" style="position:sticky;top:110px">
+
+    <div class="card">
+      <div class="card__title">Dados fiscais</div>
+      <div class="card__sub">usados na pré-nota</div>
+
+      <div class="grid grid--3 gap-3 mt-3">
+        <div>
+          <div class="kpi__label">NCM</div>
+          <div style="font-weight:600;margin-top:6px">{{ product['ncm'] or '—' }}</div>
+        </div>
+        <div>
+          <div class="kpi__label">CFOP</div>
+          <div style="font-weight:600;margin-top:6px">{{ product['cfop'] or '—' }}</div>
+        </div>
+        <div>
+          <div class="kpi__label">Origem</div>
+          <div style="font-weight:600;margin-top:6px">
+            {% if product['origin_code'] == '0' %}0 · Nacional
+            {% elif product['origin_code'] == '1' %}1 · Estrangeira · importação direta
+            {% elif product['origin_code'] == '2' %}2 · Estrangeira · adquirida no mercado interno
+            {% else %}—{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="kpi__label">Estoque atual</div>
+      <div class="text-display" style="font-size:56px;color:{% if product['stock_qty']|int == 0 %}var(--magenta){% elif product['stock_qty']|int <= product['stock_min']|int %}var(--coral-deep){% else %}var(--ink){% endif %};line-height:1;margin-top:6px">
+        {{ product['stock_qty'] }}
+        <span style="font-size:18px;color:var(--gray-500);margin-left:4px">{{ product['unit'] }}</span>
+      </div>
+      <div class="text-muted" style="font-size:12px;margin-top:6px">mínimo: {{ product['stock_min'] }} {{ product['unit'] }}</div>
+
+      {# Barra visual #}
+      {% set pct = (product['stock_qty']|int * 100 // (product['stock_min']|int * 4)) if product['stock_min']|int > 0 else 50 %}
+      <div class="progress mt-2">
+        <div class="progress__fill" style="width:{{ [pct, 100]|min }}%;background:{% if product['stock_qty']|int == 0 %}var(--magenta){% elif product['stock_qty']|int <= product['stock_min']|int %}var(--coral-deep){% else %}var(--coral){% endif %}"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__title">Ajustar estoque</div>
+      <div class="card__sub">entrada, saída ou devolução</div>
+
+      <form method="post" action="{{ url_for('adjust_stock', pid=product['id']) }}" class="mt-2">
+        {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+        <div class="form-group">
+          <label class="form-label">Tipo</label>
+          <div class="form-control form-control--plain">
+            <select name="type">
+              <option value="in">Entrada</option>
+              <option value="out">Saída</option>
+              <option value="return">Devolução</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid--2 gap-2">
+          <div class="form-group">
+            <label class="form-label">Quantidade</label>
+            <div class="form-control form-control--plain">
+              <input name="qty" type="number" min="1" value="1" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Motivo</label>
+            <div class="form-control form-control--plain">
+              <input name="reason" placeholder="Ajuste, perda, compra…">
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn--full">
+          <svg><use xlink:href="#i-check"/></svg> Registrar ajuste
+        </button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card__title">QR Code</div>
+      <div class="card__sub">etiqueta do produto</div>
+      <div style="text-align:center;padding:20px 0">
+        <div style="display:inline-block;padding:18px;background:var(--white);border:1px solid var(--gray-200);border-radius:var(--r-md)">
+          <img src="{{ url_for('product_qr', pid=product['id']) }}" alt="QR {{ product['name'] }}" style="width:140px;height:140px;object-fit:contain">
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <a href="{{ url_for('product_qr', pid=product['id']) }}" class="btn btn--ghost btn--full btn--sm">
+          <svg><use xlink:href="#i-qr"/></svg> Baixar QR
+        </a>
+        <a href="{{ url_for('product_labels_niimbot') }}?ids={{ product['id'] }}" class="btn btn--soft btn--full btn--sm">
+          <svg><use xlink:href="#i-download"/></svg> Baixar etiqueta
+        </a>
+      </div>
+      <button type="button" class="btn btn--ghost btn--full btn--sm mt-2" style="color:var(--danger)" onclick="document.getElementById('delete-product-dialog').style.display='flex'">
+        <svg><use xlink:href="#i-trash"/></svg> Apagar produto
+      </button>
+    </div>
+
+  </div>
+</div>
+
+
+<div id="delete-product-dialog" style="display:none;position:fixed;inset:0;background:rgba(26,15,10,.6);z-index:100;align-items:center;justify-content:center;padding:20px">
+  <form method="post" action="{{ url_for('delete_product', pid=product['id']) }}" class="card" style="max-width:480px;width:100%">
+    {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+    <div class="card__title">Apagar produto?</div>
+    <div class="card__sub">Essa ação remove o cadastro quando não há histórico vinculado.</div>
+    <div class="mt-3" style="padding:12px;background:var(--gray-100);border-radius:var(--r-sm);font-size:13px;color:var(--ink-soft)">
+      Se já existirem vendas, devoluções ou pedidos de reposição vinculados, o sistema vai apenas desativar o produto para preservar o histórico.
+    </div>
+    <div class="flex gap-2 mt-3" style="justify-content:flex-end">
+      <button type="button" class="btn btn--ghost" onclick="document.getElementById('delete-product-dialog').style.display='none'">Cancelar</button>
+      <button type="submit" class="btn btn--soft">
+        <svg><use xlink:href="#i-trash"/></svg> Confirmar
+      </button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+  /* Estrelinha de destaque */
+  .featured-star {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 50%;
+    color: var(--gray-300, #d4cfc7);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color .15s ease, background .15s ease, transform .15s ease;
+  }
+  .featured-star svg {
+    width: 22px;
+    height: 22px;
+    transition: transform .2s ease;
+  }
+  .featured-star:hover {
+    background: rgba(232, 80, 26, .08);
+    color: var(--coral, #ff6b3a);
+  }
+  .featured-star:hover svg { transform: scale(1.1); }
+  .featured-star.is-featured {
+    color: var(--coral-deep, #e8501a);
+  }
+  .featured-star.is-featured:hover {
+    color: var(--coral, #ff6b3a);
+    background: rgba(232, 80, 26, .12);
+  }
+  .featured-star:focus-visible {
+    outline: 2px solid var(--coral-deep, #e8501a);
+    outline-offset: 2px;
+  }
+  .featured-star.is-saving {
+    pointer-events: none;
+    opacity: .5;
+  }
+</style>
+
+<script>
+(function() {
+  const csrfToken = "{{ session.get('csrf_token','') }}";
+
+  document.addEventListener('click', function(ev) {
+    const btn = ev.target.closest('.featured-star');
+    if (!btn) return;
+    ev.preventDefault();
+    if (btn.classList.contains('is-saving')) return;
+
+    const pid = btn.getAttribute('data-pid');
+    if (!pid) return;
+    btn.classList.add('is-saving');
+
+    const fd = new FormData();
+    fd.append('csrf_token', csrfToken);
+
+    fetch('/products/' + pid + '/toggle-featured', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: fd
+    })
+    .then(r => r.ok ? r.json() : Promise.reject(r))
+    .then(data => {
+      if (data && data.is_featured === 1) {
+        btn.classList.add('is-featured');
+        btn.setAttribute('aria-pressed', 'true');
+        btn.setAttribute('aria-label', 'Remover dos destaques');
+        btn.setAttribute('title', 'Em destaque do catálogo');
+      } else {
+        btn.classList.remove('is-featured');
+        btn.setAttribute('aria-pressed', 'false');
+        btn.setAttribute('aria-label', 'Marcar como destaque');
+        btn.setAttribute('title', 'Marcar como destaque do catálogo');
+      }
+    })
+    .catch(() => {
+      window.location.reload();
+    })
+    .finally(() => {
+      btn.classList.remove('is-saving');
+    });
+  });
+})();
+</script>
+{% endblock %}

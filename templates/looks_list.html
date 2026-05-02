@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Lookbook · tonton{% endblock %}
+{% set page_sub_label = "lookbook · combinações curatoriais" %}
+{% block page_title %}Lookbook{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('lookbook.create_look') }}" class="btn">
+    <svg><use xlink:href="#i-plus"/></svg> Novo look
+  </a>
+{% endblock %}
+
+{% block body %}
+
+{% if not looks %}
+
+  <div class="me-card" style="text-align:center;padding:80px 32px;max-width:520px;margin:40px auto">
+    <div style="font-family:var(--f-display);font-style:italic;font-size:42px;line-height:1;color:var(--gray-300);margin-bottom:18px">∼</div>
+    <h2 class="me-card__title" style="margin-bottom:8px">Nenhum look ainda</h2>
+    <p style="font-family:var(--f-display);font-style:italic;color:var(--gray-600);font-size:15px;line-height:1.5;margin:0 auto 22px;max-width:36ch">
+      Combinações curatoriais que viram página pública. Monte um look com 2 a 4 peças, dê voz editorial, compartilhe no Instagram.
+    </p>
+    <a href="{{ url_for('lookbook.create_look') }}" class="btn">
+      <svg><use xlink:href="#i-plus"/></svg> Criar primeiro look
+    </a>
+  </div>
+
+{% else %}
+
+  {# Grid editorial 3-col com a capa de cada look — semelhante ao catálogo público #}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:24px;margin-top:8px">
+
+    {% for l in looks %}
+      <a href="{{ url_for('lookbook.edit_look', look_id=l.id) }}" style="text-decoration:none;color:inherit;display:flex;flex-direction:column">
+        <div style="aspect-ratio:3/4;border-radius:var(--r-md);overflow:hidden;background:var(--gray-100);position:relative">
+          {% if l.image_version and l.image_version > 0 %}
+            <img src="{{ url_for('lookbook.look_image', look_id=l.id, v=l.image_version) }}"
+                 alt="{{ l.name }}"
+                 style="width:100%;height:100%;object-fit:cover">
+          {% else %}
+            <div class="thumb thumb--h{{ loop.index0 % 8 }}" style="width:100%;height:100%"></div>
+          {% endif %}
+          {% if not l.is_published %}
+            <span style="position:absolute;top:14px;left:14px;padding:5px 10px;background:var(--white);color:var(--gray-700);font-family:var(--f-mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;border:1px solid var(--gray-300)">rascunho</span>
+          {% endif %}
+        </div>
+
+        <div style="padding-top:14px">
+          {% if l.eyebrow %}
+            <div style="font-family:var(--f-mono);font-size:10px;letter-spacing:.18em;color:var(--coral-deep);text-transform:uppercase;margin-bottom:6px">
+              {{ l.eyebrow }}
+            </div>
+          {% endif %}
+          <h3 style="font-family:var(--f-display);font-style:italic;font-size:22px;line-height:1.1;margin:0 0 6px;letter-spacing:-.01em">{{ l.name }}</h3>
+          <div style="font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;color:var(--gray-500)">
+            {{ l.product_count }} peça{{ 's' if l.product_count != 1 else '' }}
+            {% if l.is_published %}
+              · <span style="color:var(--mint-ink)">publicado</span>
+            {% endif %}
+          </div>
+        </div>
+      </a>
+    {% endfor %}
+
+  </div>
+
+{% endif %}
+
+{% endblock %}

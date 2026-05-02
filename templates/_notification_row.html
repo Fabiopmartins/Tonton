@@ -1,0 +1,21 @@
+{# 
+  Partial de uma linha de notificação.
+  Espera: n (sqlite Row/dict) com type, title, body, link, is_read, created_at
+#}
+{% set _type_chip = {
+  'low_stock': ('estoque', 'sun'),
+  'birthday':  ('aniversário', 'magenta'),
+  'payment':   ('pagamento', 'coral'),
+  'expiring_card': ('vale', 'gray'),
+}.get(n.type, (n.type, 'gray')) %}
+
+{% if n.link %}<a href="{{ n.link }}"{% else %}<div{% endif %} class="me-feed__row" style="grid-template-columns:auto 1fr auto;padding:16px 28px;border-bottom:1px solid var(--gray-100);text-decoration:none;color:inherit">
+  <span class="chip chip--sm chip--{{ _type_chip[1] }}" style="flex-shrink:0">{{ _type_chip[0] }}</span>
+  <div style="min-width:0">
+    <div class="me-feed__name" style="font-weight:{{ '500' if not n.is_read else '400' }}">{{ n.title }}</div>
+    {% if n.body %}<div style="font-size:11.5px;color:var(--gray-600);margin-top:2px">{{ n.body }}</div>{% endif %}
+  </div>
+  <div class="me-feed__when">
+    {% if n.created_at %}{{ n.created_at|string|truncate(10, true, '') }}{% endif %}
+  </div>
+{% if n.link %}</a>{% else %}</div>{% endif %}

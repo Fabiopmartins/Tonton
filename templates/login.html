@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Entrar · Painel Tonton{% endblock %}
+
+{% block shell %}
+<div class="login-split">
+
+  {# ── Esquerda: formulário ────────────────────────────── #}
+  <div class="login-split__form">
+    <a href="{{ url_for('login') }}" style="text-decoration:none">
+      <img src="{{ url_for('static', filename='brand/male-wordmark.jpg') }}" alt="tonton" style="height:36px">
+    </a>
+
+    <div class="login-split__form-wrap">
+      <div class="text-eyebrow">bem-vinda de volta</div>
+
+      <h1 class="login-heading">
+        <em>loja</em> <br>infantil.
+      </h1>
+
+      <p class="text-muted" style="font-size:14.5px;margin:0 0 32px;line-height:1.55">
+        Gerencie pedidos, estoque e a vitrine da loja.
+      </p>
+
+      <form method="post" autocomplete="on">
+        {% if session.get('csrf_token') %}
+          <input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">
+        {% endif %}
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, msg in messages %}
+              <div class="flash flash--{{ category if category in ['success','error','warning','info'] else 'error' }} mb-2">
+                <svg style="width:16px;height:16px"><use xlink:href="#{% if category == 'success' %}i-check{% else %}i-x{% endif %}"/></svg>
+                <span>{{ msg }}</span>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <div class="form-group">
+          <label class="form-label" for="email">E-mail</label>
+          <div class="form-control">
+            <svg><use xlink:href="#i-mail"/></svg>
+            <input id="email" name="email" type="email" required autofocus autocomplete="email" placeholder="voce@tontonlojainfantil.com.br">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label form-label--inline" for="password">
+            <span>Senha</span>
+            <a href="{{ url_for('forgot_password') }}">Esqueci</a>
+          </label>
+          <div class="form-control">
+            <input id="password" name="password" type="password" required autocomplete="current-password" placeholder="••••••••">
+            <button type="button" class="icon-btn" style="width:28px;height:28px;background:transparent" onclick="var i=document.getElementById('password');i.type=i.type==='password'?'text':'password'" aria-label="Mostrar senha">
+              <svg><use xlink:href="#i-eye"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <label class="checkbox mb-3">
+          <input type="checkbox" name="remember" value="1">
+          <span class="checkbox__box"><svg><use xlink:href="#i-check"/></svg></span>
+          Manter conectada por 30 dias
+        </label>
+
+        <button type="submit" class="btn btn--lg btn--full">
+          Entrar na tonton
+          <svg><use xlink:href="#i-arrow"/></svg>
+        </button>
+      </form>
+
+      <div style="margin-top:32px;font-size:12px;color:var(--gray-500)">
+        Precisa de ajuda?
+        <a href="mailto:contato@tontonlojainfantil.com.br">Fale com a gente</a>
+      </div>
+    </div>
+  </div>
+
+  {# ── Direita: arte + floating cards ─────────────────── #}
+  <div class="login-split__art">
+    <div class="floating-card" style="top:110px;right:60px;width:220px;transform:rotate(-4deg)">
+      <div class="flex-center gap-2 mb-1">
+        <div style="width:36px;height:36px;border-radius:var(--r-sm);background:var(--grad-hero);display:grid;place-items:center;color:var(--white)">
+          <svg style="width:18px;height:18px"><use xlink:href="#i-bag"/></svg>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--gray-500)">Venda · agora</div>
+          <div class="text-display" style="font-size:19px">R$ 289,00</div>
+        </div>
+      </div>
+      <svg viewBox="0 0 188 30" style="width:100%;height:30px">
+        <path d="M0 24 L20 20 L40 22 L60 15 L80 18 L100 10 L120 12 L140 5 L160 8 L188 2" fill="none" stroke="var(--coral)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <div class="floating-card" style="top:300px;left:60px;display:flex;gap:10px;transform:rotate(3deg)">
+      <div class="thumb thumb--h1" style="width:54px;height:66px"></div>
+      <div style="min-width:130px">
+        <div class="text-mono" style="font-size:10.5px;color:var(--gray-500);letter-spacing:.1em">NOVO PEDIDO</div>
+        <div class="text-display" style="font-size:16px">Vestido Linho</div>
+        <div style="font-size:11px;color:var(--gray-700);margin-top:4px">Ana · M · tangerina</div>
+      </div>
+    </div>
+
+    <div class="login-quote">
+      <div class="login-quote__eyebrow">✦ coleção primavera 26</div>
+      <div class="login-quote__text">
+        "Se você pode sonhar, nós podemos realizar."
+      </div>
+      <div class="login-quote__attr">— Marcio Lovisan</div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

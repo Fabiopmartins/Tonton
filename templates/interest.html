@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Interesses · tonton{% endblock %}
+{% set page_sub_label = "marketing · sinais da vitrine" %}
+{% block page_title %}Painel de interesses{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('public_catalog') }}" target="_blank" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-eye"/></svg> Ver vitrine
+  </a>
+{% endblock %}
+
+{% block body %}
+
+<div class="grid grid--3 mb-3">
+  <div class="card kpi">
+    <div class="kpi__label">Cliques · 30 dias</div>
+    <div class="kpi__value kpi__value--coral">{{ total_30d }}</div>
+    <div class="text-muted" style="font-size:11.5px">sinais de interesse</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Produtos únicos</div>
+    <div class="kpi__value kpi__value--magenta">{{ unique_products }}</div>
+    <div class="text-muted" style="font-size:11.5px">peças clicadas pelo menos 1×</div>
+  </div>
+  <div class="card" style="background:var(--grad-soft);border:0">
+    <div class="text-eyebrow" style="color:var(--magenta-deep)">✦ dica</div>
+    <div class="text-display" style="font-size:20px;margin-top:4px;color:var(--plum);line-height:1.2">
+      Produtos mais clicados são candidatos a campanhas.
+    </div>
+  </div>
+</div>
+
+<div class="grid grid--2-1" style="align-items:start">
+
+  {# ── Top produtos por interesse ── #}
+  <div class="card card--flush">
+    <div class="card__header">
+      <div>
+        <div class="card__title">Mais desejados</div>
+        <div class="card__sub">últimos 30 dias</div>
+      </div>
+    </div>
+
+    {% if top %}
+      <div class="table__head" style="grid-template-columns:40px 60px 2fr 100px 120px">
+        <span></span><span></span><span>Produto</span><span>Cliques</span><span></span>
+      </div>
+      {% set max_clicks = top[0]['count']|int if top else 1 %}
+      {% for p in top %}
+        <div class="table__row" style="grid-template-columns:40px 60px 2fr 100px 120px">
+          <div class="text-display" style="font-size:22px;color:var(--coral-soft)">{{ loop.index }}</div>
+          <div class="thumb thumb--h{{ loop.index0 % 8 }}" style="width:44px;height:54px"></div>
+          <div style="min-width:0">
+            <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              {{ p['product_name'] or '—' }}
+            </div>
+            <div class="text-mono" style="font-size:11px;color:var(--gray-500)">{{ p['category'] or '—' }}</div>
+          </div>
+          <div style="font-weight:600;font-size:14px">{{ p['count'] }}</div>
+          <div style="padding:0 4px">
+            <div class="progress">
+              <div class="progress__fill" style="width:{{ (p['count']|int * 100 / max_clicks)|round }}%"></div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty">
+        <div class="empty__title">Sem cliques ainda</div>
+        <div class="empty__sub">Cliques na vitrine pública aparecerão aqui.</div>
+      </div>
+    {% endif %}
+  </div>
+
+  {# ── Cliques recentes ── #}
+  <div class="card card--flush" style="position:sticky;top:110px;max-height:calc(100vh - 130px);display:flex;flex-direction:column">
+    <div class="card__header">
+      <div>
+        <div class="card__title">Recentes</div>
+        <div class="card__sub">últimos 40 sinais</div>
+      </div>
+    </div>
+
+    {% if recent %}
+      <div style="flex:1;overflow:auto">
+        {% for r in recent %}
+          <div style="padding:12px 22px;border-bottom:1px solid var(--gray-200);font-size:12.5px">
+            <div class="flex-between">
+              <span style="font-weight:600">{{ r['product_name'] or 'Produto removido' }}</span>
+              <span class="text-mono" style="font-size:10.5px;color:var(--gray-500)">
+                {{ r['created_at'][11:16] if r['created_at'] and r['created_at']|length > 10 else '—' }}
+              </span>
+            </div>
+            <div class="text-muted" style="font-size:11px;margin-top:2px">
+              {{ r['category'] or '—' }}{% if 'session_id' in r.keys() and r['session_id'] %} · sessão {{ r['session_id'][:6] }}{% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty__sub">Nenhum clique registrado.</div>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}

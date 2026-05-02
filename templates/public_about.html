@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}Sobre · {{ store_name }}{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='catalog.css', v=asset_v('catalog.css')) }}">
+
+  {# SEO #}
+  {% set _desc = (about_origin or tagline)[:160] %}
+  <meta name="description" content="{{ _desc }}">
+  <link rel="canonical" href="{{ url_for('public_about', _external=True) }}">
+
+  {# Open Graph #}
+  <meta property="og:title" content="Sobre · {{ store_name }}">
+  <meta property="og:description" content="{{ _desc }}">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="{{ url_for('public_about', _external=True) }}">
+  <meta property="og:site_name" content="{{ store_name }}">
+  <meta property="og:locale" content="pt_BR">
+  {% if og_image_set %}
+    <meta property="og:image" content="{{ url_for('public_og_image', _external=True) }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+  {% endif %}
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Sobre · {{ store_name }}">
+  <meta name="twitter:description" content="{{ _desc }}">
+  {% if og_image_set %}
+    <meta name="twitter:image" content="{{ url_for('public_og_image', _external=True) }}">
+  {% endif %}
+{% endblock %}
+
+{% block shell %}
+<main class="ed">
+
+  {# ───────────────────────── Nav (mesma do catálogo) ───────────────────────── #}
+  <header class="ed-nav" aria-label="Navegação principal">
+    <a href="{{ url_for('public_catalog') }}" class="ed-nav__brand" aria-label="{{ store_name }}">
+      <span class="ed-nav__brand-mark">mal<em>ê</em></span>
+    </a>
+    <nav class="ed-nav__links" aria-label="Seções">
+      <a href="{{ url_for('public_catalog') }}">Coleção</a>
+      <a href="{{ url_for('public_about') }}" class="is-active">Sobre</a>
+    </nav>
+    <div class="ed-nav__actions">
+      {% if wa_number %}
+        <a href="{{ wa_link }}"
+           class="ed-nav__action ed-nav__action--whatsapp"
+           target="_blank" rel="noopener"
+           aria-label="Conversar pelo WhatsApp">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M20.52 3.48A11.93 11.93 0 0012 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0012 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 21.82a9.82 9.82 0 01-5-1.36l-.36-.21-3.67.96.98-3.58-.23-.37A9.82 9.82 0 1121.82 12 9.83 9.83 0 0112 21.82zm5.39-7.36c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.95 1.17-.17.2-.35.22-.65.07-.3-.15-1.27-.47-2.42-1.5a9.07 9.07 0 01-1.67-2.07c-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51l-.57-.01c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.49 0 1.47 1.07 2.89 1.22 3.09.15.2 2.1 3.21 5.08 4.5.71.3 1.27.49 1.7.63.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.07-.13-.27-.2-.57-.35z"/>
+          </svg>
+        </a>
+      {% endif %}
+      <a href="https://instagram.com/{{ instagram|replace('@', '') }}"
+         class="ed-nav__action ed-nav__action--instagram"
+         target="_blank" rel="noopener"
+         aria-label="Instagram">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <circle cx="17.5" cy="6.5" r="1" fill="currentColor"/>
+        </svg>
+      </a>
+      {% if current_user %}
+        <a href="{{ url_for('dashboard') }}" class="ed-nav__action ed-nav__action--admin" aria-label="Painel">
+          <svg aria-hidden="true"><use xlink:href="#i-cog"/></svg>
+        </a>
+      {% endif %}
+    </div>
+  </header>
+
+  {# ───────────────────────── Sobre — corpo ───────────────────────── #}
+  <article class="ed-about" aria-labelledby="ed-about-title">
+
+    {# Hero tipográfico — sem foto, alma editorial pura #}
+    <header class="ed-about__hero">
+      <p class="ed-about__eyebrow">
+        <span class="ed-rule" aria-hidden="true"></span>
+        sobre a marca
+      </p>
+      <h1 id="ed-about-title" class="ed-about__title">
+        mal<em>ê</em>
+      </h1>
+      {% if tagline %}
+        <p class="ed-about__lede">{{ tagline }}</p>
+      {% endif %}
+    </header>
+
+    {# 3 blocos editoriais — origem, processo, manifesto #}
+    <div class="ed-about__chapters">
+
+      <section class="ed-about__chapter">
+        <p class="ed-about__chapter-eyebrow">01 · origem</p>
+        <p class="ed-about__chapter-body">{{ about_origin }}</p>
+      </section>
+
+      <section class="ed-about__chapter">
+        <p class="ed-about__chapter-eyebrow">02 · processo</p>
+        <p class="ed-about__chapter-body">{{ about_process }}</p>
+      </section>
+
+      <section class="ed-about__chapter">
+        <p class="ed-about__chapter-eyebrow">03 · manifesto</p>
+        <p class="ed-about__chapter-body">{{ about_manifesto }}</p>
+      </section>
+
+    </div>
+
+    {# CTA volta para a coleção #}
+    <div class="ed-about__cta-row">
+      <a href="{{ url_for('public_catalog') }}" class="ed-hero__cta ed-hero__cta--primary">
+        <span>Ver a coleção</span>
+        <span aria-hidden="true">→</span>
+      </a>
+      {% if wa_number %}
+        <a href="{{ wa_link }}"
+           target="_blank" rel="noopener"
+           class="ed-hero__cta ed-hero__cta--ghost">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M20.52 3.48A11.93 11.93 0 0012 0C5.37 0 0 5.37 0 12c0 2.11.55 4.16 1.6 5.97L0 24l6.18-1.62A11.94 11.94 0 0012 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 21.82a9.82 9.82 0 01-5-1.36l-.36-.21-3.67.96.98-3.58-.23-.37A9.82 9.82 0 1121.82 12 9.83 9.83 0 0112 21.82zm5.39-7.36c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.95 1.17-.17.2-.35.22-.65.07-.3-.15-1.27-.47-2.42-1.5a9.07 9.07 0 01-1.67-2.07c-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51l-.57-.01c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.49 0 1.47 1.07 2.89 1.22 3.09.15.2 2.1 3.21 5.08 4.5.71.3 1.27.49 1.7.63.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2-1.41.25-.7.25-1.29.18-1.41-.07-.13-.27-.2-.57-.35z"/>
+          </svg>
+          <span>Conversar</span>
+        </a>
+      {% endif %}
+    </div>
+
+  </article>
+
+  {# ───────────────────────── Footer (igual ao catálogo) ───────────────────────── #}
+  <footer class="ed-foot ed-foot--editorial" aria-label="Rodapé">
+
+    <div class="ed-foot__hero">
+      <a href="{{ url_for('public_catalog') }}" class="ed-foot__wordmark" aria-label="{{ store_name }}">
+        mal<em>ê</em>
+      </a>
+      {% if tagline %}
+        <p class="ed-foot__tagline">{{ tagline }}</p>
+      {% endif %}
+    </div>
+
+    <div class="ed-foot__cols">
+      <div class="ed-foot__col">
+        <p class="ed-foot__label">Atendimento</p>
+        <ul class="ed-foot__list">
+          {% if wa_number %}
+            <li><a href="{{ wa_link }}" target="_blank" rel="noopener" class="ed-foot__link--wa">WhatsApp</a></li>
+          {% endif %}
+          <li><a href="https://instagram.com/{{ instagram|replace('@', '') }}" target="_blank" rel="noopener" class="ed-foot__link--ig">{{ instagram }}</a></li>
+          {% if footer_email %}
+            <li><a href="mailto:{{ footer_email }}" class="ed-foot__link--mail">{{ footer_email }}</a></li>
+          {% endif %}
+        </ul>
+      </div>
+      <div class="ed-foot__col">
+        <p class="ed-foot__label">Catálogo</p>
+        <ul class="ed-foot__list">
+          <li><a href="{{ url_for('public_catalog') }}">Coleção atual</a></li>
+          <li><a href="{{ url_for('public_about') }}">Sobre a marca</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="ed-foot__legal-row">
+      <p class="ed-foot__legal">© {{ now.year if now else 2026 }} {{ store_name }} · todos os direitos reservados</p>
+      <p class="ed-foot__legal-aside">moda que fica</p>
+    </div>
+    {% if footer_credit %}
+      <p class="ed-foot__credit">{{ footer_credit }}</p>
+    {% endif %}
+
+    <a href="#" class="ed-foot__top" aria-label="Voltar ao topo">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="none" stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round"
+              d="M12 19V5M5 12l7-7 7 7"/>
+      </svg>
+    </a>
+  </footer>
+
+</main>
+{% endblock %}

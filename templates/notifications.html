@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Notificações · tonton{% endblock %}
+{% set page_sub_label = "central · alertas e avisos" %}
+{% block page_title %}Notificações{% endblock %}
+
+{% block topbar_actions %}
+  {% if notifications and notifications|selectattr('is_read', 'equalto', 0)|list %}
+    <form method="post" action="{{ url_for('mark_notifications_read') }}" style="display:inline">
+      {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+      <button type="submit" class="btn btn--ghost btn--sm">
+        <svg><use xlink:href="#i-check"/></svg> marcar todas como lidas
+      </button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block body %}
+
+{% set unread = notifications|selectattr('is_read', 'equalto', 0)|list if notifications else [] %}
+{% set readlist = notifications|selectattr('is_read', 'equalto', 1)|list if notifications else [] %}
+
+{% if not notifications %}
+
+  {# Estado vazio editorial #}
+  <div class="me-card" style="text-align:center;padding:80px 32px;max-width:520px;margin:40px auto">
+    <div style="font-family:var(--f-display);font-style:italic;font-size:42px;line-height:1;color:var(--gray-300);margin-bottom:18px">∼</div>
+    <h2 class="me-card__title" style="margin-bottom:8px">Sem novidades por aqui</h2>
+    <p style="font-family:var(--f-display);font-style:italic;color:var(--gray-600);font-size:15px;line-height:1.5;margin:0 auto;max-width:36ch">
+      Quando algo precisar da sua atenção — estoque baixo, aniversário de cliente, vale-presente expirando — aparece aqui primeiro.
+    </p>
+  </div>
+
+{% else %}
+
+  <div class="grid grid--2-1" style="align-items:start;gap:24px">
+
+    <div>
+      {% if unread %}
+        <div class="me-card" style="padding:0;overflow:hidden;margin-bottom:18px">
+          <div class="me-card__head" style="padding:24px 28px 14px;margin-bottom:0">
+            <div>
+              <h2 class="me-card__title">Novas</h2>
+              <div class="me-card__sub">{{ unread|length }} não lida{{ 's' if unread|length != 1 else '' }}</div>
+            </div>
+          </div>
+          <div style="border-top:1px solid var(--gray-200)">
+            {% for n in unread %}
+              {% include "_notification_row.html" %}
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      {% if readlist %}
+        <div class="me-card" style="padding:0;overflow:hidden">
+          <div class="me-card__head" style="padding:24px 28px 14px;margin-bottom:0">
+            <div>
+              <h2 class="me-card__title" style="color:var(--gray-700)">Histórico</h2>
+              <div class="me-card__sub">últimas {{ readlist|length }} já lidas</div>
+            </div>
+          </div>
+          <div style="border-top:1px solid var(--gray-200);opacity:.7">
+            {% for n in readlist[:30] %}
+              {% include "_notification_row.html" %}
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    {# Coluna lateral — legenda dos tipos #}
+    <aside>
+      <div class="me-card">
+        <div class="me-card__head" style="margin-bottom:16px">
+          <div>
+            <h2 class="me-card__title" style="font-size:18px">Tipos de alerta</h2>
+            <div class="me-card__sub">o que cada um significa</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px;font-size:12.5px;line-height:1.5">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+              <span class="chip chip--sun chip--sm">estoque</span>
+            </div>
+            <div style="color:var(--gray-600)">Peça com quantidade igual ou abaixo do mínimo definido.</div>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+              <span class="chip chip--magenta chip--sm">aniversário</span>
+            </div>
+            <div style="color:var(--gray-600)">Cliente faz aniversário hoje — boa hora pra mensagem.</div>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+              <span class="chip chip--coral chip--sm">pagamento</span>
+            </div>
+            <div style="color:var(--gray-600)">Venda aguardando pagamento há mais de 24h.</div>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+              <span class="chip chip--sm" style="background:var(--gray-100);color:var(--gray-700)">vale</span>
+            </div>
+            <div style="color:var(--gray-600)">Vale-presente vence nos próximos 7 dias.</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+{% endif %}
+
+{% endblock %}

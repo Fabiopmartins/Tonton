@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Vale-presente · tonton{% endblock %}
+{% set page_sub_label = "marketing · vale-presente" %}
+{% block page_title %}Vale-presente{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('redeem') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-qr"/></svg> Resgatar
+  </a>
+  <a href="{{ url_for('create_card') }}" class="btn">
+    <svg><use xlink:href="#i-plus"/></svg> Emitir vale
+  </a>
+{% endblock %}
+
+{% block body %}
+
+
+<div class="grid grid--kpi mb-3">
+  <div class="card kpi">
+    <div class="kpi__label">Saldo circulante</div>
+    <div class="kpi__value kpi__value--coral">R$ {{ format_money(total_balance) }}</div>
+    <div class="text-muted" style="font-size:11.5px">{{ active_count }} vales ativos</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Total emitido</div>
+    <div class="kpi__value kpi__value--magenta">R$ {{ format_money(total_issued) }}</div>
+    <div class="text-muted" style="font-size:11.5px">{{ cards|length }} no total</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Resgatados</div>
+    <div class="kpi__value kpi__value--deep">{{ redeemed_count }}</div>
+    <div class="text-muted" style="font-size:11.5px">conversões em vendas</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Pendentes de entrega</div>
+    <div class="kpi__value kpi__value--plum">{{ pending_count }}</div>
+    <div class="text-muted" style="font-size:11.5px">aguardando envio</div>
+  </div>
+</div>
+
+<div class="card card--flush">
+
+  <form method="get" class="filterbar">
+    <div class="search-pill" style="flex:1;width:auto">
+      <svg><use xlink:href="#i-search"/></svg>
+      <input type="search" name="q" value="{{ search }}" placeholder="Código, presenteada, comprador…">
+    </div>
+    <button type="submit" class="btn btn--soft btn--sm">Buscar</button>
+  </form>
+
+  <div class="tabs">
+    <a href="{{ url_for('list_cards') }}" class="tab{% if not status_filter %} is-active{% endif %}">
+      Todos <span class="tab__count">{{ cards|length }}</span>
+    </a>
+    <a href="?status=active" class="tab{% if status_filter == 'active' %} is-active{% endif %}">
+      Ativos <span class="tab__count">{{ active_count }}</span>
+    </a>
+    <a href="?status=pending" class="tab{% if status_filter == 'pending' %} is-active{% endif %}">
+      Pendentes <span class="tab__count">{{ pending_count }}</span>
+    </a>
+    <a href="?status=redeemed" class="tab{% if status_filter == 'redeemed' %} is-active{% endif %}">
+      Resgatados <span class="tab__count">{{ redeemed_count }}</span>
+    </a>
+  </div>
+
+  {% if cards %}
+    <div class="table__head" style="grid-template-columns:70px 1.5fr 1.2fr 130px 110px 100px 110px">
+      <span>Código</span><span>Presenteada</span><span>Comprador</span><span>Saldo</span><span>Validade</span><span>Status</span><span></span>
+    </div>
+    {% for c in cards %}
+      <a href="{{ url_for('card_detail', card_id=c['id']) }}" class="table__row" style="grid-template-columns:70px 1.5fr 1.2fr 130px 110px 100px 110px;text-decoration:none;color:inherit">
+
+        <div style="padding:4px 8px;background:var(--grad-hero);color:var(--white);border-radius:var(--r-sm);font-family:var(--f-mono);font-weight:700;font-size:11px;letter-spacing:.1em;text-align:center">
+          •••• {{ c['code_last4'] }}
+        </div>
+
+        <div>
+          <div style="font-size:13px;font-weight:600">{{ c['recipient_name'] or '—' }}</div>
+          <div class="text-muted" style="font-size:11.5px">
+            {{ c['recipient_email'] or (format_phone_display(c['recipient_phone']) if c['recipient_phone'] else '—') }}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:12.5px;font-weight:500">{{ c['buyer_name'] or '—' }}</div>
+          {% if c['order_reference'] %}
+            <div class="text-mono" style="font-size:10.5px;color:var(--gray-500)">ref {{ c['order_reference'] }}</div>
+          {% endif %}
+        </div>
+
+        <div>
+          <div class="text-display" style="font-size:20px;color:var(--coral-deep);line-height:1">
+            R$ {{ format_money(c['current_balance']) }}
+          </div>
+          {% if c['current_balance']|float < c['initial_value']|float %}
+            <div class="text-muted" style="font-size:10.5px">de R$ {{ format_money(c['initial_value']) }}</div>
+          {% endif %}
+        </div>
+
+        <div class="text-mono" style="font-size:11.5px;color:var(--gray-700)">
+          {{ c['expires_at'][:10] if c['expires_at'] else 'sem' }}
+        </div>
+
+        <span class="chip chip--sm chip--{% if c['status'] == 'active' and c['is_released'] %}mint{% elif c['status'] == 'active' %}sun{% elif c['status'] == 'redeemed' %}neutral{% else %}coral{% endif %}">
+          {{ 'pendente' if c['status'] == 'active' and not c['is_released'] else c['status'] }}
+        </span>
+
+        <div class="flex gap-1" style="justify-content:flex-end">
+          {% if c['recipient_phone'] %}
+            <a href="https://wa.me/55{{ c['recipient_phone']|replace(' ','')|replace('-','')|replace('(','')|replace(')','') }}" target="_blank" class="icon-btn" style="width:28px;height:28px;background:transparent;color:var(--mint-ink)" onclick="event.stopPropagation()">
+              <svg style="width:14px;height:14px"><use xlink:href="#i-wpp"/></svg>
+            </a>
+          {% endif %}
+          {% if c['recipient_email'] %}
+            <a href="mailto:{{ c['recipient_email'] }}" class="icon-btn" style="width:28px;height:28px;background:transparent" onclick="event.stopPropagation()">
+              <svg style="width:14px;height:14px"><use xlink:href="#i-mail"/></svg>
+            </a>
+          {% endif %}
+        </div>
+      </a>
+    {% endfor %}
+  {% else %}
+    <div class="empty">
+      <div class="empty__title">Nenhum vale-presente</div>
+      <div class="empty__sub">{{ 'Ajuste os filtros' if search else 'Emita o primeiro vale' }}.</div>
+      <a href="{{ url_for('create_card') }}" class="btn"><svg><use xlink:href="#i-plus"/></svg> Emitir vale</a>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

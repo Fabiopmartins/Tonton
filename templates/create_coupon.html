@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Novo cupom · tonton{% endblock %}
+{% set page_sub_label = "marketing · novo cupom" %}
+{% block page_title %}Novo cupom{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('list_coupons') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+{% endblock %}
+
+{% block body %}
+
+<form method="post" id="coupon-form">
+  {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+  <div class="grid grid--2-1" style="align-items:start">
+
+    <div class="card">
+      <div class="card__title">Configuração do cupom</div>
+      <div class="card__sub">defina regras e validade</div>
+
+      <div class="form-group mt-3">
+        <label class="form-label">Código *</label>
+        <div class="form-control form-control--plain">
+          <input name="code" id="f-code" required autofocus placeholder="VERAO26" style="text-transform:uppercase;font-family:var(--f-mono);letter-spacing:.08em" oninput="updatePreview()">
+        </div>
+        <div class="form-hint">Use MAIÚSCULAS, sem espaços. Ex: VERAO26, BLACK50.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <div class="form-control form-control--plain">
+          <input name="description" id="f-desc" placeholder="Ex: 20% na coleção verão" oninput="updatePreview()">
+        </div>
+      </div>
+
+      <div class="grid grid--2 gap-3">
+        <div class="form-group">
+          <label class="form-label">Tipo *</label>
+          <div class="form-control form-control--plain">
+            <select name="type" id="f-type" onchange="updatePreview()">
+              <option value="percent">Percentual (%)</option>
+              <option value="fixed">Valor fixo (R$)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valor *</label>
+          <div class="form-control">
+            <span class="text-muted" id="f-value-prefix">%</span>
+            <input name="value" id="f-value" required placeholder="10" inputmode="decimal" oninput="updatePreview()">
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid--2 gap-3">
+        <div class="form-group">
+          <label class="form-label">Compra mínima</label>
+          <div class="form-control">
+            <span class="text-muted">R$</span>
+            <input name="min_purchase" placeholder="0,00" inputmode="decimal">
+          </div>
+          <div class="form-hint">0 = sem mínimo.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Limite de usos</label>
+          <div class="form-control form-control--plain">
+            <input name="max_uses" type="number" min="1" placeholder="ilimitado">
+          </div>
+          <div class="form-hint">Em branco = sem limite.</div>
+        </div>
+      </div>
+
+      <div class="form-group mb-0">
+        <label class="form-label">Validade</label>
+        <div class="form-control">
+          <svg><use xlink:href="#i-calendar"/></svg>
+          <input name="expires_at" id="f-expires" type="date" oninput="updatePreview()">
+        </div>
+        <div class="form-hint">Vazio = não expira.</div>
+      </div>
+    </div>
+
+    {# ── Preview visual do cupom ── #}
+    <div class="flex-col gap-3" style="position:sticky;top:110px">
+
+      <div>
+        <div class="section-label" style="margin-top:0">preview do cupom</div>
+
+        <div id="coupon-preview" style="background:var(--grad-hero);border-radius:var(--r-lg);padding:24px;color:var(--white);position:relative;overflow:hidden;box-shadow:var(--sh-glow)">
+          <div style="position:absolute;top:-30px;right:-30px;width:140px;height:140px;border-radius:50%;background:var(--magenta);opacity:.5;filter:blur(20px)"></div>
+          <div style="position:relative">
+            <div class="text-mono" style="font-size:10.5px;letter-spacing:.22em;opacity:.9">✦ CUPOM tonton</div>
+            <div id="preview-value" class="text-display" style="font-size:64px;line-height:1;margin-top:10px;letter-spacing:-.03em">
+              10%
+            </div>
+            <div id="preview-desc" style="font-size:13px;margin-top:4px;opacity:.92">Digite a descrição</div>
+
+            <div style="margin-top:20px;padding:10px 14px;background:rgba(255,255,255,.18);border-radius:var(--r-sm);backdrop-filter:blur(8px)">
+              <div id="preview-code" class="text-mono" style="font-size:18px;font-weight:700;letter-spacing:.14em">CODIGO</div>
+            </div>
+
+            <div id="preview-expires" class="text-mono" style="font-size:10.5px;letter-spacing:.12em;margin-top:14px;opacity:.8">válido até —</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="flex gap-2" style="justify-content:flex-end">
+          <a href="{{ url_for('list_coupons') }}" class="btn btn--ghost">Cancelar</a>
+          <button type="submit" class="btn btn--lg">
+            <svg><use xlink:href="#i-check"/></svg> Criar cupom
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updatePreview() {
+  var code = (document.getElementById('f-code').value || 'CODIGO').toUpperCase();
+  var desc = document.getElementById('f-desc').value || 'Digite a descrição';
+  var type = document.getElementById('f-type').value;
+  var value = document.getElementById('f-value').value || '0';
+  var exp = document.getElementById('f-expires').value;
+
+  var valStr = type === 'percent' ? value + '%' : 'R$ ' + value;
+  document.getElementById('f-value-prefix').textContent = type === 'percent' ? '%' : 'R$';
+
+  document.getElementById('preview-value').textContent = valStr;
+  document.getElementById('preview-desc').textContent = desc;
+  document.getElementById('preview-code').textContent = code;
+  document.getElementById('preview-expires').textContent = 'válido até ' + (exp || '—');
+}
+updatePreview();
+</script>
+{% endblock %}

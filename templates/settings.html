@@ -1,0 +1,915 @@
+{% extends "base.html" %}
+{% block title %}Configurações · tonton{% endblock %}
+{% set page_sub_label = "administração da loja" %}
+{% block page_title %}Configurações{% endblock %}
+
+{% block body %}
+
+<form method="post">
+  {% if session.get('csrf_token') %}
+    <input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">
+  {% endif %}
+
+  {# Preserve active tab on submit so user stays where they were #}
+  <input type="hidden" name="active_tab" id="active-tab-input" value="{{ request.args.get('tab', 'loja') }}">
+
+  <nav class="settings-tabs" role="tablist" aria-label="Grupos de configuração">
+    <button type="button" class="settings-tab" data-tab="loja"       role="tab">Loja</button>
+    <button type="button" class="settings-tab" data-tab="operacao"   role="tab">Operação</button>
+    <button type="button" class="settings-tab" data-tab="fiscal"     role="tab">Fiscal</button>
+    <button type="button" class="settings-tab" data-tab="impressao"  role="tab">Impressão</button>
+  </nav>
+
+  {# ════════════════════════════════════════════════════════
+     ABA: LOJA — Identidade + Vitrine pública
+     ════════════════════════════════════════════════════════ #}
+  {# ════════════════════════════════════════════════════════
+     ABA: LOJA — pareamento por afinidade semântica (plano b)
+     ────────────────────────────────────────────────────────
+     Layout: grid 2-col com align-items:stretch — pares de cards
+     com a mesma altura por linha (mesmo padrão da aba Operação).
+     Cards densos (multi-textarea, preview + upload) recebem
+     linha cheia (grid-column: 1 / -1) porque pedem largura.
+
+     Pares por afinidade:
+       L1 · Identidade            ↔  Visualizar (atalho catálogo)
+       L2 · Atendimento           ↔  Telefones responsáveis
+       L3 · Vitrine config        ↔  Vitrine imagens (mesmo tema)
+       L4 · Hero do catálogo      ↔  Backup do banco (admin)
+       L5 · Página /sobre  ─────── linha cheia (3 textareas)
+       L6 · Rodapé do catálogo ── linha cheia (checkbox + form denso)
+       L7 · Imagem OG ─────────── linha cheia (preview + upload)
+     ════════════════════════════════════════════════════════ #}
+  {# ════════════════════════════════════════════════════════
+     ABA: LOJA — pareamento por afinidade semântica (plano b)
+     ────────────────────────────────────────────────────────
+     Layout: grid 2-col com align-items:stretch — pares de cards
+     com a MESMA altura por linha (mesmo padrão da aba Operação).
+     Cards densos (multi-textarea, preview + upload) recebem
+     linha cheia (grid-column:1 / -1) porque pedem largura.
+
+     Pares por afinidade semântica:
+       L1 · Identidade            ↔  Visualizar (atalho catálogo)
+       L2 · Atendimento           ↔  Telefones responsáveis
+       L3 · Vitrine — config      ↔  Vitrine — imagens (mesmo tema)
+       L4 · Hero do catálogo      ↔  Backup do banco (admin only)
+       L5 · Página /sobre  ─────── linha cheia (3 textareas)
+       L6 · Rodapé do catálogo ── linha cheia (checkbox + form denso)
+       L7 · Imagem OG ─────────── linha cheia (preview + upload)
+     ════════════════════════════════════════════════════════ #}
+  <div class="settings-panel" data-panel="loja" role="tabpanel">
+    <div class="grid grid--2" style="align-items:stretch;gap:22px">
+
+      {# ── L1 ── Identidade ↔ Visualizar #}
+      <div class="card">
+        <div class="card__title">Identidade</div>
+        <div class="card__sub">nome público da loja</div>
+
+          <div class="form-group mt-3">
+            <label class="form-label">Nome da loja</label>
+            <div class="form-control form-control--plain">
+              <input name="store_name" value="{{ settings.get('store_name', 'tonton') }}" required>
+            </div>
+            <div class="form-hint">Aparece na vitrine pública, recibos e e-mails.</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Tagline da vitrine</label>
+            <div class="form-control form-control--plain">
+              <input name="catalog_tagline" value="{{ settings.get('catalog_tagline', 'Cores que te acolhem') }}" placeholder="Cores que te acolhem">
+            </div>
+            <div class="form-hint">Frase abaixo do título na vitrine pública.</div>
+          </div>
+
+          <div class="grid grid--2 gap-3">
+            <div class="form-group mb-0">
+              <label class="form-label">Instagram público</label>
+              <div class="form-control">
+                <svg><use xlink:href="#i-ig"/></svg>
+                <input name="catalog_instagram" value="{{ settings.get('catalog_instagram', '') }}" placeholder="@tontonlojainfantil">
+              </div>
+            </div>
+            <div class="form-group mb-0">
+              <label class="form-label">WhatsApp da loja</label>
+              <div class="form-control">
+                <svg><use xlink:href="#i-wpp"/></svg>
+                <input name="store_whatsapp" value="{{ settings.get('store_whatsapp', '') }}" placeholder="5531999999999" inputmode="tel">
+              </div>
+              <div class="form-hint">Sem espaços. Ex: 5531999999999.</div>
+            </div>
+          </div>
+        </div>
+
+      <div class="card" style="background:var(--grad-soft)">
+        <div class="text-mono" style="font-size:10.5px;letter-spacing:.12em;color:var(--magenta-deep);text-transform:uppercase">✦ visualizar</div>
+        <a href="{{ url_for('public_catalog') }}" target="_blank" class="text-display" style="font-size:22px;color:var(--plum);display:block;margin-top:6px;line-height:1.15">
+          Abrir vitrine pública →
+        </a>
+        <p class="text-muted" style="font-size:12px;margin-top:10px;line-height:1.5">Veja como os clientes estão enxergando o catálogo agora mesmo.</p>
+      </div>
+
+      {# ── L2 ── Atendimento ↔ Telefones #}
+      <div class="card">
+        <div class="card__title">Atendimento e operação</div>
+        <div class="card__sub">vendedora · análises · reengajamento</div>
+
+        <div class="form-group mt-3">
+          <label class="form-label">Mensagem padrão do WhatsApp (vendedora)</label>
+          <div class="form-control form-control--plain">
+            <input name="atender_wa_template"
+                   value="{{ settings.get('atender_wa_template', 'Olá {nome}! Aqui é da Tonton. Tenho novidades que combinam com você 💛') }}"
+                   placeholder="Olá {nome}! ...">
+          </div>
+          <div class="form-hint">Use <code>{nome}</code> para inserir o primeiro nome do cliente automaticamente.</div>
+        </div>
+
+        <div class="form-group mt-3">
+          <label class="form-label">Mensagem do WhatsApp no catálogo público</label>
+          <div class="form-control form-control--plain">
+            <input name="catalog_wa_default"
+                   value="{{ settings.get('catalog_wa_default', 'Olá! Vim pelo catálogo da Tonton — gostaria de saber mais.') }}"
+                   placeholder="Olá! Vim pelo catálogo da Tonton...">
+          </div>
+          <div class="form-hint">Aparece pré-preenchida quando uma visitante clica "Conversar" no catálogo público.</div>
+        </div>
+
+        <div class="grid grid--2 gap-3 mt-2">
+          <div class="form-group mb-0">
+            <label class="form-label">Janela padrão da Curva ABC</label>
+            <div class="form-control form-control--plain">
+              <select name="abc_default_window">
+                {% set abc_w = settings.get('abc_default_window', '90') %}
+                <option value="30"  {% if abc_w == '30'  %}selected{% endif %}>30 dias</option>
+                <option value="60"  {% if abc_w == '60'  %}selected{% endif %}>60 dias</option>
+                <option value="90"  {% if abc_w == '90'  %}selected{% endif %}>90 dias</option>
+                <option value="180" {% if abc_w == '180' %}selected{% endif %}>180 dias</option>
+                <option value="365" {% if abc_w == '365' %}selected{% endif %}>365 dias</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">Cliente inativo após</label>
+            <div class="form-control form-control--plain">
+              <select name="inactive_days_threshold">
+                {% set inact = settings.get('inactive_days_threshold', '60') %}
+                <option value="30"  {% if inact == '30'  %}selected{% endif %}>30 dias</option>
+                <option value="45"  {% if inact == '45'  %}selected{% endif %}>45 dias</option>
+                <option value="60"  {% if inact == '60'  %}selected{% endif %}>60 dias</option>
+                <option value="90"  {% if inact == '90'  %}selected{% endif %}>90 dias</option>
+                <option value="120" {% if inact == '120' %}selected{% endif %}>120 dias</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="form-hint" style="margin-top:8px">
+          Aparece no painel como "Reengajar clientes" e na busca da tela Atender.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">Telefones responsáveis</div>
+        <div class="card__sub">recebem notificações</div>
+        <div class="form-group mt-3 mb-0">
+          <div class="form-control form-control--plain">
+            <textarea name="responsible_phones" rows="3" placeholder="5531999998888, 5531988887777">{{ settings.get('responsible_phones', '') }}</textarea>
+          </div>
+          <div class="form-hint">Separe múltiplos por vírgula ou nova linha.</div>
+        </div>
+      </div>
+
+      {# ── L3 ── Vitrine config ↔ Vitrine imagens (mesmo tema, agora juntos) #}
+      <div class="card">
+        <div class="card__title">Vitrine pública</div>
+        <div class="card__sub">catálogo compartilhado</div>
+
+        <label class="checkbox mt-3" style="padding:14px;background:var(--gray-100);border-radius:var(--r-md);width:100%">
+          <input type="checkbox" name="catalog_show_prices" value="1" {% if settings.get('catalog_show_prices', '1') == '1' %}checked{% endif %}>
+          <span class="checkbox__box"><svg><use xlink:href="#i-check"/></svg></span>
+          <div>
+            <div style="font-weight:600">Exibir preços na vitrine</div>
+            <div class="text-muted" style="font-size:11.5px">Desmarque para uma vitrine "sob consulta".</div>
+          </div>
+        </label>
+
+        <div class="grid grid--2 gap-3 mt-3">
+          <div class="form-group">
+            <label class="form-label">Título do catálogo</label>
+            <div class="form-control form-control--plain">
+              <input name="catalog_heading" value="{{ settings.get('catalog_heading', 'Peças selecionadas') }}">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Subtítulo do catálogo</label>
+            <div class="form-control form-control--plain">
+              <input name="catalog_subheading" value="{{ settings.get('catalog_subheading', settings.get('catalog_tagline', 'Cores que te acolhem')) }}">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Destaque no topo do catálogo</label>
+          <div class="form-control form-control--plain">
+            <select name="catalog_hero_mode">
+              <option value="auto"   {% if settings.get('catalog_hero_mode', 'auto') == 'auto'   %}selected{% endif %}>Automático — peça marcada como capa ou, se não houver, a mais recente</option>
+              <option value="manual" {% if settings.get('catalog_hero_mode') == 'manual' %}selected{% endif %}>Só manual — apenas peças que você marcar como capa</option>
+              <option value="off"    {% if settings.get('catalog_hero_mode') == 'off'    %}selected{% endif %}>Sem foto no hero — usar texto sobre fundo pêssego</option>
+            </select>
+          </div>
+          <div class="form-hint">Para marcar uma peça como capa, edite o produto e ative "Usar como capa do catálogo".</div>
+        </div>
+
+        <div class="form-group mb-0">
+          <label class="form-label">Clique no item do catálogo</label>
+          <div class="form-control form-control--plain">
+            <select name="catalog_item_click_target">
+              <option value="whatsapp" {% if settings.get('catalog_item_click_target', 'whatsapp') == 'whatsapp' %}selected{% endif %}>Abrir WhatsApp da loja</option>
+              <option value="instagram" {% if settings.get('catalog_item_click_target') == 'instagram' %}selected{% endif %}>Abrir Instagram</option>
+            </select>
+          </div>
+          <div class="form-hint">Define o destino quando o cliente tocar em um item do catálogo público.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">Vitrine pública</div>
+        <div class="card__sub">imagens da loja no carrossel do hero</div>
+
+        <div class="settings-vitrine">
+          <div class="settings-vitrine__info">
+            {% if hero_images_count and hero_images_count > 0 %}
+              <div class="settings-vitrine__count">
+                <strong>{{ hero_images_count }}</strong>
+                imagem{{ '' if hero_images_count == 1 else 'ns' }}
+                {% if hero_images_active and hero_images_active != hero_images_count %}
+                  · {{ hero_images_active }} ativa{{ '' if hero_images_active == 1 else 's' }}
+                {% endif %}
+              </div>
+              <p class="settings-vitrine__hint">
+                Aparecem em rotação no topo do catálogo público.
+                Quando uma peça é marcada como destaque, ela vence o carrossel.
+              </p>
+            {% else %}
+              <div class="settings-vitrine__count text-muted">Nenhuma imagem cadastrada</div>
+              <p class="settings-vitrine__hint">
+                Adicione fotos da vitrine, fachada ou ambiente da loja.
+                Sem imagens cadastradas, o catálogo usa o modo padrão.
+              </p>
+            {% endif %}
+          </div>
+          <a href="{{ url_for('hero_images_admin') }}" class="btn btn--ghost">
+            Gerenciar imagens →
+          </a>
+        </div>
+      </div>
+
+      {# ── L4 ── Hero ↔ Backup (admin). Sem admin, Hero ocupa a linha sozinho. #}
+      <div class="card">
+        <div class="card__title">Hero do catálogo</div>
+        <div class="card__sub">primeira coisa que o cliente vê — chamada de coleção</div>
+
+        <div class="form-group mt-3">
+          <label class="form-label">Frase-conceito da estação</label>
+          <div class="form-control form-control--plain">
+            <input name="catalog_hero_concept" value="{{ settings.get('catalog_hero_concept', '') }}" placeholder="Outono em camadas">
+          </div>
+          <div class="form-hint">Aparece em itálico gigante no hero. Curta — 2 a 4 palavras. Ex: "Outono em camadas", "Verão de algodão", "Sob medida". Deixe vazio para usar "Peças que ficam".</div>
+        </div>
+
+        <div class="form-group mt-3">
+          <label class="form-label">Eyebrow / edição</label>
+          <div class="form-control form-control--plain">
+            <input name="catalog_season" value="{{ settings.get('catalog_season', 'Edição · Outono 26') }}" placeholder="Edição · Outono 26">
+          </div>
+          <div class="form-hint">Texto pequeno em mono acima do título. Comunica temporalidade. Ex: "Edição · Outono 26", "Coleção 03", "Drop · maio".</div>
+        </div>
+
+        <div class="form-hint mt-3" style="background:var(--gray-100);padding:12px;border-radius:var(--r-md);font-size:12px">
+          <strong>💡 Dica:</strong> para mostrar uma <em>peça-capa em destaque</em> no hero (com foto grande), edite a peça em <a href="{{ url_for('list_products') }}" style="color:var(--coral-deep)">Produtos</a> e ative <strong>"Em destaque"</strong>. Apenas uma por vez aparece no hero.
+        </div>
+      </div>
+
+      {% if _user_role == 'admin' %}
+      <div class="card">
+        <div class="card__title">Backup do banco</div>
+        <div class="card__sub">somente administradoras</div>
+        <p class="text-muted" style="font-size:13px;margin-top:10px;line-height:1.5">
+          Gera um arquivo SQL com todos os dados (produtos, vendas, clientes, vales, configurações).
+          Para restaurar: <code>psql $DATABASE_URL -f arquivo.sql</code>.
+        </p>
+        <a href="{{ url_for('admin_backup') }}" class="btn btn--ghost mt-2">
+          <svg><use xlink:href="#i-download"/></svg>
+          Baixar backup completo
+        </a>
+      </div>
+
+      {% endif %}
+      {# ── L5 ── Página /sobre — linha cheia (3 textareas pedem largura) #}
+      <div class="card" style="grid-column:1 / -1">
+        <div class="card__title">Página /sobre — história da marca</div>
+        <div class="card__sub">3 blocos editoriais. Edita aqui, vê em <a href="{{ url_for('public_about') }}" target="_blank" style="color:var(--coral-deep)">/sobre</a></div>
+
+        <div class="form-group mt-3">
+          <label class="form-label">01 · Origem</label>
+          <div class="form-control form-control--plain">
+            <textarea name="about_origin" rows="4"
+              placeholder="Como nasceu a Tonton. Por que existe. A convicção que a originou.">{{ settings.get('about_origin', '') }}</textarea>
+          </div>
+          <div class="form-hint">3-4 frases. Por que a marca existe. <em>Tem rascunho pré-preenchido se deixar vazio.</em></div>
+        </div>
+
+        <div class="form-group mt-3">
+          <label class="form-label">02 · Processo</label>
+          <div class="form-control form-control--plain">
+            <textarea name="about_process" rows="4"
+              placeholder="Como vocês trabalham. Curadoria de tecidos, atelier, número de peças por coleção.">{{ settings.get('about_process', '') }}</textarea>
+          </div>
+          <div class="form-hint">3-4 frases sobre o processo. Materiais, atelier, fotografia.</div>
+        </div>
+
+        <div class="form-group mt-3">
+          <label class="form-label">03 · Manifesto</label>
+          <div class="form-control form-control--plain">
+            <textarea name="about_manifesto" rows="4"
+              placeholder="O que a marca defende. Filosofia. Em que vocês acreditam.">{{ settings.get('about_manifesto', '') }}</textarea>
+          </div>
+          <div class="form-hint">3-4 frases de filosofia. Comprar menos e melhor, peças que ficam, etc.</div>
+        </div>
+      </div>
+
+      {# ── L6 ── Rodapé do catálogo — linha cheia (checkbox + 4 inputs + 2 inputs em grid interno) #}
+      <div class="card" style="grid-column:1 / -1">
+        <div class="card__title">Rodapé do catálogo</div>
+        <div class="card__sub">a alma da marca — visível no fim de toda página pública</div>
+
+        {# Campo "Manifesto / credo" foi removido daqui — o rodapé agora
+           mostra só wordmark + tagline. A filosofia da marca tem casa
+           própria nos blocos editoriais de /sobre (Origem · Processo ·
+           Manifesto), com mais espaço e contexto. #}
+
+        <label class="checkbox mt-3" style="padding:14px;background:var(--gray-100);border-radius:var(--r-md);width:100%">
+          <input type="checkbox" name="catalog_newsletter_enabled" value="1" {% if settings.get('catalog_newsletter_enabled', '0') == '1' %}checked{% endif %}>
+          <span class="checkbox__box"><svg><use xlink:href="#i-check"/></svg></span>
+          <div>
+            <div style="font-weight:600">Captura de newsletter no rodapé</div>
+            <div class="text-muted" style="font-size:11.5px">Mostra um campo de e-mail para clientes se inscreverem. Os e-mails ficam armazenados em <code>newsletter_subscribers</code> para você exportar quando quiser.</div>
+          </div>
+        </label>
+
+        <div class="form-group mt-3">
+          <label class="form-label">Frase chamativa da newsletter</label>
+          <div class="form-control form-control--plain">
+            <input name="catalog_newsletter_intro" value="{{ settings.get('catalog_newsletter_intro', 'primeira a saber das próximas peças') }}" placeholder="primeira a saber das próximas peças">
+          </div>
+          <div class="form-hint">Aparece em itálico acima do campo de e-mail. Só é exibida se a newsletter estiver ativada acima.</div>
+        </div>
+
+        <div class="grid grid--2 gap-3 mt-3">
+          <div class="form-group">
+            <label class="form-label">E-mail de contato (opcional)</label>
+            <div class="form-control form-control--plain">
+              <input name="catalog_footer_email" type="email" value="{{ settings.get('catalog_footer_email', '') }}" placeholder="contato@male.com.br">
+            </div>
+            <div class="form-hint">Aparece no rodapé como link mailto.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Crédito de fotografia (opcional)</label>
+            <div class="form-control form-control--plain">
+              <input name="catalog_footer_credit" value="{{ settings.get('catalog_footer_credit', '') }}" placeholder="fotos por @fulano · styling por @ciclano">
+            </div>
+            <div class="form-hint">Linha pequena em mono no fim do rodapé.</div>
+          </div>
+        </div>
+      </div>
+
+      {# ── L7 ── Imagem OG — linha cheia (preview 160px + upload + hints longos) #}
+      <div class="card" id="og" style="grid-column:1 / -1">
+        <div class="card__title">Imagem de compartilhamento (Open Graph)</div>
+        <div class="card__sub">aparece quando alguém compartilha o link da loja no WhatsApp/Instagram/Facebook</div>
+
+        {% if settings.get('catalog_og_image_b64') %}
+          <div class="mt-3" style="display:flex;align-items:flex-start;gap:16px;padding:14px;background:var(--gray-100);border-radius:var(--r-md)">
+            <img src="{{ url_for('public_og_image') }}?v={{ settings.get('catalog_og_image_b64')|length }}"
+                 alt="Imagem de compartilhamento atual"
+                 style="width:160px;height:auto;border-radius:6px;display:block;flex-shrink:0">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12.5px;color:var(--gray-700);line-height:1.5;margin-bottom:10px">
+                Imagem ativa. Para trocar, suba uma nova abaixo.
+              </div>
+              <button type="submit"
+                      formaction="{{ url_for('og_image_delete') }}"
+                      formmethod="post"
+                      class="btn btn--ghost btn--sm" style="color:var(--magenta-deep)"
+                      onclick="return confirm('Remover a imagem de compartilhamento? Volta a usar a foto da peça-capa.')">
+                Remover imagem
+              </button>
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="form-group mt-3">
+          <label class="form-label">Subir nova imagem</label>
+          <div class="form-control form-control--plain">
+            <input type="file" name="og_image" accept="image/jpeg,image/png,image/webp">
+          </div>
+          <div class="form-hint">
+            <strong>Recomendado:</strong> 1200×630 pixels, JPG ou PNG, até 5MB.<br>
+            Idealmente uma imagem sóbria com a marca <em>tonton</em> + tagline. Esta imagem aparece como preview quando alguém compartilha o link da sua loja em qualquer rede social.<br>
+            <em>Se não houver imagem aqui, é usada a foto da peça em destaque do catálogo.</em>
+          </div>
+        </div>
+        <button type="submit"
+                formaction="{{ url_for('og_image_upload') }}"
+                formmethod="post"
+                formenctype="multipart/form-data"
+                class="btn">
+          <svg><use xlink:href="#i-plus"/></svg> Atualizar imagem de compartilhamento
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  {# ════════════════════════════════════════════════════════
+     ABA: OPERAÇÃO — Margens + Pagamento + Fidelidade + Textos
+     ────────────────────────────────────────────────────────
+     Layout: grid 2-col com align-items:stretch — pares de cards
+     ficam com a MESMA altura por linha (rítmo visual sem "degraus").
+     Pareamento por afinidade de tamanho:
+       Linha 1 · Margens          ↔  Textos globais   (ambos curtos)
+       Linha 2 · Vendas/fidelidade ↔  Tema visual     (ambos médios)
+       Linha 3 · PIX (linha cheia, span 2 colunas — multi-section)
+     ════════════════════════════════════════════════════════ #}
+  <div class="settings-panel" data-panel="operacao" role="tabpanel" hidden>
+    <div class="grid grid--2" style="align-items:stretch;gap:22px">
+
+      {# ── Linha 1, esquerda ── #}
+      <div class="card">
+        <div class="card__title">Margens e alertas</div>
+        <div class="card__sub">políticas de precificação</div>
+
+        <div class="grid grid--2 gap-3 mt-3">
+          <div class="form-group">
+            <label class="form-label">Margem-alvo (%)</label>
+            <div class="form-control form-control--plain">
+              <input name="target_margin_pct" value="{{ settings.get('target_margin_pct', '60') }}" inputmode="decimal">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Alerta abaixo de (%)</label>
+            <div class="form-control form-control--plain">
+              <input name="min_margin_alert_pct" value="{{ settings.get('min_margin_alert_pct', '30') }}" inputmode="decimal">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group mb-0">
+          <label class="form-label">Alíquota padrão (%)</label>
+          <div class="form-control form-control--plain">
+            <input name="tax_rate_pct" value="{{ settings.get('tax_rate_pct', '0') }}" inputmode="decimal">
+          </div>
+          <div class="form-hint">Usada nas simulações do pricing helper.</div>
+        </div>
+      </div>
+
+      {# ── Linha 1, direita ── #}
+      <div class="card">
+        <div class="card__title">Textos globais</div>
+        <div class="card__sub">blocos editáveis do layout</div>
+
+        <div class="form-group mt-3">
+          <label class="form-label">Texto do destaque lateral</label>
+          <div class="form-control form-control--plain">
+            <input name="sidebar_promo_title" value="{{ settings.get('sidebar_promo_title', 'Visite o nosso Instagram @tontonlojainfantil') }}">
+          </div>
+          <div class="form-hint">Aparece no rodapé do menu lateral.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Subtexto do destaque</label>
+          <div class="form-control form-control--plain">
+            <input name="sidebar_promo_sub" value="{{ settings.get('sidebar_promo_sub', '') }}" placeholder="Opcional">
+          </div>
+        </div>
+
+        <div class="form-group mb-0">
+          <label class="form-label">Link do destaque</label>
+          <div class="form-control form-control--plain">
+            <input name="sidebar_promo_url" value="{{ settings.get('sidebar_promo_url', '') }}" placeholder="https://instagram.com/...">
+          </div>
+        </div>
+      </div>
+
+      {# ── Linha 2, esquerda ── #}
+      <div class="card">
+        <div class="card__title">Vendas e fidelidade</div>
+        <div class="card__sub">pagamento padrão e pontos</div>
+
+        <div class="form-group mt-3">
+          <label class="form-label">Método de pagamento padrão</label>
+          <div class="form-control form-control--plain">
+            <select name="default_payment">
+              {% set dp = settings.get('default_payment', 'pix') %}
+              <option value="pix" {% if dp == 'pix' %}selected{% endif %}>PIX</option>
+              <option value="card" {% if dp == 'card' %}selected{% endif %}>Cartão</option>
+              <option value="cash" {% if dp == 'cash' %}selected{% endif %}>Dinheiro</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid--2 gap-3 mb-0">
+          <div class="form-group mb-0">
+            <label class="form-label">Pontos por R$ 1</label>
+            <div class="form-control form-control--plain">
+              <input name="loyalty_points_per_real" value="{{ settings.get('loyalty_points_per_real', '1') }}" inputmode="decimal">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">Pontos por R$ resgatado</label>
+            <div class="form-control form-control--plain">
+              <input name="loyalty_redeem_ratio" value="{{ settings.get('loyalty_redeem_ratio', '100') }}" inputmode="decimal">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ── Linha 2, direita ── TEMA SAZONAL #}
+      <div class="card">
+        <div class="card__title">Tema visual <span class="chip chip--sm chip--mint" style="margin-left:8px">catálogo público</span></div>
+        <div class="card__sub">muda apenas acentos e ambientação — identidade da marca preservada</div>
+
+        <div class="form-group mt-3 mb-0">
+          <label class="form-label">Tema ativo</label>
+          <div class="form-control form-control--plain">
+            <select name="active_theme" id="theme-select">
+              {% for t in available_themes %}
+                <option value="{{ t.slug }}" {% if t.slug == active_theme.slug %}selected{% endif %}>
+                  {{ t.icon }}  {{ t.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-hint">
+            O painel interno mostra apenas um chip discreto. O catálogo público recebe o gradient e os ornamentos.
+          </div>
+        </div>
+
+        <div style="background:var(--grad-soft);padding:14px 16px;border-radius:var(--r-md);margin-top:14px;font-size:12px;color:var(--plum);line-height:1.5">
+          <strong>Onde o tema aparece:</strong> hero do catálogo, gradients de fundo, cards de destaque.
+          <br>
+          <strong>Onde NÃO aparece:</strong> logo, fonte, cor primária coral, botões de ação — o núcleo da marca é blindado.
+        </div>
+      </div>
+
+      {# ── Linha 3, linha cheia ── PIX (cobrança copia-e-cola) #}
+      {# PIX é multi-section e bem mais alto que os outros — em vez de
+         espremer numa coluna, ocupa toda a largura. Os dois sub-blocos
+         (Sua chave + Identificação no QR) aproveitam o espaço extra
+         em duplas lado-a-lado, ficando muito mais legível. #}
+      <div class="card" style="grid-column:1/-1">
+        <div class="card__title">PIX <span class="chip chip--sm chip--mint" style="margin-left:8px">copia-e-cola</span></div>
+        <div class="card__sub">QR dinâmico gerado na tela de venda — sem PSP, sem taxas, sem confirmação automática</div>
+
+        <div class="settings-section settings-section--first">
+          <div class="settings-section__title">Sua chave</div>
+
+          <div class="grid grid--2 gap-3">
+            <div class="form-group">
+              <label class="form-label">Tipo da chave</label>
+              <div class="form-control form-control--plain">
+                <select name="pix_key_type">
+                  {% set ptype = settings.get('pix_key_type', '') %}
+                  <option value=""      {% if not ptype %}selected{% endif %}>— sem PIX —</option>
+                  <option value="cpf"   {% if ptype == 'cpf' %}selected{% endif %}>CPF</option>
+                  <option value="cnpj"  {% if ptype == 'cnpj' %}selected{% endif %}>CNPJ</option>
+                  <option value="email" {% if ptype == 'email' %}selected{% endif %}>E-mail</option>
+                  <option value="phone" {% if ptype == 'phone' %}selected{% endif %}>Telefone</option>
+                  <option value="evp"   {% if ptype == 'evp' %}selected{% endif %}>Chave aleatória (EVP)</option>
+                </select>
+              </div>
+              <div class="form-hint">Quando vazio, o QR PIX não aparece na venda.</div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Chave PIX</label>
+              <div class="form-control form-control--plain">
+                <input name="pix_key" value="{{ settings.get('pix_key', '') }}" placeholder="chave correspondente ao tipo">
+              </div>
+              <div class="form-hint">CPF/CNPJ só números. Telefone com DDD.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section__title">Identificação no QR</div>
+          <div class="text-muted" style="font-size:11.5px;margin-bottom:8px">
+            Aparece no app do cliente. Padrão BACEN: nome até 25 e cidade até 15 caracteres, sem acento.
+          </div>
+
+          <div class="grid grid--2 gap-3">
+            <div class="form-group mb-0">
+              <label class="form-label">Nome do recebedor</label>
+              <div class="form-control form-control--plain">
+                <input name="pix_merchant_name" maxlength="25"
+                       value="{{ settings.get('pix_merchant_name', '') }}"
+                       placeholder="ex: TONTON LOJA INFANTIL">
+              </div>
+              <div class="form-hint">Vazio: usa Razão Social ou Nome da loja.</div>
+            </div>
+            <div class="form-group mb-0">
+              <label class="form-label">Cidade</label>
+              <div class="form-control form-control--plain">
+                <input name="pix_merchant_city" maxlength="15"
+                       value="{{ settings.get('pix_merchant_city', '') }}"
+                       placeholder="ex: SAO PAULO">
+              </div>
+              <div class="form-hint">Vazio: usa Cidade do endereço fiscal.</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:var(--grad-soft);padding:12px 14px;border-radius:var(--r-md);margin-top:12px;font-size:12px;color:var(--plum);line-height:1.5">
+          <strong>⓵ Confirmação manual:</strong> esta versão gera o QR PIX, mas <strong>não confirma o pagamento</strong> automaticamente.
+          O operador precisa validar no app do banco antes de finalizar a venda.
+          <br>
+          <strong>⓶ Confirmação automática:</strong> cadastre Inter, Mercado Pago ou outras contas em
+          <a href="{{ url_for('list_pix_accounts') }}" style="color:var(--magenta-deep);font-weight:700">Contas PIX (multi-PSP) →</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  {# ════════════════════════════════════════════════════════
+     ABA: FISCAL — Pré-nota fiscal (dados da loja)
+     ════════════════════════════════════════════════════════ #}
+  <div class="settings-panel" data-panel="fiscal" role="tabpanel" hidden>
+    <div class="card">
+      <div class="card__title">Pré-nota fiscal</div>
+      <div class="card__sub">dados da loja para apoio ao preenchimento</div>
+
+      <div class="settings-section settings-section--first">
+        <div class="settings-section__title">Empresa</div>
+        <div class="grid grid--2 gap-3">
+          <div class="form-group">
+            <label class="form-label">Razão social</label>
+            <div class="form-control form-control--plain">
+              <input name="store_legal_name" value="{{ settings.get('store_legal_name', '') }}" placeholder="Razão social da empresa">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">CNPJ</label>
+            <div class="form-control form-control--plain">
+              <input name="store_tax_id" value="{{ settings.get('store_tax_id', '') }}" placeholder="00.000.000/0000-00">
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid--2 gap-3">
+          <div class="form-group">
+            <label class="form-label">Inscrição estadual</label>
+            <div class="form-control form-control--plain">
+              <input name="store_state_tax_id" value="{{ settings.get('store_state_tax_id', '') }}" placeholder="IE">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">Regime tributário</label>
+            <div class="form-control form-control--plain">
+              <select name="store_tax_regime">
+                {% set rg = settings.get('store_tax_regime', 'MEI') %}
+                <option value="MEI"             {% if rg == 'MEI' %}selected{% endif %}>MEI</option>
+                <option value="Simples"         {% if rg == 'Simples' %}selected{% endif %}>Simples Nacional</option>
+                <option value="Lucro Presumido" {% if rg == 'Lucro Presumido' %}selected{% endif %}>Lucro Presumido</option>
+                <option value="Lucro Real"      {% if rg == 'Lucro Real' %}selected{% endif %}>Lucro Real</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section__title">Contato</div>
+        <div class="grid grid--2 gap-3 mb-0">
+          <div class="form-group mb-0">
+            <label class="form-label">Telefone comercial</label>
+            <div class="form-control form-control--plain">
+              <input name="store_contact_phone" value="{{ settings.get('store_contact_phone', '') }}" placeholder="(31) 99999-9999">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">E-mail fiscal / comercial</label>
+            <div class="form-control form-control--plain">
+              <input name="store_contact_email" value="{{ settings.get('store_contact_email', '') }}" placeholder="financeiro@loja.com.br">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section__title">Endereço</div>
+        <div class="grid" style="grid-template-columns: 3fr 1fr; gap: 12px">
+          <div class="form-group">
+            <label class="form-label">Rua / avenida</label>
+            <div class="form-control form-control--plain">
+              <input name="store_address_street" value="{{ settings.get('store_address_street', '') }}" placeholder="Logradouro">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Número</label>
+            <div class="form-control form-control--plain">
+              <input name="store_address_number" value="{{ settings.get('store_address_number', '') }}" placeholder="Número">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Complemento</label>
+          <div class="form-control form-control--plain">
+            <input name="store_address_complement" value="{{ settings.get('store_address_complement', '') }}" placeholder="Sala, loja, bloco...">
+          </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns: 1.5fr 1.5fr .5fr 1fr; gap: 12px; margin-bottom: 0">
+          <div class="form-group mb-0">
+            <label class="form-label">Bairro</label>
+            <div class="form-control form-control--plain">
+              <input name="store_address_neighborhood" value="{{ settings.get('store_address_neighborhood', '') }}" placeholder="Bairro">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">Cidade</label>
+            <div class="form-control form-control--plain">
+              <input name="store_address_city" value="{{ settings.get('store_address_city', '') }}" placeholder="Cidade">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">UF</label>
+            <div class="form-control form-control--plain">
+              <input name="store_address_state" value="{{ settings.get('store_address_state', '') }}" placeholder="UF" maxlength="2">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">CEP</label>
+            <div class="form-control form-control--plain">
+              <input name="store_address_zipcode" value="{{ settings.get('store_address_zipcode', '') }}" placeholder="CEP">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section" style="padding-bottom:0">
+        <div class="settings-section__title">Operação</div>
+        <div class="form-group mb-0">
+          <label class="form-label">Natureza da operação</label>
+          <div class="form-control form-control--plain">
+            <input name="store_operation_nature" value="{{ settings.get('store_operation_nature', 'Venda de mercadoria') }}" placeholder="Venda de mercadoria">
+          </div>
+          <div class="form-hint">Esses dados alimentam os arquivos PDF, CSV e JSON de pré-nota gerados em cada venda.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ════════════════════════════════════════════════════════
+     ABA: IMPRESSÃO — Etiquetas de produto e despacho
+     ════════════════════════════════════════════════════════ #}
+  <div class="settings-panel" data-panel="impressao" role="tabpanel" hidden>
+    <div class="grid grid--2" style="align-items:start;gap:22px">
+
+      <div class="card">
+        <div class="card__title">Etiquetas de produto</div>
+        <div class="card__sub">QR code + nome + preço + SKU</div>
+
+        <div class="grid grid--2 gap-3 mt-3 mb-0">
+          <div class="form-group mb-0">
+            <label class="form-label">Largura (mm)</label>
+            <div class="form-control form-control--plain">
+              <input name="label_width_mm" value="{{ settings.get('label_width_mm', '40') }}" inputmode="decimal">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">Altura (mm)</label>
+            <div class="form-control form-control--plain">
+              <input name="label_height_mm" value="{{ settings.get('label_height_mm', '12') }}" inputmode="decimal">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-hint" style="margin-top:14px">Para a Niimbot D110, o padrão é 40 × 12 mm. O "160" que aparece no rolo corresponde à largura física do rolo, não ao tamanho da etiqueta.</div>
+
+        <a href="{{ url_for('product_labels_batch_ui') }}" class="btn btn--ghost btn--sm mt-3">
+          <svg><use xlink:href="#i-tag"/></svg> Gerar etiquetas em massa
+        </a>
+      </div>
+
+      <div class="card">
+        <div class="card__title">Etiquetas de despacho</div>
+        <div class="card__sub">remetente e destinatário</div>
+
+        <div class="grid grid--2 gap-3 mt-3 mb-0">
+          <div class="form-group mb-0">
+            <label class="form-label">Largura (mm)</label>
+            <div class="form-control form-control--plain">
+              <input name="dispatch_label_width_mm" value="{{ settings.get('dispatch_label_width_mm', '100') }}" inputmode="decimal">
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-label">Altura (mm)</label>
+            <div class="form-control form-control--plain">
+              <input name="dispatch_label_height_mm" value="{{ settings.get('dispatch_label_height_mm', '150') }}" inputmode="decimal">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-hint" style="margin-top:14px">Padrão 100 × 150 mm para envios de correios e transportadoras comuns.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="settings-foot">
+    <a href="{{ url_for('dashboard') }}" class="btn btn--ghost">Cancelar</a>
+    <button type="submit" class="btn btn--lg">
+      <svg><use xlink:href="#i-check"/></svg> Salvar configurações
+    </button>
+  </div>
+
+</form>
+
+<script>
+(function() {
+  const tabs = Array.from(document.querySelectorAll('.settings-tab'));
+  const panels = Array.from(document.querySelectorAll('.settings-panel'));
+  const hiddenInput = document.getElementById('active-tab-input');
+  const url = new URL(window.location);
+
+  function activate(name, { pushHistory = true } = {}) {
+    tabs.forEach(t => {
+      const isActive = t.dataset.tab === name;
+      t.classList.toggle('is-active', isActive);
+      t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    panels.forEach(p => {
+      const isActive = p.dataset.panel === name;
+      if (isActive) p.removeAttribute('hidden');
+      else p.setAttribute('hidden', '');
+    });
+    if (hiddenInput) hiddenInput.value = name;
+    if (pushHistory) {
+      url.searchParams.set('tab', name);
+      history.replaceState(null, '', url.toString());
+    }
+  }
+
+  tabs.forEach(t => {
+    t.addEventListener('click', () => activate(t.dataset.tab));
+    t.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      e.preventDefault();
+      const idx = tabs.indexOf(t);
+      const next = e.key === 'ArrowRight'
+        ? tabs[(idx + 1) % tabs.length]
+        : tabs[(idx - 1 + tabs.length) % tabs.length];
+      next.focus();
+      activate(next.dataset.tab);
+    });
+  });
+
+  // Initial tab from URL ?tab= or default to 'loja'
+  const initial = (new URLSearchParams(location.search).get('tab')) || 'loja';
+  const valid = tabs.some(t => t.dataset.tab === initial);
+  activate(valid ? initial : 'loja', { pushHistory: false });
+})();
+</script>
+
+<style>
+  /* Card "Vitrine pública" — leva para gerenciar imagens do hero */
+  .settings-vitrine {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 14px;
+  }
+  .settings-vitrine__count {
+    font-family: var(--f-display, Georgia, serif);
+    font-style: italic;
+    font-size: 17px;
+    color: var(--ink, #1a0f0a);
+  }
+  .settings-vitrine__count strong {
+    font-style: normal;
+    font-weight: 500;
+    color: var(--coral-deep, #e8501a);
+    margin-right: 4px;
+  }
+  .settings-vitrine__hint {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--gray-700, #5a4f44);
+    margin: 0;
+  }
+  .settings-vitrine .btn {
+    align-self: flex-start;
+  }
+</style>
+
+{% endblock %}

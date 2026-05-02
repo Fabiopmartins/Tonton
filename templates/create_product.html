@@ -1,0 +1,502 @@
+{% extends "base.html" %}
+{% block title %}Novo produto · tonton{% endblock %}
+{% set page_sub_label = "produto · novo cadastro" %}
+{% block page_title %}Novo produto{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('list_products') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+{% endblock %}
+
+{% block body %}
+
+<form method="post" enctype="multipart/form-data" id="me-product-form">
+  {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+  <div class="grid grid--1-2" style="align-items:start;gap:36px">
+
+    {# ════════════════════════════════════════════════════════
+       COLUNA ESQUERDA — Foto da peça (centro emocional)
+       ════════════════════════════════════════════════════════ #}
+    {# A coluna é sticky no desktop (foto fica visível enquanto edita os campos
+       da direita), mas precisa ser static no mobile — senão a foto cobre os
+       campos abaixo quando o grid colapsa para 1 coluna. Estilo via classe
+       em vez de inline pra permitir media query sobrescrever. #}
+    <div class="me-photo-col">
+      <div class="me-card__sub" style="margin-bottom:14px">Fotos da peça</div>
+
+      <label class="me-photo-slot" id="me-photo-main">
+        <div class="me-photo-slot__placeholder" id="me-photo-placeholder">
+          <div style="text-align:center">
+            <svg style="width:32px;height:32px;margin-bottom:10px;opacity:.5"><use xlink:href="#i-image"/></svg>
+            <div>foto principal</div>
+          </div>
+        </div>
+        <input type="file" name="image" accept="image/*" style="display:none" id="me-photo-input" onchange="mePreviewImage(this)">
+        <span class="me-photo-slot__overlay" aria-hidden="true">
+          <svg><use xlink:href="#i-image"/></svg>
+          substituir
+        </span>
+      </label>
+
+      <div class="me-thumb-strip" aria-label="Galeria de fotos">
+        <div class="me-thumb-strip__item thumb thumb--h0" aria-hidden="true"></div>
+        <div class="me-thumb-strip__item thumb thumb--h2" aria-hidden="true"></div>
+        <div class="me-thumb-strip__item thumb thumb--h4" aria-hidden="true"></div>
+        <button type="button" class="me-thumb-strip__add" aria-label="Adicionar foto"
+                onclick="document.getElementById('me-photo-input').click()">+</button>
+      </div>
+
+      <p class="me-thumb-strip__caption">
+        A primeira foto entra no catálogo como capa. Recomendamos luz natural e fundo neutro.
+      </p>
+    </div>
+
+    {# ════════════════════════════════════════════════════════
+       COLUNA DIREITA — Blocos numerados editoriais
+       ════════════════════════════════════════════════════════ #}
+    <div>
+
+    {# ─── 01 · Nome, identificação ─────────────────────── #}
+    <section class="me-section">
+      <div class="me-section__head">
+        <h2 class="me-section__title">
+          <span class="me-section__title-num">01</span>como ela se chama
+        </h2>
+        <span class="me-section__aside">o que aparece no catálogo público</span>
+      </div>
+
+      <div class="me-field">
+        <div class="me-field__label">
+          <span class="me-field__name">Nome</span>
+        </div>
+        <input name="name" required autofocus placeholder="Ex: Vestido linho cru">
+      </div>
+
+      <div class="me-field-grid">
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Categoria</span>
+          </div>
+          <input name="category" list="cat-list" placeholder="vestidos">
+          <datalist id="cat-list">
+            {% for c in categories %}
+              <option value="{{ c['category'] }}">
+            {% endfor %}
+          </datalist>
+        </div>
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">SKU</span>
+            <span class="me-field__hint">opcional</span>
+          </div>
+          <input name="sku" placeholder="VL-001">
+        </div>
+      </div>
+
+      <div class="me-field">
+        <div class="me-field__label">
+          <span class="me-field__name">Descrição</span>
+          <span class="me-field__hint">opcional · gera automático se vazio</span>
+        </div>
+        <textarea name="description" rows="2"
+                  placeholder="Linho 100% lavado, modelagem fluida, comprimento midi. Cai bem em todos os corpos — peça de coleção curta."></textarea>
+      </div>
+
+      <div class="me-field-grid">
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Marca</span>
+            <span class="me-field__hint">opcional</span>
+          </div>
+          <input name="brand" placeholder="tonton">
+        </div>
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Código de barras</span>
+            <span class="me-field__hint">opcional · EAN-13</span>
+          </div>
+          <input name="barcode" inputmode="numeric" placeholder="—">
+        </div>
+      </div>
+    </section>
+
+    {# ─── 02 · Composição, tecido, modelagem ──────────── #}
+    <section class="me-section">
+      <div class="me-section__head">
+        <h2 class="me-section__title">
+          <span class="me-section__title-num">02</span>como ela é
+        </h2>
+        <span class="me-section__aside">vira em destaque na ficha</span>
+      </div>
+
+      <div class="me-field-grid">
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Composição</span>
+            <span class="me-field__hint">ex: 100% linho · 50% algodão</span>
+          </div>
+          <input name="composition" placeholder="100% linho">
+        </div>
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Tecido</span>
+            <span class="me-field__hint">opcional</span>
+          </div>
+          <input name="fabric_type" placeholder="linho lavado">
+        </div>
+      </div>
+
+      <div class="me-field-grid">
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Modelagem</span>
+            <span class="me-field__hint">opcional</span>
+          </div>
+          <select name="fit">
+            <option value="">—</option>
+            <option value="fluida">fluida</option>
+            <option value="ajustada">ajustada</option>
+            <option value="oversized">oversized</option>
+            <option value="reta">reta</option>
+          </select>
+        </div>
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Comprimento</span>
+            <span class="me-field__hint">opcional</span>
+          </div>
+          <select name="length_class">
+            <option value="">—</option>
+            <option value="curto">curto</option>
+            <option value="midi">midi</option>
+            <option value="longo">longo</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="me-field">
+        <div class="me-field__label">
+          <span class="me-field__name">Cuidados de lavagem</span>
+        </div>
+        <div class="me-chips" style="margin-top:6px">
+          <label class="me-chip"><input type="radio" name="care_wash" value="cold30" style="display:none">lavar até 30°C</label>
+          <label class="me-chip me-chip--ghost"><input type="radio" name="care_wash" value="warm40" style="display:none">lavar até 40°C</label>
+          <label class="me-chip me-chip--ghost"><input type="radio" name="care_wash" value="hand" style="display:none">lavar à mão</label>
+          <label class="me-chip me-chip--ghost"><input type="radio" name="care_wash" value="dryclean" style="display:none">somente a seco</label>
+        </div>
+      </div>
+
+      <div class="me-field-grid">
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Gramatura (g/m²)</span>
+            <span class="me-field__hint">opcional</span>
+          </div>
+          <input name="fabric_weight_gsm" type="number" min="0" placeholder="—">
+        </div>
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">País de origem</span>
+            <span class="me-field__hint">opcional</span>
+          </div>
+          <input name="country_of_origin" placeholder="Brasil">
+        </div>
+      </div>
+    </section>
+
+    {# ─── 03 · Cores e tamanhos ─────────────────────── #}
+    <section class="me-section">
+      <div class="me-section__head">
+        <h2 class="me-section__title">
+          <span class="me-section__title-num">03</span>cores e tamanhos
+        </h2>
+        <span class="me-section__aside">o que está disponível</span>
+      </div>
+
+      <div class="me-field-grid">
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Cores desta peça</span>
+            <span class="me-field__hint">separe por vírgula</span>
+          </div>
+          <input id="var-colors-input" name="_var_colors" placeholder="cru, tangerina, preto"
+                 onchange="rebuildVariantMatrix()" onblur="rebuildVariantMatrix()">
+        </div>
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Tamanhos</span>
+            <span class="me-field__hint">separe por vírgula</span>
+          </div>
+          <input id="var-sizes-input" name="_var_sizes" placeholder="2, 4, 6, 8, 10 (anos)"
+                 onchange="rebuildVariantMatrix()" onblur="rebuildVariantMatrix()">
+        </div>
+      </div>
+
+      <div class="me-field-grid">
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Cor única (sem variantes)</span>
+            <span class="me-field__hint">opcional · só se a peça tem 1 cor</span>
+          </div>
+          <input name="color" placeholder="—">
+        </div>
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Tamanho único</span>
+            <span class="me-field__hint">opcional</span>
+          </div>
+          <input name="size" placeholder="—">
+        </div>
+      </div>
+
+      <div class="me-field">
+        <div class="me-field__label">
+          <span class="me-field__name">Estoque por variação</span>
+          <span class="me-field__hint">preencha as quantidades · 0 não cria a variação</span>
+        </div>
+        <div id="variant-matrix-wrap" style="margin-top:6px"></div>
+        <div id="variant-summary" class="me-field__hint" style="margin-top:8px"></div>
+      </div>
+    </section>
+
+    {# ─── 04 · Preço e custo ──────────────────────────── #}
+    <section class="me-section">
+      <div class="me-section__head">
+        <h2 class="me-section__title">
+          <span class="me-section__title-num">04</span>preço e custo
+        </h2>
+        <span class="me-section__aside">o que vai pra etiqueta</span>
+      </div>
+
+      <div class="me-field-grid--3">
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Custo</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:6px;border-bottom:1px solid var(--gray-300);padding:8px 0">
+            <span style="color:var(--gray-500);font-size:13px">R$</span>
+            <input name="cost_price" required placeholder="0,00" inputmode="decimal" style="border:0;padding:0;flex:1">
+          </div>
+        </div>
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Preço de venda</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:6px;border-bottom:1px solid var(--gray-300);padding:8px 0">
+            <span style="color:var(--gray-500);font-size:13px">R$</span>
+            <input name="sale_price" required placeholder="0,00" inputmode="decimal" style="border:0;padding:0;flex:1">
+          </div>
+        </div>
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Margem-alvo (%)</span>
+            <span class="me-field__hint">padrão {{ target_margin }}%</span>
+          </div>
+          <input name="target_margin_pct" value="{{ target_margin }}" inputmode="decimal">
+        </div>
+      </div>
+
+      <div class="me-field-grid">
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Estoque inicial (sem variantes)</span>
+            <span class="me-field__hint">use só se a peça não tem variações</span>
+          </div>
+          <input name="stock_qty" type="number" min="0" value="0">
+        </div>
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Estoque mínimo</span>
+            <span class="me-field__hint">dispara alerta de reposição</span>
+          </div>
+          <input name="stock_min" type="number" min="0" value="2">
+        </div>
+      </div>
+    </section>
+
+    {# ─── 05 · Dados fiscais (recolhível) ────────────── #}
+    <section class="me-section">
+      <div class="me-section__head">
+        <h2 class="me-section__title">
+          <span class="me-section__title-num">05</span>dados fiscais
+        </h2>
+        <span class="me-section__aside">opcional · usados na pré-nota</span>
+      </div>
+
+      <div class="me-field-grid--3">
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">NCM</span>
+          </div>
+          <input name="ncm" placeholder="6104.43.00">
+        </div>
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">CFOP padrão</span>
+          </div>
+          <input name="cfop" placeholder="5102">
+        </div>
+        <div class="me-field">
+          <div class="me-field__label">
+            <span class="me-field__name">Origem</span>
+          </div>
+          <select name="origin_code">
+            <option value="">—</option>
+            <option value="0">0 · nacional</option>
+            <option value="1">1 · estrangeira · importação direta</option>
+            <option value="2">2 · estrangeira · adquirida no mercado interno</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    {# ─── Footer com ações ─────────────────────────────── #}
+    <div class="me-footer-bar">
+      <div class="me-footer-bar__status">
+        <span class="me-footer-bar__dot"></span>
+        <span>rascunho · não publicado</span>
+        <span style="color:var(--gray-300)">·</span>
+        <span>preencha o nome e o preço para salvar</span>
+      </div>
+      <div class="me-footer-bar__actions">
+        <a href="{{ url_for('list_products') }}" class="btn btn--ghost">cancelar</a>
+        <button type="submit" class="btn">
+          <svg><use xlink:href="#i-check"/></svg> publicar no catálogo
+        </button>
+      </div>
+    </div>
+
+    </div>
+  </div>
+
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Preview da foto principal ─────────────────────────────────
+function mePreviewImage(input) {
+  if (!input.files || !input.files[0]) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var slot = document.getElementById('me-photo-main');
+    var ph   = document.getElementById('me-photo-placeholder');
+    if (ph) ph.style.display = 'none';
+    var existing = slot.querySelector('img.me-photo-slot__img');
+    if (!existing) {
+      var img = document.createElement('img');
+      img.className = 'me-photo-slot__img';
+      img.alt = 'Foto principal';
+      slot.insertBefore(img, slot.firstChild);
+      existing = img;
+    }
+    existing.src = e.target.result;
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+// ── Chips de cuidados (radio escondido + visual) ──────────────
+document.addEventListener('change', function(e){
+  if (e.target.matches('input[name="care_wash"]')) {
+    document.querySelectorAll('label.me-chip').forEach(function(lbl){
+      var input = lbl.querySelector('input[name="care_wash"]');
+      if (!input) return;
+      if (input.checked) {
+        lbl.classList.remove('me-chip--ghost');
+      } else {
+        lbl.classList.add('me-chip--ghost');
+      }
+    });
+  }
+});
+
+// ── Matriz cor × tamanho ──────────────────────────────────────
+function parseChips(raw) {
+  return (raw || '')
+    .split(',')
+    .map(function(s){ return s.trim(); })
+    .filter(function(s){ return s.length > 0; })
+    .filter(function(v, i, a){ return a.indexOf(v) === i; });
+}
+
+function rebuildVariantMatrix() {
+  var sizes  = parseChips(document.getElementById('var-sizes-input').value);
+  var colors = parseChips(document.getElementById('var-colors-input').value);
+  var wrap   = document.getElementById('variant-matrix-wrap');
+  var summary = document.getElementById('variant-summary');
+
+  var prev = {};
+  wrap.querySelectorAll('input[data-key]').forEach(function(inp){
+    prev[inp.dataset.key] = inp.value;
+  });
+
+  if (sizes.length === 0) {
+    wrap.innerHTML = '';
+    summary.textContent = 'informe ao menos um tamanho';
+    return;
+  }
+
+  if (colors.length === 0) colors = [''];
+
+  var html = '<div style="overflow-x:auto;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:12.5px;font-family:var(--f-body)">';
+  html += '<thead><tr><th style="text-align:left;padding:8px 8px 8px 0;border-bottom:1px solid var(--gray-200);font-weight:500;font-size:10.5px;color:var(--gray-500);font-family:var(--f-mono);letter-spacing:.1em;text-transform:uppercase">tam · cor</th>';
+  colors.forEach(function(c){
+    html += '<th style="text-align:center;padding:8px 4px;border-bottom:1px solid var(--gray-200);font-weight:500;font-size:10.5px;color:var(--gray-500);font-family:var(--f-mono);letter-spacing:.1em;text-transform:uppercase">'
+         + (c ? escapeHtml(c) : '<span style="color:var(--gray-400)">qtd</span>') + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  sizes.forEach(function(sz){
+    html += '<tr><td style="padding:8px 8px 8px 0;font-weight:600;border-bottom:1px solid var(--gray-100);font-size:13px">' + escapeHtml(sz) + '</td>';
+    colors.forEach(function(cl){
+      var key = sz + '||' + cl;
+      var val = prev[key] || '';
+      html += '<td style="padding:4px;border-bottom:1px solid var(--gray-100)">'
+           + '<input type="number" min="0" placeholder="0" value="' + escapeAttr(val) + '"'
+           + ' data-key="' + escapeAttr(key) + '" data-size="' + escapeAttr(sz) + '" data-color="' + escapeAttr(cl) + '"'
+           + ' style="width:100%;padding:6px 4px;border:1px solid var(--gray-200);border-radius:6px;text-align:center;font-size:13px;font-family:var(--f-mono);background:var(--white)"'
+           + ' oninput="syncVariantInputs()">'
+           + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  html += '<div id="variant-hidden"></div>';
+
+  wrap.innerHTML = html;
+  syncVariantInputs();
+}
+
+function syncVariantInputs() {
+  var wrap = document.getElementById('variant-hidden');
+  if (!wrap) return;
+  var inputs = document.querySelectorAll('#variant-matrix-wrap input[data-key]');
+  var hidden = '';
+  var totalUnits = 0, totalSkus = 0;
+
+  inputs.forEach(function(inp){
+    var qty = parseInt(inp.value, 10);
+    if (isNaN(qty) || qty <= 0) return;
+    totalSkus += 1;
+    totalUnits += qty;
+    hidden += '<input type="hidden" name="var_size[]"  value="' + escapeAttr(inp.dataset.size)  + '">';
+    hidden += '<input type="hidden" name="var_color[]" value="' + escapeAttr(inp.dataset.color) + '">';
+    hidden += '<input type="hidden" name="var_qty[]"   value="' + qty + '">';
+  });
+  wrap.innerHTML = hidden;
+
+  var summary = document.getElementById('variant-summary');
+  if (totalSkus > 0) {
+    summary.textContent = totalSkus + ' variação(ões) · ' + totalUnits + ' peça(s) no total';
+  } else {
+    summary.textContent = 'preencha as quantidades · 0 não cria a variação';
+  }
+}
+
+function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeAttr(s){ return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+{% endblock %}

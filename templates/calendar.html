@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Calendário comercial · tonton{% endblock %}
+{% set page_sub_label = "marketing · datas" %}
+{% block page_title %}Calendário comercial{% endblock %}
+
+{% block topbar_actions %}
+  {% if current_user and current_user['role'] == 'admin' %}
+  <button type="button" class="btn" onclick="document.getElementById('new-event').scrollIntoView({behavior:'smooth'})">
+    <svg><use xlink:href="#i-plus"/></svg> Nova data
+  </button>
+  {% endif %}
+{% endblock %}
+
+{% block body %}
+
+{# ── Hero com contagem ── #}
+<div class="card mb-3" style="background:var(--grad-hero);border:0;color:var(--white);position:relative;overflow:hidden;padding:28px">
+  <div style="position:absolute;top:-60px;right:-60px;width:220px;height:220px;border-radius:50%;background:var(--magenta);opacity:.5;filter:blur(30px)"></div>
+  <div style="position:relative">
+    <div class="text-mono" style="font-size:11px;letter-spacing:.2em;opacity:.9">✦ PRÓXIMAS DATAS</div>
+    <div class="text-display" style="font-size:42px;margin-top:10px;letter-spacing:-.02em;font-style:italic">
+      {{ upcoming|length }} {% if upcoming|length == 1 %}evento{% else %}eventos{% endif %} vindo aí
+    </div>
+    <div style="font-size:13.5px;margin-top:6px;opacity:.92">planeje campanhas com antecedência</div>
+  </div>
+</div>
+
+<div class="grid grid--2-1" style="align-items:start">
+
+  <div class="flex-col gap-3">
+
+    {# ── Próximos eventos ── #}
+    <div class="card card--flush">
+      <div class="card__header">
+        <div>
+          <div class="card__title">Próximos</div>
+          <div class="card__sub">agenda em sequência</div>
+        </div>
+      </div>
+
+      {% if upcoming %}
+        {% for e in upcoming %}
+          {% set days_to = 0 %}
+          <div class="table__row" style="grid-template-columns:80px 1fr 110px 110px">
+            {# Data visual #}
+            <div style="text-align:center;padding:6px 0;background:var(--grad-soft);border-radius:var(--r-md)">
+              <div class="text-mono" style="font-size:9.5px;letter-spacing:.12em;color:var(--magenta-deep);text-transform:uppercase">
+                {{ e['event_date'][5:7] }}/{{ e['event_date'][:4] }}
+              </div>
+              <div class="text-display" style="font-size:28px;color:var(--plum);line-height:1;margin-top:2px">
+                {{ e['event_date'][-2:] }}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-weight:600;font-size:14px">{{ e['name'] }}</div>
+              {% if 'description' in e.keys() and e['description'] %}
+                <div class="text-muted" style="font-size:12px;margin-top:2px">{{ e['description'] }}</div>
+              {% endif %}
+            </div>
+
+            <span class="chip chip--sm chip--{% if 'category' in e.keys() and e['category'] == 'feminino' %}magenta{% elif 'category' in e.keys() and e['category'] == 'sazonal' %}coral{% else %}mint{% endif %}">
+              {{ e['category'] if 'category' in e.keys() and e['category'] else 'comercial' }}
+            </span>
+
+            <div class="text-muted" style="font-size:11.5px;text-align:right">
+              {% set year = e['event_date'][:4]|int %}
+              {% set month = e['event_date'][5:7]|int %}
+              {% set day = e['event_date'][-2:]|int %}
+              {{ e['event_date'] }}
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty">
+          <div class="empty__title">Sem eventos futuros</div>
+          <div class="empty__sub">{% if current_user and current_user['role'] == 'admin' %}Cadastre a primeira data ao lado.{% else %}Peça ao admin para cadastrar datas.{% endif %}</div>
+        </div>
+      {% endif %}
+    </div>
+
+    {# ── Histórico ── #}
+    {% if past %}
+      <div class="card card--flush">
+        <div class="card__header">
+          <div>
+            <div class="card__title">Recentes</div>
+            <div class="card__sub">últimos eventos passados</div>
+          </div>
+        </div>
+        {% for e in past %}
+          <div class="table__row" style="grid-template-columns:110px 1fr 120px;opacity:.65">
+            <div class="text-mono" style="font-size:12px;color:var(--gray-700)">{{ e['event_date'] }}</div>
+            <div style="font-size:13px">{{ e['name'] }}</div>
+            <span class="chip chip--sm chip--neutral">passou</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  {# ── Form novo evento (admin) ── #}
+  {% if current_user and current_user['role'] == 'admin' %}
+    <div class="card" id="new-event" style="position:sticky;top:110px">
+      <div class="card__title">Nova data</div>
+      <div class="card__sub">evento, feriado ou estação</div>
+
+      <form method="post" action="{{ url_for('create_calendar_event') }}" class="mt-3">
+        {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+        <div class="form-group">
+          <label class="form-label">Nome *</label>
+          <div class="form-control form-control--plain">
+            <input name="name" required placeholder="Ex: Dia das Mães 2026">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Data *</label>
+          <div class="form-control">
+            <svg><use xlink:href="#i-calendar"/></svg>
+            <input name="event_date" type="date" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Categoria</label>
+          <div class="form-control form-control--plain">
+            <select name="category">
+              <option value="comercial">Comercial</option>
+              <option value="feminino">Feminino (datas próprias)</option>
+              <option value="sazonal">Sazonal</option>
+              <option value="feriado">Feriado nacional</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group mb-0">
+          <label class="form-label">Descrição</label>
+          <div class="form-control form-control--plain">
+            <textarea name="description" rows="2" placeholder="Observações, ideias de campanha…"></textarea>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn--full mt-3">
+          <svg><use xlink:href="#i-check"/></svg> Adicionar
+        </button>
+      </form>
+    </div>
+  {% else %}
+    <div class="card" style="position:sticky;top:110px;background:var(--grad-soft);border:0">
+      <div class="text-eyebrow" style="color:var(--magenta-deep)">✦ dica</div>
+      <div class="text-display" style="font-size:20px;margin-top:4px;color:var(--plum);line-height:1.25">
+        Acompanhe as datas e planeje suas campanhas com antecedência.
+      </div>
+    </div>
+  {% endif %}
+
+</div>
+
+{% endblock %}

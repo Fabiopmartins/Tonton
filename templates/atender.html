@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Atender · tonton{% endblock %}
+{% set page_sub_label = "vendedora · balcão" %}
+{% block page_title %}Atender cliente{% endblock %}
+
+{% block body %}
+
+<div class="card mb-3">
+  <form method="get" action="{{ url_for('atender_cliente') }}" class="filterbar" style="margin:0;padding:8px">
+    <svg><use xlink:href="#i-search"/></svg>
+    <input name="q" value="{{ q }}" placeholder="Telefone, nome ou e-mail" autofocus
+           class="search-pill__input"
+           style="flex:1;min-width:240px;border:0;outline:0;background:transparent;font-size:15px">
+    <button class="btn btn--primary" type="submit">Buscar</button>
+  </form>
+</div>
+
+{% if q and not customer %}
+  <div class="card empty">
+    <div class="empty__title">Nenhum cliente encontrado para "{{ q }}"</div>
+    <div class="empty__sub">
+      <a href="{{ url_for('create_customer') }}">Cadastrar novo cliente</a>
+    </div>
+  </div>
+{% endif %}
+
+{% if customer %}
+  {# Cabeçalho do cliente #}
+  <div class="card mb-3">
+    <div class="flex-between" style="gap:20px;flex-wrap:wrap;align-items:flex-start">
+      <div style="flex:1;min-width:240px">
+        <div style="font-size:22px;font-weight:600;color:var(--ink);line-height:1.2">
+          {{ customer['name'] }}
+          {% if birthday_this_month %}
+            <span class="chip chip--sm chip--magenta" style="vertical-align:middle;margin-left:8px">
+              ✦ aniversária do mês
+            </span>
+          {% endif %}
+        </div>
+        <div class="text-muted" style="font-size:13px;margin-top:4px">
+          {% if customer['phone'] %}{{ customer['phone'] }}{% endif %}
+          {% if customer['email'] %} · {{ customer['email'] }}{% endif %}
+          {% if customer['instagram'] %} · @{{ customer['instagram']|trim('@') }}{% endif %}
+        </div>
+      </div>
+
+      {% if wa_link %}
+        <a href="{{ wa_link }}" target="_blank" rel="noopener" class="btn btn--primary">
+          <svg><use xlink:href="#i-message"/></svg> Abrir WhatsApp
+        </a>
+      {% elif not store_phone %}
+        <div class="text-muted" style="font-size:11.5px;text-align:right;max-width:220px">
+          Configure o WhatsApp da loja em
+          <a href="{{ url_for('store_settings_view') }}">Ajustes</a> para liberar o botão.
+        </div>
+      {% elif not customer['phone'] %}
+        <div class="text-muted" style="font-size:11.5px;text-align:right;max-width:220px">
+          Cliente sem telefone cadastrado.
+          <a href="{{ url_for('edit_customer', cid=customer['id']) }}">Adicionar</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# KPIs do cliente #}
+  <div class="grid grid--kpi mb-3">
+    <div class="card kpi">
+      <div class="kpi__label">Última compra</div>
+      <div class="kpi__value kpi__value--coral">
+        {% if days_since_last is not none %}
+          {{ days_since_last }}<span style="font-size:14px">d</span>
+        {% else %}—{% endif %}
+      </div>
+      <div class="text-muted" style="font-size:11.5px">
+        {% if history %}
+          {{ history[0]['created_at'][:10] }}
+        {% else %}sem compras{% endif %}
+      </div>
+    </div>
+
+    <div class="card kpi">
+      <div class="kpi__label">Total de compras</div>
+      <div class="kpi__value kpi__value--magenta">{{ history|length }}</div>
+      <div class="text-muted" style="font-size:11.5px">no histórico</div>
+    </div>
+
+    <div class="card kpi">
+      <div class="kpi__label">Tamanho usual</div>
+      <div class="kpi__value">
+        {% if usual_sizes %}
+          {{ usual_sizes[0]['size'] }}
+        {% else %}—{% endif %}
+      </div>
+      <div class="text-muted" style="font-size:11.5px">
+        {% if usual_sizes|length > 1 %}
+          também: {{ usual_sizes[1:]|map(attribute='size')|join(', ') }}
+        {% else %}base do histórico{% endif %}
+      </div>
+    </div>
+
+    <div class="card kpi">
+      <div class="kpi__label">Crédito + vales</div>
+      <div class="kpi__value kpi__value--mint">
+        R$ {{ "%.2f"|format(active_credits + (active_gift_cards|sum(attribute='current_balance')|float)) }}
+      </div>
+      <div class="text-muted" style="font-size:11.5px">
+        {% if active_gift_cards %}{{ active_gift_cards|length }} vale(s) ativo(s){% else %}só crédito{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Histórico de compras #}
+  <div class="card card--flush">
+    <div class="card__header">
+      <div>
+        <div class="card__title">Histórico recente</div>
+        <div class="card__sub">últimas {{ history|length }} compras</div>
+      </div>
+    </div>
+
+    {% if history %}
+      <div class="table__head" style="grid-template-columns:120px 1fr 130px 120px 100px">
+        <span>Data</span><span>Itens</span><span>Pagamento</span><span>Total</span><span>Status</span>
+      </div>
+      {% for s in history %}
+        <div class="table__row" style="grid-template-columns:120px 1fr 130px 120px 100px">
+          <div class="text-muted" style="font-size:12.5px">{{ s['created_at'][:10] }}</div>
+          <div style="font-size:13px">
+            <a href="{{ url_for('sale_detail', sid=s['id']) }}" style="color:var(--ink)">
+              #{{ s['sale_number'] or s['id'] }}
+            </a>
+            <div class="text-muted" style="font-size:11px;margin-top:2px">{{ (s['items'] or '—')[:80] }}</div>
+          </div>
+          <div class="text-muted" style="font-size:12.5px">{{ s['payment_method'] or '—' }}</div>
+          <div style="font-weight:600">R$ {{ "%.2f"|format(s['total']|float) }}</div>
+          <span class="chip chip--sm chip--{{ 'mint' if s['status'] != 'cancelled' else 'neutral' }}">
+            {{ s['status'] or 'ok' }}
+          </span>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty">
+        <div class="empty__title">Cliente sem compras</div>
+        <div class="empty__sub">primeira venda? <a href="{{ url_for('create_sale') }}?customer_id={{ customer['id'] }}">criar venda</a></div>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,903 @@
+{% extends "base.html" %}
+{% block title %}Variantes · {{ product['name'] }} · tonton{% endblock %}
+{% set page_sub_label = "produto · variantes" %}
+{% block page_title %}{{ product['name'] }} · variantes{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('product_detail', pid=product['id']) }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar ao produto
+  </a>
+{% endblock %}
+
+{% block body %}
+
+<div class="grid grid--2-1" style="align-items:start">
+
+  {# ── Lista de variantes existentes ── #}
+  <div class="card card--flush">
+    <div class="card__header">
+      <div>
+        <div class="card__title">Variantes cadastradas</div>
+        <div class="card__sub">
+          {{ variants|length }} {{ 'variante' if variants|length == 1 else 'variantes' }}
+          {% if variants %}
+            · estoque total: <strong>{{ variants|sum(attribute='stock_qty') }}</strong> peça(s)
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if variants %}
+      <form method="post" action="{{ url_for('variant_promo_bulk', pid=product['id']) }}" id="bulk-form">
+        {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+        <div class="table__head" style="grid-template-columns:36px 80px 90px 52px 100px 1fr 140px 80px 110px">
+          <span><input type="checkbox" id="chk-all" onchange="toggleAll(this)" style="width:16px;height:16px;cursor:pointer"></span>
+          <span>Tamanho</span><span>Cor</span><span>Foto</span><span>SKU</span>
+          <span>Preço</span><span>Estoque</span><span>Status</span><span></span>
+        </div>
+
+        {% for v in variants %}
+          {% set promo_active = has_active_promo(v) %}
+          {% set sq = v['stock_qty']|int %}
+          {% set sm = v['stock_min']|int %}
+          {% if sq == 0 %}
+            {% set stock_state = 'out' %}
+          {% elif sq <= sm %}
+            {% set stock_state = 'low' %}
+          {% else %}
+            {% set stock_state = 'ok' %}
+          {% endif %}
+          <div class="table__row" style="grid-template-columns:36px 80px 90px 52px 100px 1fr 140px 80px 110px"
+               data-variant-row="{{ v['id'] }}">
+            <div>
+              <input type="checkbox" name="variant_ids[]" value="{{ v['id'] }}"
+                     class="chk-variant" onchange="updateBulkSummary()"
+                     style="width:16px;height:16px;cursor:pointer">
+            </div>
+            <div style="font-weight:600">{{ v['size'] or '—' }}</div>
+            <div class="flex-center gap-1">
+              {% if v['color'] %}
+                <span style="width:12px;height:12px;border-radius:50%;background:{{ v['color']|lower }};border:1px solid var(--gray-300)"></span>
+              {% endif %}
+              <span>{{ v['color'] or '—' }}</span>
+            </div>
+            <div class="variant-photo">
+              {% if v['color_photo_id'] %}
+                <button type="button" class="variant-photo__btn variant-photo__btn--has"
+                        title="Foto da cor {{ v['color'] or '—' }} · clique para trocar"
+                        data-variant-photo-color="{{ v['color'] or '' }}">
+                  <img src="{{ url_for('product_gallery_image', pid=product['id'], img_id=v['color_photo_id'], v=v['color_photo_version']) }}"
+                       alt="Foto {{ v['color'] }}" loading="lazy">
+                </button>
+              {% elif v['color'] %}
+                <button type="button" class="variant-photo__btn variant-photo__btn--add"
+                        title="Adicionar foto da cor {{ v['color'] }}"
+                        data-variant-photo-color="{{ v['color'] }}">
+                  <span>+</span>
+                </button>
+              {% else %}
+                <span class="text-muted" style="font-size:11px">—</span>
+              {% endif %}
+            </div>
+            <div class="text-mono" style="font-size:11.5px;color:var(--gray-700)">{{ v['sku'] }}</div>
+            <div style="font-size:13px;line-height:1.4">
+              {% if promo_active %}
+                <div>
+                  <span style="text-decoration:line-through;color:var(--gray-500);font-size:12px">R$ {{ format_money(v['sale_price']) }}</span>
+                  <span style="font-weight:700;color:var(--magenta);margin-left:4px">R$ {{ format_money(v['promo_price']) }}</span>
+                </div>
+                {% if v['promo_until'] %}
+                  <div class="text-muted" style="font-size:10.5px">até {{ format_date_local(v['promo_until']) }}</div>
+                {% endif %}
+              {% else %}
+                <span style="font-weight:600">R$ {{ format_money(v['sale_price']) }}</span>
+                <span class="text-muted" style="font-size:11.5px">· custo R$ {{ format_money(v['cost_price']) }}</span>
+              {% endif %}
+            </div>
+
+            {# ── Coluna estoque: +/- rápido + número + ajustar + histórico ── #}
+            <div class="stock-cell" data-stock-state="{{ stock_state }}">
+              <button type="button" class="stock-btn stock-btn--minus"
+                      data-stock-quick="-1" data-vid="{{ v['id'] }}"
+                      title="Saída de 1"
+                      {% if sq == 0 %}disabled{% endif %}>−</button>
+              <span class="stock-num" data-stock-num>{{ sq }}</span>
+              <button type="button" class="stock-btn stock-btn--plus"
+                      data-stock-quick="+1" data-vid="{{ v['id'] }}"
+                      title="Entrada de 1">+</button>
+              <button type="button" class="stock-btn stock-btn--adjust"
+                      onclick="openAdjustModal({{ v['id'] }},
+                                               {{ (v['size'] or '—')|tojson|forceescape }},
+                                               {{ (v['color'] or '—')|tojson|forceescape }},
+                                               {{ sq }})"
+                      title="Ajuste detalhado com motivo">⋯</button>
+              <button type="button" class="stock-btn stock-btn--hist"
+                      onclick="openHistoryDrawer({{ v['id'] }},
+                                                 {{ (v['size'] or '—')|tojson|forceescape }},
+                                                 {{ (v['color'] or '—')|tojson|forceescape }})"
+                      title="Histórico de movimentações">
+                <svg style="width:11px;height:11px"><use xlink:href="#i-clock"/></svg>
+              </button>
+            </div>
+
+            <span class="chip chip--sm chip--{{ 'mint' if v['is_active'] else 'neutral' }}">
+              {{ 'ativa' if v['is_active'] else 'inativa' }}
+            </span>
+            <div class="flex gap-1" style="justify-content:flex-end">
+              <button type="button" class="btn btn--soft btn--sm" style="padding:4px 8px;font-size:11px"
+                      onclick="openPromoModal({{ v['id'] }},
+                                              {{ (v['size'] or '—')|tojson|forceescape }},
+                                              {{ (v['color'] or '—')|tojson|forceescape }},
+                                              {{ (v['sale_price']|string)|tojson|forceescape }},
+                                              {{ 'true' if promo_active else 'false' }})">
+                {% if promo_active %}Promo{% else %}Promover{% endif %}
+              </button>
+            </div>
+          </div>
+        {% endfor %}
+
+        <div id="bulk-bar" style="display:none;padding:14px 18px;background:var(--gray-50);border-top:1px solid var(--gray-200);gap:12px;align-items:center;flex-wrap:wrap">
+          <span id="bulk-count" style="font-weight:600;font-size:13px"></span>
+          <div class="flex gap-2" style="align-items:center;flex-wrap:wrap">
+            <label style="font-size:12px;color:var(--gray-700)">Desconto</label>
+            <input name="promo_pct" type="number" min="1" max="99" step="1" placeholder="ex: 30"
+                   style="width:70px;padding:6px 8px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px">
+            <span style="font-size:12px">%</span>
+            <label style="font-size:12px;color:var(--gray-700);margin-left:8px">Até</label>
+            <input name="promo_until" type="date"
+                   style="padding:6px 8px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px">
+            <span class="text-muted" style="font-size:11px">(opcional)</span>
+            <button type="submit" name="action" value="set" class="btn btn--sm" style="margin-left:8px">Aplicar promoção</button>
+            <button type="submit" name="action" value="clear" class="btn btn--ghost btn--sm"
+                    onclick="return confirm('Remover promoção das variantes selecionadas?')">Remover promoção</button>
+          </div>
+        </div>
+      </form>
+    {% else %}
+      <div class="empty">
+        <div class="empty__title">Sem variantes ainda</div>
+        <div class="empty__sub">Use o painel ao lado para cadastrar tamanhos e cores em lote.</div>
+      </div>
+    {% endif %}
+  </div>
+
+  {# ── Form de adição em matriz cor × tamanho ── #}
+  <div class="card" style="position:sticky;top:110px">
+    <div class="card__title">Adicionar variantes</div>
+    <div class="card__sub">tamanhos e cores em lote · custo/preço herdam do produto</div>
+
+    <form method="post" class="mt-2">
+      {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+      <div class="form-group">
+        <label class="form-label">Tamanhos</label>
+        <div class="form-control form-control--plain">
+          <input id="var-sizes-input" placeholder="2, 4, 6, 8, 10 (anos)"
+                 onchange="rebuildVariantMatrix()" onblur="rebuildVariantMatrix()">
+        </div>
+        <div class="form-hint">Separe por vírgula. Ex: P, M, G, GG</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Cores</label>
+        <div class="form-control form-control--plain">
+          <input id="var-colors-input" placeholder="tangerina, preto, off-white"
+                 onchange="rebuildVariantMatrix()" onblur="rebuildVariantMatrix()">
+        </div>
+        <div class="form-hint">Separe por vírgula. Deixe vazio se não houver cor.</div>
+      </div>
+
+      <div id="variant-matrix-wrap" style="margin-top:8px"></div>
+      <div class="form-hint" id="variant-summary" style="margin-top:8px"></div>
+
+      <button type="submit" class="btn btn--full mt-3" id="btn-save-variants" disabled>
+        <svg><use xlink:href="#i-check"/></svg> Salvar variantes
+      </button>
+    </form>
+  </div>
+
+</div>
+
+{# ── CSS específico da coluna estoque ── #}
+<style>
+  .stock-cell{
+    display:inline-flex; align-items:center; gap:4px;
+    padding:3px 5px; border-radius:8px;
+    background:var(--gray-100); border:1px solid var(--gray-200);
+    width:fit-content;
+  }
+  .stock-cell[data-stock-state="out"]   { background:#ffe4e4; border-color:#ffb8b8; }
+  .stock-cell[data-stock-state="low"]   { background:#fff1d6; border-color:#f5d5a0; }
+  .stock-num{
+    min-width:28px; padding:0 4px; text-align:center;
+    font-weight:700; font-size:13.5px; color:var(--gray-900);
+    font-variant-numeric:tabular-nums;
+  }
+  .stock-cell[data-stock-state="out"] .stock-num{ color:var(--magenta-deep); }
+  .stock-cell[data-stock-state="low"] .stock-num{ color:#a07020; }
+  .stock-btn{
+    width:24px; height:24px; padding:0;
+    display:inline-flex; align-items:center; justify-content:center;
+    border:1px solid var(--gray-300); background:var(--white);
+    border-radius:6px; cursor:pointer; font-weight:700;
+    font-size:13px; color:var(--gray-900); line-height:1;
+    transition:all .12s ease;
+  }
+  .stock-btn:hover:not(:disabled){ background:var(--gray-100); border-color:var(--gray-700); }
+  .stock-btn:active:not(:disabled){ transform:scale(.92); }
+  .stock-btn:disabled{ opacity:.35; cursor:not-allowed; }
+  .stock-btn--minus:hover:not(:disabled){ background:#ffe4e4; border-color:#ff8a8a; color:#a02020; }
+  .stock-btn--plus:hover:not(:disabled){ background:#d6f5e4; border-color:#7fc89a; color:#1b7a42; }
+  .stock-btn--adjust{ font-size:14px; }
+  .stock-btn--hist{ width:22px; height:24px; }
+  .stock-btn--hist svg{ color:var(--gray-700); }
+  .stock-cell.is-flashing{ animation: stock-flash .6s ease-out; }
+  @keyframes stock-flash{
+    0%{ box-shadow:0 0 0 0 var(--coral-deep); }
+    50%{ box-shadow:0 0 0 6px rgba(255,107,58,.0); transform:scale(1.05); }
+    100%{ box-shadow:0 0 0 0 rgba(255,107,58,0); }
+  }
+
+  /* Drawer histórico */
+  .history-backdrop{
+    display:none; position:fixed; inset:0;
+    background:rgba(61,15,36,.5); z-index:1000;
+    align-items:flex-end; justify-content:flex-end;
+  }
+  .history-backdrop.is-open{ display:flex; }
+  .history-drawer{
+    width:min(480px, 100%); height:100vh; max-height:100vh;
+    background:var(--white);
+    box-shadow:-8px 0 32px rgba(0,0,0,.2);
+    display:flex; flex-direction:column;
+    animation: slide-in .25s ease-out;
+  }
+  @keyframes slide-in{ from{transform:translateX(100%)} to{transform:none} }
+  .history-drawer__head{
+    padding:18px 22px; border-bottom:1px solid var(--gray-200);
+    display:flex; justify-content:space-between; align-items:flex-start;
+  }
+  .history-drawer__close{
+    background:none; border:0; font-size:22px; cursor:pointer; color:var(--gray-700);
+    line-height:1; padding:0 4px;
+  }
+  .history-drawer__body{ flex:1; overflow:auto; padding:14px 22px; }
+  .history-event{
+    display:grid; grid-template-columns:auto 1fr auto;
+    gap:10px; padding:10px 0; border-bottom:1px solid var(--gray-100);
+    align-items:center; font-size:12.5px;
+  }
+  .history-event__delta{
+    font-weight:700; font-family:var(--f-mono); font-size:14px;
+    padding:3px 9px; border-radius:6px; min-width:48px; text-align:center;
+  }
+  .history-event__delta--in{ background:#d6f5e4; color:#1b7a42; }
+  .history-event__delta--out{ background:#ffe4e4; color:#a02020; }
+  .history-event__delta--adjust{ background:#fff1d6; color:#a07020; }
+  .history-event__delta--sale{ background:var(--coral-glow); color:var(--coral-deep); }
+  .history-event__delta--return{ background:var(--gray-200); color:var(--gray-700); }
+  .history-event__when{ color:var(--gray-700); font-size:10.5px; font-family:var(--f-mono); }
+  .history-event__reason{ font-weight:500; }
+  .history-event__op{ color:var(--gray-700); font-size:11px; }
+</style>
+
+{# ── Modal de ajuste de estoque (entrada/saída/acerto absoluto) ── #}
+<div id="adjust-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:20px"
+     onclick="if(event.target===this) closeAdjustModal()">
+  <div style="background:var(--white);border-radius:var(--r-md);max-width:480px;width:100%;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,.2)">
+    <div style="font-size:17px;font-weight:600;margin-bottom:4px">Ajustar estoque</div>
+    <div id="adjust-sub" class="text-muted" style="font-size:13px;margin-bottom:18px"></div>
+
+    <form method="post" id="adjust-form">
+      {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+      <label class="form-label" style="margin-bottom:8px">Tipo de movimentação</label>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+        <label class="adjust-type-card" data-type-card="in">
+          <input type="radio" name="type" value="in" checked style="display:none">
+          <strong>+ Entrada</strong>
+          <span>Compra, devolução, retorno</span>
+        </label>
+        <label class="adjust-type-card" data-type-card="out">
+          <input type="radio" name="type" value="out" style="display:none">
+          <strong>− Saída</strong>
+          <span>Avaria, perda, brinde</span>
+        </label>
+        <label class="adjust-type-card" data-type-card="adjust">
+          <input type="radio" name="type" value="adjust" style="display:none">
+          <strong>= Acerto</strong>
+          <span>O total agora é X</span>
+        </label>
+      </div>
+
+      <div class="grid grid--2 gap-2 mb-2">
+        <div>
+          <label class="form-label">Quantidade</label>
+          <div class="form-control form-control--plain">
+            <input name="qty" type="number" min="0" step="1" id="adjust-qty" required>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Estoque atual</label>
+          <div class="form-control form-control--plain" style="background:var(--gray-100);font-weight:700">
+            <input id="adjust-current" disabled>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Motivo / observação</label>
+        <div class="form-control form-control--plain">
+          <input name="reason" maxlength="200" placeholder="Ex: chegou da fábrica · contagem mensal · avaria"
+                 id="adjust-reason">
+        </div>
+        <div class="form-hint" id="adjust-preview" style="margin-top:6px;font-weight:600"></div>
+      </div>
+
+      <div class="flex gap-2 mt-3">
+        <button type="button" class="btn btn--ghost" style="flex:1" onclick="closeAdjustModal()">Cancelar</button>
+        <button type="submit" class="btn" style="flex:2">
+          <svg><use xlink:href="#i-check"/></svg> Aplicar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+  .adjust-type-card{
+    display:flex; flex-direction:column; gap:2px;
+    padding:10px; border:2px solid var(--gray-200); border-radius:8px;
+    cursor:pointer; transition:all .15s ease; user-select:none;
+  }
+  .adjust-type-card:hover{ background:var(--gray-100); }
+  .adjust-type-card strong{ font-size:13px; color:var(--gray-900); }
+  .adjust-type-card span{ font-size:10.5px; color:var(--gray-700); line-height:1.3; }
+  .adjust-type-card.is-selected{ border-color:var(--coral-deep); background:var(--coral-glow); }
+  .adjust-type-card.is-selected strong{ color:var(--coral-deep); }
+</style>
+
+{# ── Drawer de histórico de movimentações ── #}
+<div id="history-backdrop" class="history-backdrop" onclick="if(event.target===this) closeHistoryDrawer()">
+  <div class="history-drawer">
+    <div class="history-drawer__head">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:var(--plum)">Histórico de estoque</div>
+        <div id="history-sub" class="text-muted" style="font-size:12px;margin-top:2px"></div>
+      </div>
+      <button type="button" class="history-drawer__close" onclick="closeHistoryDrawer()" aria-label="Fechar">×</button>
+    </div>
+    <div class="history-drawer__body" id="history-body">
+      <div class="text-muted" style="text-align:center;padding:40px 0">carregando…</div>
+    </div>
+  </div>
+</div>
+
+{# ── Modal de promoção por linha ── #}
+<div id="promo-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:20px"
+     onclick="if(event.target===this) closePromoModal()">
+  <div style="background:var(--white);border-radius:var(--r-md);max-width:460px;width:100%;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,.2)">
+    <div style="font-size:17px;font-weight:600;margin-bottom:4px">Promover variante</div>
+    <div id="promo-modal-sub" class="text-muted" style="font-size:13px;margin-bottom:18px"></div>
+
+    <form method="post" id="promo-form">
+      {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button type="button" class="btn btn--sm" id="tab-pct" onclick="switchPromoTab('pct')" style="flex:1">% desconto</button>
+        <button type="button" class="btn btn--ghost btn--sm" id="tab-fix" onclick="switchPromoTab('fix')" style="flex:1">R$ fixo</button>
+      </div>
+
+      <div id="promo-tab-pct">
+        <label class="form-label">Desconto (%)</label>
+        <div class="form-control form-control--plain">
+          <input name="promo_pct" id="modal-pct" type="number" min="1" max="99" step="1" placeholder="30">
+        </div>
+        <div class="form-hint" id="pct-preview"></div>
+      </div>
+
+      <div id="promo-tab-fix" style="display:none">
+        <label class="form-label">Preço promocional (R$)</label>
+        <div class="form-control">
+          <span class="text-muted">R$</span>
+          <input name="promo_price" id="modal-price" inputmode="decimal" placeholder="0,00">
+        </div>
+        <div class="form-hint" id="modal-base-hint"></div>
+      </div>
+
+      <div class="form-group" style="margin-top:14px;margin-bottom:0">
+        <label class="form-label">Validade</label>
+        <div class="form-control form-control--plain">
+          <input name="promo_until" type="date">
+        </div>
+        <div class="form-hint">Opcional. Após esta data a promoção é ignorada automaticamente.</div>
+      </div>
+
+      <div class="flex gap-2" style="justify-content:flex-end;margin-top:22px">
+        <button type="button" class="btn btn--ghost" onclick="closePromoModal()">Cancelar</button>
+        <button type="submit" name="action" value="clear" class="btn btn--ghost"
+                id="btn-clear-promo" style="display:none"
+                onclick="return confirm('Remover promoção desta variante?')">Remover promoção</button>
+        <button type="submit" name="action" value="set" class="btn">Aplicar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# v10.4: Modal de upload de foto da cor da variante #}
+<div id="variant-photo-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--white);border-radius:var(--r-lg);max-width:440px;width:100%;max-height:92vh;overflow:auto;padding:24px">
+    <div class="flex-between" style="align-items:flex-start;margin-bottom:14px">
+      <div>
+        <div class="text-eyebrow" style="color:var(--coral-deep)">✦ foto da cor</div>
+        <div style="font-size:18px;font-weight:600;margin-top:2px">
+          Foto · <span id="vphoto-color-label">—</span>
+        </div>
+        <div class="text-muted" style="font-size:12px;margin-top:4px;line-height:1.4">
+          Esta foto será exibida quando o cliente clicar no swatch desta cor no catálogo.
+          Vale para todos os tamanhos (P, M, G, GG…) desta cor.
+        </div>
+      </div>
+      <button type="button" class="icon-btn" onclick="closeVariantPhotoModal()" aria-label="Fechar"
+              style="background:var(--gray-100);width:34px;height:34px;border-radius:50%;border:0;cursor:pointer;display:grid;place-items:center">
+        <svg style="width:14px;height:14px"><use xlink:href="#i-x"/></svg>
+      </button>
+    </div>
+
+    <form method="post" action="{{ url_for('product_gallery_upload', pid=product['id']) }}"
+          enctype="multipart/form-data">
+      {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+      <input type="hidden" name="back" value="variants">
+      <input type="hidden" name="color" id="vphoto-color-input" value="">
+
+      <div class="form-group">
+        <label class="form-label">Arquivo</label>
+        <div class="form-control form-control--plain">
+          <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required>
+        </div>
+        <div class="form-hint">JPG, PNG ou WebP · máx 5 MB · orientação corrigida automaticamente</div>
+      </div>
+
+      <div class="flex gap-1" style="margin-top:14px">
+        <button type="button" class="btn btn--ghost" style="flex:1" onclick="closeVariantPhotoModal()">
+          Cancelar
+        </button>
+        <button type="submit" class="btn btn--lg" style="flex:1">
+          <svg><use xlink:href="#i-upload"/></svg> Enviar
+        </button>
+      </div>
+    </form>
+
+    <div style="background:var(--grad-soft);padding:12px 14px;border-radius:var(--r-md);margin-top:14px;font-size:11.5px;color:var(--plum);line-height:1.5">
+      Para gerenciar todas as fotos do produto (geral, detalhes, ordem, capa),
+      use a <a href="{{ url_for('product_gallery', pid=product['id']) }}" style="color:var(--magenta-deep);font-weight:700">galeria completa →</a>
+    </div>
+  </div>
+</div>
+
+<style>
+  .variant-photo {
+    display: grid;
+    place-items: center;
+  }
+  .variant-photo__btn {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--r-sm);
+    border: 1px dashed var(--gray-300);
+    background: var(--gray-100);
+    cursor: pointer;
+    padding: 0;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    transition: all .15s ease;
+  }
+  .variant-photo__btn:hover {
+    border-color: var(--coral);
+    transform: scale(1.05);
+  }
+  .variant-photo__btn--has {
+    border-style: solid;
+    border-color: var(--gray-200);
+  }
+  .variant-photo__btn--has img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .variant-photo__btn--add {
+    color: var(--coral-deep);
+    font-size: 22px;
+    font-weight: 300;
+    line-height: 1;
+  }
+</style>
+
+<script>
+  function openVariantPhotoModal(color) {
+    var m = document.getElementById('variant-photo-modal');
+    if (!m) {
+      console.error('variant-photo-modal não encontrado no DOM');
+      return;
+    }
+    // Portal: move o modal para <body> para escapar de qualquer
+    // stacking context / overflow:hidden de containers ancestrais
+    if (m.parentNode !== document.body) {
+      document.body.appendChild(m);
+    }
+    document.getElementById('vphoto-color-label').textContent = color || '—';
+    document.getElementById('vphoto-color-input').value = color || '';
+    m.style.display = 'flex';
+  }
+  function closeVariantPhotoModal() {
+    var m = document.getElementById('variant-photo-modal');
+    if (m) m.style.display = 'none';
+  }
+  // Delegated listener: usa data-variant-photo-color em vez de onclick
+  // (o onclick com |tojson era HTML-malformado em atributo aspa-dupla
+  //  porque tojson do Flask não escapa aspas duplas → handler não rodava)
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-variant-photo-color]');
+    if (!btn) return;
+    e.stopPropagation();
+    e.preventDefault();
+    openVariantPhotoModal(btn.getAttribute('data-variant-photo-color') || '');
+  });
+  // ESC fecha
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') {
+      var m = document.getElementById('variant-photo-modal');
+      if (m && m.style.display === 'flex') closeVariantPhotoModal();
+    }
+  });
+</script>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ─── Matriz cor × tamanho (mesmo padrão do create_product) ───────────
+function parseChips(raw) {
+  return (raw || '')
+    .split(',')
+    .map(function(s){ return s.trim(); })
+    .filter(function(s){ return s.length > 0; })
+    .filter(function(v, i, a){ return a.indexOf(v) === i; });
+}
+
+function rebuildVariantMatrix() {
+  var sizes  = parseChips(document.getElementById('var-sizes-input').value);
+  var colors = parseChips(document.getElementById('var-colors-input').value);
+  var wrap   = document.getElementById('variant-matrix-wrap');
+  var summary = document.getElementById('variant-summary');
+
+  var prev = {};
+  wrap.querySelectorAll('input[data-key]').forEach(function(inp){
+    prev[inp.dataset.key] = inp.value;
+  });
+
+  if (sizes.length === 0) {
+    wrap.innerHTML = '';
+    summary.textContent = 'Informe ao menos um tamanho para continuar.';
+    document.getElementById('btn-save-variants').disabled = true;
+    return;
+  }
+
+  var displayCols = colors.length === 0 ? [''] : colors;
+
+  var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr><th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--gray-200);font-weight:600;font-size:11.5px;color:var(--gray-700)">Tam · Cor</th>';
+  displayCols.forEach(function(c){
+    html += '<th style="text-align:center;padding:6px 4px;border-bottom:1px solid var(--gray-200);font-weight:600;font-size:11.5px">'
+         + (c ? escapeHtml(c) : '<span style="color:var(--gray-500)">qtd</span>') + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  sizes.forEach(function(sz){
+    html += '<tr><td style="padding:6px 8px;font-weight:600;border-bottom:1px solid var(--gray-100);font-size:12.5px">' + escapeHtml(sz) + '</td>';
+    displayCols.forEach(function(cl){
+      var key = sz + '||' + cl;
+      var val = prev[key] || '';
+      html += '<td style="padding:3px;border-bottom:1px solid var(--gray-100)">'
+           + '<input type="number" min="0" placeholder="0" value="' + escapeAttr(val) + '"'
+           + ' data-key="' + escapeAttr(key) + '" data-size="' + escapeAttr(sz) + '" data-color="' + escapeAttr(cl) + '"'
+           + ' style="width:100%;padding:6px;border:1px solid var(--gray-200);border-radius:6px;text-align:center;font-size:13px"'
+           + ' oninput="syncVariantInputs()">'
+           + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  html += '<div id="variant-hidden"></div>';
+
+  wrap.innerHTML = html;
+  syncVariantInputs();
+}
+
+function syncVariantInputs() {
+  var wrap = document.getElementById('variant-hidden');
+  if (!wrap) return;
+  var inputs = document.querySelectorAll('#variant-matrix-wrap input[data-key]');
+  var hidden = '';
+  var totalUnits = 0, totalSkus = 0;
+
+  inputs.forEach(function(inp){
+    var qty = parseInt(inp.value, 10);
+    if (isNaN(qty) || qty <= 0) return;
+    totalSkus += 1;
+    totalUnits += qty;
+    hidden += '<input type="hidden" name="var_size[]"  value="' + escapeAttr(inp.dataset.size)  + '">';
+    hidden += '<input type="hidden" name="var_color[]" value="' + escapeAttr(inp.dataset.color) + '">';
+    hidden += '<input type="hidden" name="var_qty[]"   value="' + qty + '">';
+  });
+  wrap.innerHTML = hidden;
+
+  var summary = document.getElementById('variant-summary');
+  var btn = document.getElementById('btn-save-variants');
+  if (totalSkus > 0) {
+    summary.textContent = totalSkus + ' variação(ões) · ' + totalUnits + ' peça(s) no total.';
+    summary.style.color = 'var(--mint-deep)';
+    btn.disabled = false;
+  } else {
+    summary.textContent = 'Preencha as quantidades. Variações com 0 não serão criadas.';
+    summary.style.color = '';
+    btn.disabled = true;
+  }
+}
+
+function escapeAttr(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── Seleção em lote ────────────────────────────────────────────────
+function toggleAll(src) {
+  document.querySelectorAll('.chk-variant').forEach(function(c){ c.checked = src.checked; });
+  updateBulkSummary();
+}
+
+function updateBulkSummary() {
+  var checked = document.querySelectorAll('.chk-variant:checked').length;
+  var bar = document.getElementById('bulk-bar');
+  var count = document.getElementById('bulk-count');
+  if (!bar) return;
+  if (checked > 0) {
+    bar.style.display = 'flex';
+    count.textContent = checked + ' variante(s) selecionada(s)';
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+// ─── Modal de promoção por linha ────────────────────────────────────
+var _promoBasePrice = 0;
+var _productId = {{ product['id'] }};
+
+function openPromoModal(vid, size, color, salePrice, isActive) {
+  _promoBasePrice = parseFloat(salePrice) || 0;
+  document.getElementById('promo-form').action = '/products/' + _productId + '/variants/' + vid + '/promo';
+  document.getElementById('promo-modal-sub').textContent =
+    'Tamanho ' + size + ' · cor ' + color + ' · preço cheio R$ ' + _promoBasePrice.toFixed(2).replace('.', ',');
+  document.getElementById('modal-base-hint').textContent =
+    'Preço cheio: R$ ' + _promoBasePrice.toFixed(2).replace('.', ',');
+  document.getElementById('btn-clear-promo').style.display = isActive ? 'inline-flex' : 'none';
+  document.getElementById('modal-pct').value = '';
+  document.getElementById('modal-price').value = '';
+  document.getElementById('pct-preview').textContent = '';
+  switchPromoTab('pct');
+  document.getElementById('promo-modal').style.display = 'flex';
+}
+
+function closePromoModal() {
+  document.getElementById('promo-modal').style.display = 'none';
+}
+
+function switchPromoTab(which) {
+  var pct = which === 'pct';
+  document.getElementById('promo-tab-pct').style.display = pct ? 'block' : 'none';
+  document.getElementById('promo-tab-fix').style.display = pct ? 'none' : 'block';
+  document.getElementById('tab-pct').className = pct ? 'btn btn--sm' : 'btn btn--ghost btn--sm';
+  document.getElementById('tab-fix').className = pct ? 'btn btn--ghost btn--sm' : 'btn btn--sm';
+  if (pct) document.getElementById('modal-price').value = '';
+  else document.getElementById('modal-pct').value = '';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  rebuildVariantMatrix();
+  var pctInput = document.getElementById('modal-pct');
+  if (pctInput) {
+    pctInput.addEventListener('input', function() {
+      var v = parseFloat(this.value);
+      var preview = document.getElementById('pct-preview');
+      if (isNaN(v) || v <= 0 || v >= 100 || _promoBasePrice <= 0) {
+        preview.textContent = '';
+        return;
+      }
+      var newPrice = _promoBasePrice * (100 - v) / 100;
+      preview.textContent = 'Preço final: R$ ' + newPrice.toFixed(2).replace('.', ',');
+    });
+  }
+  // Bind +/− rápido em todas as variantes
+  bindStockQuickButtons();
+  bindAdjustTypeCards();
+});
+
+// ─── Estoque: +/− rápido (AJAX, sem reload) ─────────────────────
+function bindStockQuickButtons() {
+  document.querySelectorAll('[data-stock-quick]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var vid   = btn.dataset.vid;
+      var delta = btn.dataset.stockQuick === '+1' ? 1 : -1;
+      stockQuickAdjust(vid, delta, btn);
+    });
+  });
+}
+
+async function stockQuickAdjust(vid, delta, sourceBtn) {
+  var pid = {{ product['id'] }};
+  var csrf = '{{ session.get("csrf_token", "") }}';
+  // Disable temporario para evitar duplo clique
+  var siblings = sourceBtn.closest('.stock-cell').querySelectorAll('.stock-btn');
+  siblings.forEach(function(b){ b.disabled = true; });
+  try {
+    var fd = new FormData();
+    fd.append('delta', delta);
+    fd.append('csrf_token', csrf);
+    var r = await fetch('/products/' + pid + '/variants/' + vid + '/stock-quick', {
+      method: 'POST', body: fd, credentials: 'same-origin'
+    });
+    var data = await r.json();
+    if (!data.ok) {
+      alert(data.error || 'Erro ao ajustar estoque.');
+      return;
+    }
+    // Atualiza UI sem reload
+    var row = document.querySelector('[data-variant-row="' + vid + '"]');
+    if (!row) return;
+    var cell = row.querySelector('.stock-cell');
+    var num = row.querySelector('[data-stock-num]');
+    num.textContent = data.new_qty;
+    // Re-classifica estado visual (out/low/ok). stock_min não temos no front,
+    // então só marca 'out' quando 0; o 'low' precisa de reload completo.
+    cell.dataset.stockState = data.new_qty === 0 ? 'out' : (cell.dataset.stockState === 'low' ? 'low' : 'ok');
+    cell.classList.add('is-flashing');
+    setTimeout(function(){ cell.classList.remove('is-flashing'); }, 700);
+    // Re-habilita botão de saída se voltou a ter estoque
+    var minusBtn = cell.querySelector('.stock-btn--minus');
+    if (minusBtn) minusBtn.disabled = (data.new_qty === 0);
+  } catch (e) {
+    alert('Falha de rede ao ajustar estoque.');
+  } finally {
+    // Re-enable os outros (o disable do minus quando 0 é tratado acima)
+    siblings.forEach(function(b){
+      if (b.classList.contains('stock-btn--minus')) {
+        var num = b.closest('.stock-cell').querySelector('[data-stock-num]');
+        b.disabled = parseInt(num.textContent, 10) === 0;
+      } else {
+        b.disabled = false;
+      }
+    });
+  }
+}
+
+// ─── Modal de ajuste detalhado ──────────────────────────────────
+var _adjustVid = null;
+var _adjustCurrent = 0;
+
+function openAdjustModal(vid, size, color, currentQty) {
+  _adjustVid = vid;
+  _adjustCurrent = currentQty;
+  document.getElementById('adjust-form').action =
+    '/products/' + {{ product['id'] }} + '/variants/' + vid + '/stock';
+  document.getElementById('adjust-sub').textContent =
+    'Tamanho ' + size + ' · cor ' + color + ' · estoque atual: ' + currentQty;
+  document.getElementById('adjust-current').value = currentQty;
+  document.getElementById('adjust-qty').value = '';
+  document.getElementById('adjust-reason').value = '';
+  document.getElementById('adjust-preview').textContent = '';
+  // Reset selection para 'in'
+  selectAdjustType('in');
+  document.getElementById('adjust-modal').style.display = 'flex';
+  setTimeout(function(){ document.getElementById('adjust-qty').focus(); }, 50);
+}
+
+function closeAdjustModal() {
+  document.getElementById('adjust-modal').style.display = 'none';
+}
+
+function selectAdjustType(t) {
+  document.querySelectorAll('.adjust-type-card').forEach(function(c){
+    var on = c.dataset.typeCard === t;
+    c.classList.toggle('is-selected', on);
+    c.querySelector('input').checked = on;
+  });
+  updateAdjustPreview();
+}
+
+function bindAdjustTypeCards() {
+  document.querySelectorAll('.adjust-type-card').forEach(function(c){
+    c.addEventListener('click', function(){ selectAdjustType(c.dataset.typeCard); });
+  });
+  var qtyInp = document.getElementById('adjust-qty');
+  if (qtyInp) qtyInp.addEventListener('input', updateAdjustPreview);
+}
+
+function updateAdjustPreview() {
+  var preview = document.getElementById('adjust-preview');
+  if (!preview) return;
+  var qty = parseInt(document.getElementById('adjust-qty').value, 10);
+  if (isNaN(qty) || qty < 0) { preview.textContent = ''; return; }
+  var sel = document.querySelector('.adjust-type-card.is-selected');
+  var t = sel ? sel.dataset.typeCard : 'in';
+  var newTotal;
+  if (t === 'in')        newTotal = _adjustCurrent + qty;
+  else if (t === 'out')  newTotal = _adjustCurrent - qty;
+  else                   newTotal = qty; // adjust
+  if (newTotal < 0) {
+    preview.textContent = '⚠ Saída excede o estoque atual (' + _adjustCurrent + ').';
+    preview.style.color = 'var(--magenta-deep)';
+  } else {
+    var delta = newTotal - _adjustCurrent;
+    preview.textContent = _adjustCurrent + ' → ' + newTotal +
+      ' (' + (delta >= 0 ? '+' : '') + delta + ')';
+    preview.style.color = 'var(--mint-deep)';
+  }
+}
+
+// ─── Drawer de histórico ────────────────────────────────────────
+async function openHistoryDrawer(vid, size, color) {
+  document.getElementById('history-sub').textContent =
+    'Tamanho ' + size + ' · cor ' + color;
+  var body = document.getElementById('history-body');
+  body.innerHTML = '<div class="text-muted" style="text-align:center;padding:40px 0">carregando…</div>';
+  document.getElementById('history-backdrop').classList.add('is-open');
+  try {
+    var r = await fetch('/products/' + {{ product['id'] }} + '/variants/' + vid + '/history.json',
+      { credentials: 'same-origin' });
+    var data = await r.json();
+    if (!data.ok || !data.events.length) {
+      body.innerHTML = '<div class="text-muted" style="text-align:center;padding:40px 0">Sem movimentações registradas para esta variante.</div>';
+      return;
+    }
+    var html = '';
+    var typeLabels = {
+      in: '+', out: '−', adjust: '=', sale: 'venda', return: 'devol.'
+    };
+    data.events.forEach(function(ev){
+      var sign = (ev.type === 'in' || ev.type === 'return') ? '+' :
+                 (ev.type === 'adjust') ? '=' : '−';
+      var when = (ev.at || '').replace('T', ' ').slice(0, 16);
+      var reasonLine = ev.reason || (ev.sale_id ? 'Venda #' + ev.sale_id : '—');
+      html += '<div class="history-event">'
+            + '  <span class="history-event__delta history-event__delta--' + ev.type + '">'
+            + sign + ev.qty + '</span>'
+            + '  <div>'
+            + '    <div class="history-event__reason">' + escapeHtml(reasonLine) + '</div>'
+            + '    <div class="history-event__op">' + escapeHtml(ev.operator || '—') + '</div>'
+            + '  </div>'
+            + '  <span class="history-event__when">' + escapeHtml(when) + '</span>'
+            + '</div>';
+    });
+    body.innerHTML = html;
+  } catch (e) {
+    body.innerHTML = '<div style="color:var(--magenta-deep);text-align:center;padding:40px 0">Falha ao carregar histórico.</div>';
+  }
+}
+
+function closeHistoryDrawer() {
+  document.getElementById('history-backdrop').classList.remove('is-open');
+}
+
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') {
+    closeHistoryDrawer();
+    closeAdjustModal();
+  }
+});
+</script>
+{% endblock %}

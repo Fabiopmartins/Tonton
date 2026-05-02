@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}Financeiro · tonton{% endblock %}
+{% set page_sub_label = "P&amp;L · DRE simplificado" %}
+{% block page_title %}Financeiro{% endblock %}
+
+{% block topbar_actions %}
+  <form method="get" style="display:inline">
+    <input type="month" name="month" value="{{ month }}" class="form-control form-control--plain" style="padding:8px 12px;width:160px" onchange="this.form.submit()">
+  </form>
+  <button type="button" class="btn" onclick="document.getElementById('expense-form').scrollIntoView({behavior:'smooth'})">
+    <svg><use xlink:href="#i-plus"/></svg> Nova despesa
+  </button>
+{% endblock %}
+
+{% block body %}
+
+{# ── KPIs do mês ──────────────────────────────────── #}
+<div class="grid grid--kpi mb-3">
+  <div class="card kpi">
+    <div class="kpi__label">Receita bruta</div>
+    <div class="kpi__value kpi__value--coral">R$ {{ format_money(gross_rev) }}</div>
+    <div class="text-muted" style="font-size:11.5px">
+      vendas R$ {{ format_money(sales_rev) }}{% if gc_rev|float > 0 %} · vale R$ {{ format_money(gc_rev) }}{% endif %}
+    </div>
+  </div>
+
+  <div class="card kpi">
+    <div class="kpi__label">CMV</div>
+    <div class="kpi__value kpi__value--magenta">R$ {{ format_money(cogs_v) }}</div>
+    <div class="text-muted" style="font-size:11.5px">custo das mercadorias</div>
+  </div>
+
+  <div class="card kpi">
+    <div class="kpi__label">Margem bruta</div>
+    <div class="kpi__value kpi__value--deep">{{ '%.1f'|format(gross_pct) }}%</div>
+    <div class="flex-center gap-1 mt-1" style="font-size:11.5px">
+      <span class="chip chip--sm chip--{{ 'mint' if gross_pct >= 50 else 'sun' if gross_pct >= 30 else 'coral' }}">
+        R$ {{ format_money(gross) }}
+      </span>
+    </div>
+  </div>
+
+  <div class="card kpi">
+    <div class="kpi__label">Resultado operacional</div>
+    <div class="kpi__value" style="color:{% if op|float >= 0 %}var(--mint-ink){% else %}var(--danger){% endif %}">
+      R$ {{ format_money(op) }}
+    </div>
+    <div class="text-muted" style="font-size:11.5px">
+      {{ '%.1f'|format(op_pct) }}% sobre a receita
+    </div>
+  </div>
+</div>
+
+{# ── Trend + Breakdown ───────────────────────────── #}
+<div class="grid grid--2-1 mb-3">
+
+  <div class="card">
+    <div class="kpi__label">Receita × despesa · últimos 12 meses</div>
+
+    <div style="position:relative;height:220px;margin-top:18px">
+      {% set w = 600 %}{% set h = 220 %}
+      {% set n = trend|length %}
+      {% set barW = (w - 60) / (n * 2.2) %}
+      {% set max_t = accounting_max_t %}
+
+      <svg viewBox="0 0 {{ w }} {{ h }}" preserveAspectRatio="none" style="width:100%;height:100%">
+        {% for y in [40, 90, 140, 180] %}
+          <line x1="0" x2="{{ w }}" y1="{{ y }}" y2="{{ y }}" stroke="var(--gray-200)"/>
+        {% endfor %}
+        {% for t in trend %}
+          {% set x = (loop.index0 * (w / n)) + 6 %}
+          {% set hRev = ((t.rev / (max_t or 1)) * (h - 60))|round(1) %}
+          {% set hExp = ((t.exp / (max_t or 1)) * (h - 60))|round(1) %}
+          <rect x="{{ x }}" y="{{ h - 20 - hRev }}" width="{{ barW }}" height="{{ hRev }}" fill="var(--coral)" rx="3"/>
+          <rect x="{{ x + barW + 2 }}" y="{{ h - 20 - hExp }}" width="{{ barW }}" height="{{ hExp }}" fill="var(--magenta)" rx="3" opacity=".85"/>
+        {% endfor %}
+      </svg>
+    </div>
+
+    <div class="chart-legend" style="margin-top:4px">
+      {% for t in trend %}<span>{{ t.label|lower }}</span>{% endfor %}
+    </div>
+
+    <div class="flex gap-3 mt-2" style="font-size:12px;color:var(--gray-700)">
+      <span class="flex-center gap-1"><span style="width:10px;height:10px;border-radius:3px;background:var(--coral)"></span> Receita</span>
+      <span class="flex-center gap-1"><span style="width:10px;height:10px;border-radius:3px;background:var(--magenta)"></span> Despesa</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="kpi__label">Despesas por categoria</div>
+    <div class="text-display" style="font-size:32px;margin-top:6px">R$ {{ format_money(exp_total) }}</div>
+    <div class="text-muted" style="font-size:11.5px">total ativo no mês</div>
+
+    <div class="flex-col gap-2 mt-3">
+      {% set max_cat = cat_breakdown[0]['total'] if cat_breakdown else 1 %}
+      {% for c in cat_breakdown %}
+        <div>
+          <div class="flex-between" style="font-size:12.5px;margin-bottom:6px">
+            <span style="font-weight:500">{{ c['cat_name'] }}</span>
+            <span class="text-muted">R$ {{ format_money(c['total']) }}</span>
+          </div>
+          <div class="progress">
+            <div class="progress__fill" style="width:{{ (c['total'] * 100 / max_cat)|round }}%;background:{{ c['cat_color'] or 'var(--coral)' }}"></div>
+          </div>
+        </div>
+      {% else %}
+        <div class="text-muted" style="font-size:12.5px;padding:20px 0">Sem despesas registradas.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+{# ── Extrato de despesas ─────────────────────────── #}
+<div class="card card--flush mb-3">
+  <div class="card__header">
+    <div>
+      <div class="card__title">Extrato de despesas</div>
+      <div class="card__sub">{{ expenses|length }} lançamentos</div>
+    </div>
+  </div>
+
+  {% if expenses %}
+    <div class="table__head" style="grid-template-columns:110px 2fr 1fr 130px 110px 80px">
+      <span>Data</span><span>Descrição</span><span>Categoria</span><span>Valor</span><span>Status</span><span></span>
+    </div>
+    {% for e in expenses %}
+      <div class="table__row" style="grid-template-columns:110px 2fr 1fr 130px 110px 80px{% if e['status'] != 'active' %};opacity:.5{% endif %}">
+        <div class="text-mono" style="font-size:12px;color:var(--gray-700)">{{ e['expense_date'] }}</div>
+        <div>
+          <div style="font-size:13.5px;font-weight:500">{{ e['description'] or '—' }}</div>
+          {% if e['payment_method'] %}
+            <div class="text-muted" style="font-size:11px;margin-top:2px">{{ e['payment_method'] }}</div>
+          {% endif %}
+        </div>
+        <span class="chip chip--sm" style="{% if e['cat_color'] %}background:{{ e['cat_color'] }};color:var(--white){% endif %}">
+          {{ e['cat_name'] or '—' }}
+        </span>
+        <div class="text-price" style="color:var(--magenta-deep)">− R$ {{ format_money(e['amount']) }}</div>
+        <span class="chip chip--sm chip--{{ 'mint' if e['status'] == 'active' else 'neutral' }}">
+          {{ e['status'] }}
+        </span>
+        <form method="post" action="{{ url_for('cancel_expense', eid=e['id']) }}" style="margin:0">
+          {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+          {% if e['status'] == 'active' %}
+          <button type="submit" class="icon-btn" style="width:28px;height:28px;background:transparent;color:var(--gray-500)" title="Cancelar">
+            <svg style="width:14px;height:14px"><use xlink:href="#i-x"/></svg>
+          </button>
+          {% endif %}
+        </form>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">
+      <div class="empty__title">Sem lançamentos no período</div>
+      <div class="empty__sub">Registre sua primeira despesa abaixo.</div>
+    </div>
+  {% endif %}
+</div>
+
+{# ── Form para nova despesa ─────────────────────── #}
+<div class="card" id="expense-form">
+  <div class="card__title">Nova despesa</div>
+  <div class="card__sub">registrar lançamento</div>
+
+  <form method="post" action="{{ url_for('create_expense') }}" class="mt-3">
+    {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+    <div class="grid grid--3 gap-3">
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <div class="form-control form-control--plain">
+          <input name="description" required placeholder="Ex: Aluguel · abril">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Valor</label>
+        <div class="form-control form-control--plain">
+          <input name="amount" required placeholder="0,00" inputmode="decimal">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Data</label>
+        <div class="form-control form-control--plain">
+          <input name="expense_date" type="date" required value="{{ month }}-01">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Categoria</label>
+        <div class="form-control form-control--plain">
+          <select name="category_id">
+            <option value="">— Selecione —</option>
+            {% for c in categories %}
+              <option value="{{ c['id'] }}">{{ c['name'] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Forma de pagamento</label>
+        <div class="form-control form-control--plain">
+          <input name="payment_method" placeholder="Dinheiro, PIX, débito…">
+        </div>
+      </div>
+      <div class="form-group flex-col" style="justify-content:flex-end">
+        <button type="submit" class="btn btn--lg">
+          <svg><use xlink:href="#i-check"/></svg> Registrar despesa
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

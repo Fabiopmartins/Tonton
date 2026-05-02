@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Confirmar identidade · tonton{% endblock %}
+{% set page_sub_label = "segurança · sudo" %}
+{% block page_title %}Confirmar identidade{% endblock %}
+
+{% block body %}
+<div style="max-width:460px;margin:40px auto">
+  <div class="card">
+    <div class="card__title">Re-autenticação necessária</div>
+    <div class="card__sub">
+      Por segurança, ações sensíveis pedem sua senha. Esta confirmação vale por 5 minutos.
+    </div>
+
+    <form method="post" class="mt-3">
+      {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+      <input type="hidden" name="next" value="{{ next_url }}">
+
+      <div class="form-group">
+        <label class="form-label">Senha</label>
+        <div class="form-control">
+          <input name="password" type="password" required autofocus placeholder="sua senha atual">
+        </div>
+      </div>
+
+      <div class="flex gap-2 mt-3">
+        <a href="{{ url_for('dashboard') }}" class="btn btn--ghost" style="flex:1">Cancelar</a>
+        <button type="submit" class="btn btn--lg" style="flex:2">
+          <svg><use xlink:href="#i-shield"/></svg> Confirmar
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div style="background:var(--grad-soft);padding:14px 16px;border-radius:var(--r-md);margin-top:14px;font-size:12px;color:var(--plum)">
+    <strong>Por que isso?</strong> Mesmo com sua sessão ativa, gerenciar usuários, apagar contas e mudar perfis exige uma confirmação extra. Reduz o impacto de uma sessão comprometida.
+  </div>
+</div>
+{% endblock %}

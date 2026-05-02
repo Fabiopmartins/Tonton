@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Créditos · tonton{% endblock %}
+{% set page_sub_label = "operação · vale-troca" %}
+{% block page_title %}Créditos de clientes{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('create_credit') }}" class="btn">
+    <svg><use xlink:href="#i-plus"/></svg> Novo crédito
+  </a>
+{% endblock %}
+
+{% block body %}
+
+{% set active_credits = credits|selectattr('status', 'equalto', 'active')|list %}
+{% set used_credits = credits|selectattr('status', 'equalto', 'used')|list %}
+
+<div class="grid grid--3 mb-3">
+  <div class="card kpi">
+    <div class="kpi__label">Saldo a utilizar</div>
+    <div class="kpi__value kpi__value--magenta">R$ {{ format_money(total_active) }}</div>
+    <div class="text-muted" style="font-size:11.5px">{{ active_credits|length }} créditos ativos</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Já utilizados</div>
+    <div class="kpi__value kpi__value--deep">{{ used_credits|length }}</div>
+    <div class="text-muted" style="font-size:11.5px">resgatados historicamente</div>
+  </div>
+  <div class="card" style="background:var(--grad-soft);border:0">
+    <div class="text-eyebrow" style="color:var(--magenta-deep)">✦ dica</div>
+    <div class="text-display" style="font-size:20px;margin-top:4px;color:var(--plum);line-height:1.2">
+      Um vale-troca é mais caloroso que uma devolução em dinheiro.
+    </div>
+  </div>
+</div>
+
+<div class="card card--flush">
+  <div class="card__header">
+    <div>
+      <div class="card__title">Histórico completo</div>
+      <div class="card__sub">últimos 100 registros</div>
+    </div>
+  </div>
+
+  {% if credits %}
+    <div class="table__head" style="grid-template-columns:40px 2fr 130px 2fr 120px 100px 130px">
+      <span></span><span>Cliente</span><span>Valor</span><span>Motivo</span><span>Emitido</span><span>Status</span><span></span>
+    </div>
+    {% for cr in credits %}
+      <div class="table__row" style="grid-template-columns:40px 2fr 130px 2fr 120px 100px 130px">
+
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--grad-soft);display:grid;place-items:center;color:var(--magenta-deep)">
+          <svg style="width:14px;height:14px"><use xlink:href="#i-inbox"/></svg>
+        </div>
+
+        <div class="flex-center gap-2">
+          {% if cr['cust_name'] or cr['customer_name'] %}
+            <div class="avatar avatar--md avatar--h{{ loop.index0 % 6 }}">
+              {{ (cr['cust_name'] or cr['customer_name'])[:2]|upper }}
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:600">{{ cr['cust_name'] or cr['customer_name'] }}</div>
+              {% if cr['customer_id'] %}
+                <a href="{{ url_for('customer_detail', cid=cr['customer_id']) }}" class="text-muted" style="font-size:11px">ver perfil →</a>
+              {% endif %}
+            </div>
+          {% else %}
+            <div class="text-muted" style="font-size:12.5px">Sem cliente</div>
+          {% endif %}
+        </div>
+
+        <div class="text-price" style="color:var(--magenta-deep)">R$ {{ format_money(cr['amount']) }}</div>
+
+        <div class="text-muted" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          {{ cr['reason'] or '—' }}
+        </div>
+
+        <div>
+          <div class="text-mono" style="font-size:11.5px">{{ cr['created_at'][:10] if cr['created_at'] else '—' }}</div>
+          <div class="text-muted" style="font-size:11px">{{ cr['created_by'] or '—' }}</div>
+        </div>
+
+        <span class="chip chip--sm chip--{% if cr['status'] == 'active' %}mint{% elif cr['status'] == 'used' %}neutral{% else %}coral{% endif %}">
+          {{ cr['status'] }}
+        </span>
+
+        {% if cr['status'] == 'active' %}
+          <form method="post" action="{{ url_for('use_credit', cid=cr['id']) }}" style="margin:0">
+            {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+            <button type="submit" class="btn btn--soft btn--sm">
+              <svg><use xlink:href="#i-check"/></svg> Utilizar
+            </button>
+          </form>
+        {% elif cr['used_at'] %}
+          <div class="text-muted" style="font-size:11.5px">usado {{ cr['used_at'][:10] }}</div>
+        {% else %}
+          <span class="text-muted" style="font-size:11.5px">—</span>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">
+      <div class="empty__title">Nenhum crédito emitido</div>
+      <div class="empty__sub">Créditos geram-se automaticamente em cancelamentos ou manualmente.</div>
+      <a href="{{ url_for('create_credit') }}" class="btn"><svg><use xlink:href="#i-plus"/></svg> Novo crédito</a>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

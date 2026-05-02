@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Resgatar vale · tonton{% endblock %}
+{% set page_sub_label = "operação · resgate" %}
+{% block page_title %}Resgatar vale-presente{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('list_cards') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-card"/></svg> Ver todos
+  </a>
+{% endblock %}
+
+{% block body %}
+
+<div class="grid grid--2-1" style="align-items:start">
+
+  {# ── Coluna principal: busca + resultado ── #}
+  <div class="flex-col gap-3">
+
+    <div class="card">
+      <div class="card__title">Informar o código</div>
+      <div class="card__sub">digite o código do vale e a conferência complementar</div>
+
+      <form method="post" id="redeem-form" class="mt-3">
+        {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+        <div class="form-group">
+          <label class="form-label">Código do vale *</label>
+          <div class="form-control">
+            <svg><use xlink:href="#i-qr"/></svg>
+            <input name="code" id="f-code" required autofocus
+                   value="{{ prefill_code }}"
+                   placeholder="ABCD-1234-5678"
+                   style="font-family:var(--f-mono);letter-spacing:.08em;text-transform:uppercase"
+                   autocomplete="off" spellcheck="false">
+          </div>
+          <div class="form-hint">Maiúsculas e hífens são ignorados.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Conferência complementar</label>
+          <div class="form-control form-control--plain">
+            <input name="confirmation" placeholder="Últimos 4 dígitos, nome da presenteada ou código curto"
+                   autocomplete="off" spellcheck="false">
+          </div>
+          <div class="form-hint">Antifraude · compara com os dados do vale.</div>
+        </div>
+
+        <button type="submit" class="btn btn--lg btn--full">
+          <svg><use xlink:href="#i-search"/></svg> Verificar vale
+        </button>
+      </form>
+    </div>
+
+    {# Resultado: vale encontrado #}
+    {% if card %}
+      {% set is_usable = card['status'] == 'active' and card['is_released'] %}
+      <div class="card card--flush" style="overflow:hidden">
+
+        <div style="padding:28px;background:var(--grad-hero);color:var(--white);position:relative;overflow:hidden">
+          <div style="position:absolute;top:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:var(--magenta);opacity:.5;filter:blur(30px)"></div>
+          <div style="position:relative">
+            <div class="flex-between" style="align-items:flex-start">
+              <div>
+                <div class="text-mono" style="font-size:10.5px;letter-spacing:.22em;opacity:.9">✦ VALE LOCALIZADO</div>
+                <div class="text-display" style="font-size:32px;margin-top:6px">{{ card['recipient_name'] or '—' }}</div>
+                <div class="text-mono" style="font-size:12px;margin-top:4px;letter-spacing:.12em;opacity:.85">•••• {{ card['code_last4'] }}</div>
+              </div>
+              <span class="chip chip--sm" style="background:rgba(255,255,255,.22);color:var(--white);backdrop-filter:blur(8px)">
+                {{ card['status'] }}
+              </span>
+            </div>
+
+            <div style="margin-top:26px">
+              <div class="text-mono" style="font-size:10.5px;letter-spacing:.18em;opacity:.8">saldo disponível</div>
+              <div class="text-display" style="font-size:56px;line-height:1;letter-spacing:-.03em;margin-top:4px">
+                R$ {{ format_money(card['current_balance']) }}
+              </div>
+              {% if card['current_balance']|float < card['initial_value']|float %}
+                <div class="text-mono" style="font-size:11px;margin-top:4px;opacity:.8">de R$ {{ format_money(card['initial_value']) }} inicial</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        {% if is_usable %}
+          <form method="post" action="{{ url_for('redeem_amount', card_id=card['id']) }}" style="padding:22px">
+            {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+            <div class="section-label" style="margin-top:0">lançar baixa</div>
+
+            <div class="grid grid--2 gap-3">
+              <div class="form-group mb-0">
+                <label class="form-label">Valor a resgatar *</label>
+                <div class="form-control">
+                  <span class="text-muted">R$</span>
+                  <input name="amount" required inputmode="decimal"
+                         placeholder="0,00"
+                         max="{{ card['current_balance'] }}">
+                </div>
+                <div class="form-hint">Máximo: R$ {{ format_money(card['current_balance']) }}.</div>
+              </div>
+              <div class="form-group mb-0">
+                <label class="form-label">Observação</label>
+                <div class="form-control form-control--plain">
+                  <input name="note" placeholder="Ex: venda #V-000123">
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn--lg btn--full mt-3">
+              <svg><use xlink:href="#i-check"/></svg> Confirmar resgate
+            </button>
+          </form>
+        {% else %}
+          <div style="padding:22px;background:var(--sun);color:var(--sun-ink);display:flex;align-items:center;gap:10px">
+            <svg style="width:18px;height:18px;flex-shrink:0"><use xlink:href="#i-x"/></svg>
+            <div style="font-size:13px">
+              <strong>Vale indisponível para resgate.</strong>
+              {% if card['status'] == 'cancelled' %}Foi cancelado.
+              {% elif card['status'] == 'redeemed' %}Já foi totalmente resgatado.
+              {% elif not card['is_released'] %}Ainda não liberado para uso.
+              {% endif %}
+            </div>
+          </div>
+        {% endif %}
+
+        <div style="padding:14px 22px;border-top:1px solid var(--gray-200);display:flex;justify-content:space-between;align-items:center">
+          <a href="{{ url_for('card_detail', card_id=card['id']) }}" style="font-size:12.5px;font-weight:600">
+            Ver detalhes do vale →
+          </a>
+          <div class="text-muted" style="font-size:12px">
+            {% if card['expires_at'] %}expira {{ card['expires_at'][:10] }}{% endif %}
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+  </div>
+
+  {# ── Coluna direita: vales ativos ── #}
+  <div class="card card--flush" style="position:sticky;top:110px;max-height:calc(100vh - 130px);display:flex;flex-direction:column">
+    <div class="card__header">
+      <div>
+        <div class="card__title">Vales ativos</div>
+        <div class="card__sub">{{ active_cards|length }} liberados</div>
+      </div>
+    </div>
+
+    {% if active_cards %}
+      <div style="flex:1;overflow:auto">
+        {% for ac in active_cards %}
+          <button type="button" class="table__row"
+                  style="grid-template-columns:50px 1fr 90px;width:100%;border:0;background:transparent;text-align:left;cursor:pointer;padding:12px 22px"
+                  onclick="document.getElementById('f-code').value='{{ ac['code']|e }}';document.getElementById('f-code').focus()">
+            <div style="width:36px;height:44px;background:var(--grad-hero);border-radius:var(--r-sm);display:grid;place-items:center;color:var(--white)">
+              <svg style="width:14px;height:14px"><use xlink:href="#i-card"/></svg>
+            </div>
+            <div style="min-width:0">
+              <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                {{ ac['recipient_name'] }}
+              </div>
+              <div class="text-mono" style="font-size:10.5px;color:var(--gray-500);letter-spacing:.12em">
+                {% if ac['code']|length > 6 %}{{ ac['code'][:4] }}…{{ ac['code'][-4:] }}{% else %}•••• {{ ac['code'] }}{% endif %}
+              </div>
+            </div>
+            <div class="text-price" style="font-size:15px">R$ {{ ac['current_balance'] }}</div>
+          </button>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty__sub">Nenhum vale ativo.</div>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}

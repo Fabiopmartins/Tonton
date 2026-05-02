@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Reposição · tonton{% endblock %}
+{% set page_sub_label = "operação · reposição" %}
+{% block page_title %}Reposição de estoque{% endblock %}
+
+{% block body %}
+
+<div class="grid grid--3 mb-3">
+  <div class="card kpi">
+    <div class="kpi__label">Produtos em baixa</div>
+    <div class="kpi__value kpi__value--coral">{{ low|length }}</div>
+    <div class="text-muted" style="font-size:11.5px">abaixo do mínimo</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Pedidos abertos</div>
+    <div class="kpi__value kpi__value--magenta">
+      {{ orders|selectattr('status','equalto','pending')|list|length }}
+    </div>
+    <div class="text-muted" style="font-size:11.5px">aguardando recebimento</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi__label">Concluídos</div>
+    <div class="kpi__value kpi__value--deep">
+      {{ orders|selectattr('status','equalto','received')|list|length }}
+    </div>
+    <div class="text-muted" style="font-size:11.5px">mercadoria entrou</div>
+  </div>
+</div>
+
+<div class="grid grid--2-1" style="align-items:start">
+
+  {# ── Produtos precisando repor + form ── #}
+  <div class="card card--flush">
+    <div class="card__header">
+      <div>
+        <div class="card__title">Produtos em baixa</div>
+        <div class="card__sub">selecione e crie um pedido</div>
+      </div>
+    </div>
+
+    {% if low %}
+      <form method="post" action="{{ url_for('create_restock') }}">
+        {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+        <div class="table__head" style="grid-template-columns:50px 60px 2fr 100px 110px 140px">
+          <span></span><span></span><span>Produto</span><span>Atual</span><span>Precisa</span><span>Quantidade</span>
+        </div>
+        {% for p in low %}
+          <div class="table__row" style="grid-template-columns:50px 60px 2fr 100px 110px 140px">
+            <label class="checkbox" style="justify-self:center">
+              <input type="checkbox" name="selected[]" value="{{ p['id'] }}" onchange="toggleRow(this, {{ p['id'] }}, {{ p['qty_needed'] or 1 }})">
+              <span class="checkbox__box"><svg><use xlink:href="#i-check"/></svg></span>
+            </label>
+
+            <div class="thumb thumb--h{{ loop.index0 % 8 }}" style="width:40px;height:50px"></div>
+
+            <div style="min-width:0">
+              <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p['name'] }}</div>
+              <div class="text-mono" style="font-size:11px;color:var(--gray-500)">{{ p['sku'] or '—' }}</div>
+            </div>
+
+            <div style="font-weight:600;color:{% if p['stock_qty']|int == 0 %}var(--magenta){% else %}var(--coral-deep){% endif %}">
+              {{ p['stock_qty'] }} {{ p['unit'] }}
+            </div>
+
+            <div style="font-size:12.5px;color:var(--gray-700)">
+              +{{ p['qty_needed'] or 0 }} {{ p['unit'] }}
+            </div>
+
+            <div class="flex-center gap-1" id="qty-row-{{ p['id'] }}" style="opacity:.4">
+              <input type="hidden" name="product_id[]" value="{{ p['id'] }}" disabled>
+              <input name="qty[]" type="number" min="1" value="{{ p['qty_needed'] or 1 }}" disabled
+                     class="form-control form-control--plain" style="padding:6px 10px;font-size:12.5px">
+            </div>
+          </div>
+        {% endfor %}
+
+        <div style="padding:18px 22px;border-top:1px solid var(--gray-200);display:flex;gap:10px;align-items:center">
+          <input name="supplier" placeholder="Fornecedor" class="form-control form-control--plain" style="flex:1">
+          <input name="notes" placeholder="Observações" class="form-control form-control--plain" style="flex:1">
+          <button type="submit" class="btn">
+            <svg><use xlink:href="#i-check"/></svg> Criar pedido
+          </button>
+        </div>
+      </form>
+    {% else %}
+      <div class="empty">
+        <div class="empty__title">Tudo em dia!</div>
+        <div class="empty__sub">Nenhum produto abaixo do estoque mínimo.</div>
+      </div>
+    {% endif %}
+  </div>
+
+  {# ── Pedidos recentes ── #}
+  <div class="card card--flush" style="position:sticky;top:110px;max-height:calc(100vh - 130px);display:flex;flex-direction:column">
+    <div class="card__header">
+      <div>
+        <div class="card__title">Pedidos recentes</div>
+        <div class="card__sub">últimos 20</div>
+      </div>
+    </div>
+
+    {% if orders %}
+      <div style="flex:1;overflow:auto">
+        {% for o in orders %}
+          <a href="{{ url_for('restock_detail', oid=o['id']) }}" style="display:block;padding:14px 22px;border-bottom:1px solid var(--gray-200);text-decoration:none;color:inherit">
+            <div class="flex-between">
+              <div class="text-mono" style="font-size:12.5px;font-weight:600">#{{ o['id'] }}</div>
+              <span class="chip chip--sm chip--{% if o['status'] == 'received' %}mint{% elif o['status'] == 'cancelled' %}coral{% else %}sun{% endif %}">
+                {{ o['status'] }}
+              </span>
+            </div>
+            <div class="text-muted" style="font-size:12px;margin-top:4px">
+              {{ o['supplier'] or 'sem fornecedor' }}
+            </div>
+            <div class="text-muted" style="font-size:10.5px;margin-top:2px">
+              {{ o['created_at'][:10] if o['created_at'] else '—' }} · por {{ o['created_by'] or '—' }}
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty__sub">Nenhum pedido ainda.</div>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleRow(cb, pid, defaultQty) {
+  var row = document.getElementById('qty-row-' + pid);
+  var hidden = row.querySelector('input[type="hidden"]');
+  var qty = row.querySelector('input[name="qty[]"]');
+  if (cb.checked) {
+    row.style.opacity = '1';
+    hidden.disabled = false;
+    qty.disabled = false;
+  } else {
+    row.style.opacity = '.4';
+    hidden.disabled = true;
+    qty.disabled = true;
+  }
+}
+</script>
+{% endblock %}

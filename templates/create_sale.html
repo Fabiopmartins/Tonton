@@ -1,0 +1,813 @@
+{% extends "base.html" %}
+{% block title %}PDV · Nova venda · tonton{% endblock %}
+{% set page_sub_label = "ponto de venda" %}
+{% block page_title %}Nova venda{% endblock %}
+
+{% block topbar_actions %}
+  <button type="button" class="btn btn--ghost btn--sm" id="scan-open-btn">
+    <svg><use xlink:href="#i-qr"/></svg> Ler código
+  </button>
+{% endblock %}
+
+{% block body %}
+
+<form method="post" id="sale-form">
+  {% if session.get('csrf_token') %}
+    <input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">
+  {% endif %}
+
+  <div class="grid grid--pos" style="align-items:start">
+
+    {# ── Coluna esquerda: catálogo rápido ──────────────── #}
+    <div class="card card--flush pos-catalog" style="display:flex;flex-direction:column;min-height:720px">
+      <div class="filterbar" style="padding:16px 22px">
+        <div class="search-pill" style="flex:1;width:auto">
+          <svg><use xlink:href="#i-search"/></svg>
+          <input id="product-filter" type="search" placeholder="Buscar por SKU, nome ou cor">
+        </div>
+        <button type="button" class="btn btn--soft btn--sm" id="scanner-btn">
+          <svg><use xlink:href="#i-qr"/></svg> Scanner
+        </button>
+      </div>
+
+      {# Scanner container (hidden by default) #}
+      <div id="scanner-container" style="display:none;padding:0 22px 16px">
+        <video id="scanner-video" playsinline autoplay muted style="width:100%;border-radius:var(--r-md);background:var(--ink)"></video>
+        <div class="flex-center gap-2 mt-2">
+          <input class="form-control" id="manual-code" placeholder="Ou digite o SKU…" style="flex:1">
+          <button type="button" class="btn btn--sm" id="manual-code-btn">Buscar</button>
+          <button type="button" class="btn btn--ghost btn--sm" id="stop-scan">Fechar</button>
+        </div>
+        <div id="scan-status" class="mt-1 text-muted" style="font-size:12.5px"></div>
+      </div>
+
+      <div style="padding:12px 22px;display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="filter-pill" data-cat="" style="background:var(--ink);color:var(--white);border-color:var(--ink)">Todos</button>
+        {% set _cats = [] %}
+        {% for p in products %}
+          {% if p['category'] and p['category'] not in _cats %}{% set _ = _cats.append(p['category']) %}{% endif %}
+        {% endfor %}
+        {% for c in _cats[:8] %}
+          <button type="button" class="filter-pill" data-cat="{{ c }}">{{ c }}</button>
+        {% endfor %}
+      </div>
+
+      <div style="flex:1;overflow:auto;padding:22px;padding-top:6px">
+        <div class="product-grid" id="pos-grid" style="grid-template-columns:repeat(4,1fr)">
+          {% for p in products %}
+            {% set _eff = effective_price(p) %}
+            {% set _promo = has_active_promo(p) %}
+            {% set _has_variants = (p['has_variants']|int if 'has_variants' in p.keys() else 0) %}
+            <div class="pos-grid-item"
+                 data-id="{{ p['id'] }}"
+                 data-name="{{ p['name']|e }}"
+                 data-sku="{{ p['sku']|e if p['sku'] else '' }}"
+                 data-price="{{ _eff }}"
+                 data-stock="{{ p['stock_qty'] }}"
+                 data-cat="{{ p['category']|e if p['category'] else '' }}"
+                 data-has-variants="{{ '1' if _has_variants else '0' }}"
+                 data-search="{{ ((p['name'] or '') ~ ' ' ~ (p['sku'] or '') ~ ' ' ~ (p['category'] or ''))|lower|e }}"
+                 onclick="onProductClick(this)">
+              {% if p['image_mime'] %}
+                <img src="{{ url_for('product_image', pid=p['id']) }}" alt="" style="width:100%;height:140px;object-fit:cover">
+              {% else %}
+                <div class="thumb thumb--h{{ loop.index0 % 8 }}" style="width:100%;height:140px"></div>
+              {% endif %}
+              <div class="pos-grid-item__body">
+                <div class="pos-grid-item__name">{{ p['name'] }}</div>
+                <div class="pos-grid-item__meta">
+                  {% if _promo %}
+                    <span class="pos-grid-item__price" style="color:var(--magenta)">
+                      <span style="text-decoration:line-through;color:var(--gray-500);font-size:.8em;font-weight:500;margin-right:4px">R$ {{ format_money(p['sale_price']) }}</span>
+                      R$ {{ format_money(_eff) }}
+                    </span>
+                  {% else %}
+                    <span class="pos-grid-item__price">R$ {{ format_money(_eff) }}</span>
+                  {% endif %}
+                  <span class="pos-grid-item__stock{% if p['stock_qty']|int == 0 %} pos-grid-item__stock--out{% endif %}">{{ p['stock_qty'] }} un</span>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    {# ── Coluna direita: carrinho + pagamento ──────────── #}
+    <div class="card card--flush cart-card" style="display:flex;flex-direction:column;position:sticky;top:110px">
+
+      <div class="card__header">
+        <div>
+          <div class="card__title">Carrinho</div>
+          <div class="card__sub" id="cart-count">0 itens</div>
+        </div>
+        <button type="button" onclick="clearCart()" style="background:none;border:0;color:var(--gray-500);cursor:pointer;font-size:12px">Limpar</button>
+      </div>
+
+      {# cliente — autocomplete com filtro #}
+      <div style="padding:14px 22px;border-bottom:1px solid var(--gray-200)">
+        <label class="form-label" style="margin-bottom:6px">Cliente</label>
+        <input class="form-control form-control--plain"
+               id="customer-search"
+               list="customers-datalist"
+               placeholder="Buscar cliente cadastrado por nome ou telefone…"
+               autocomplete="off">
+        <datalist id="customers-datalist">
+          {% for c in customers %}
+            <option value="{{ c['name'] }}{% if c['phone'] %} · {{ format_phone_display(c['phone']) }}{% endif %}"
+                    data-id="{{ c['id'] }}"></option>
+          {% endfor %}
+        </datalist>
+        <input type="hidden" name="customer_id" id="customer-id-hidden" value="">
+        <input class="form-control form-control--plain mt-1" name="buyer_name_free" id="buyer-name-free" placeholder="Ou nome avulso (sem cadastro)">
+      </div>
+      <script>
+      (function(){
+        // Mapeia "label exibido" -> id do cliente
+        var optMap = {};
+        document.querySelectorAll('#customers-datalist option').forEach(function(o){
+          optMap[o.value] = o.getAttribute('data-id');
+        });
+        var search = document.getElementById('customer-search');
+        var hidden = document.getElementById('customer-id-hidden');
+        var free   = document.getElementById('buyer-name-free');
+        if (!search) return;
+        function sync(){
+          var v = search.value.trim();
+          if (optMap[v]) {
+            hidden.value = optMap[v];
+            free.value = '';
+            free.disabled = true;
+          } else {
+            hidden.value = '';
+            free.disabled = false;
+          }
+        }
+        search.addEventListener('input', sync);
+        search.addEventListener('change', sync);
+      })();
+      </script>
+
+      {# itens (populados por JS) #}
+      <div style="flex:1;overflow:auto;min-height:160px" id="cart-items">
+        <div class="empty" style="padding:40px 22px">
+          <div class="empty__title" style="font-size:18px">Carrinho vazio</div>
+          <div class="empty__sub">Clique em um produto para adicionar.</div>
+        </div>
+      </div>
+
+      {# cupom #}
+      <div style="padding:14px 22px;border-top:1px solid var(--gray-200);display:flex;gap:8px">
+        <input class="form-control form-control--plain" id="coupon-input" placeholder="Cupom de desconto" style="flex:1">
+        <button type="button" class="btn btn--soft btn--sm" id="apply-coupon">Aplicar</button>
+      </div>
+      <input type="hidden" name="coupon_code" id="coupon-code-hidden">
+      <div id="coupon-msg" class="text-muted" style="padding:0 22px;font-size:12px;margin-bottom:-6px"></div>
+
+      {# totais + pagamento #}
+      <div class="cart-totals">
+        <div class="cart-totals__row">
+          <span>Subtotal</span>
+          <span id="subtotal-display">R$ 0,00</span>
+        </div>
+        <div class="cart-totals__row cart-totals__row--discount" id="discount-row" style="display:none">
+          <span>Desconto</span>
+          <span id="discount-display">− R$ 0,00</span>
+        </div>
+        <input type="hidden" name="discount" id="discount-input" value="0">
+
+        <div class="cart-totals__sep"></div>
+        <div class="cart-totals__total">
+          <span style="font-weight:600">Total</span>
+          <span class="cart-totals__total-v" id="total-display">R$ 0,00</span>
+        </div>
+
+        <div class="section-label" style="margin-top:14px">forma de pagamento</div>
+        <div class="pay-grid" id="pay-grid">
+          {% for opt in [
+            {'code': 'pix', 'icon': 'i-pix', 'label': 'PIX', 'hint': ''},
+            {'code': 'card', 'icon': 'i-card', 'label': 'Cartão', 'hint': ''},
+            {'code': 'cash', 'icon': 'i-cash', 'label': 'Dinheiro', 'hint': ''}
+          ] %}
+            <button type="button" class="pay-opt{% if opt.code == 'pix' %} is-selected{% endif %}" data-pay="{{ opt.code }}">
+              <svg><use xlink:href="#{{ opt.icon }}"/></svg>
+              <span>{{ opt.label }}</span>
+              {% if opt.hint %}<span class="pay-opt__hint">{{ opt.hint }}</span>{% endif %}
+            </button>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="payment_method" id="payment-method" value="pix">
+
+        <div style="margin-top:14px;padding:12px;border:1px solid var(--gray-200);border-radius:var(--r-md);background:var(--white)">
+          <div class="text-mono" style="font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--gray-500);margin-bottom:10px">Despacho · Correios</div>
+          <input class="form-control form-control--plain" name="shipping_name" placeholder="Nome do comprador / destinatário">
+          <input class="form-control form-control--plain mt-2" name="shipping_document" placeholder="CPF/CNPJ do comprador (opcional, ajuda na pré-nota)">
+          <div class="grid grid--2 gap-2 mt-2">
+            <input class="form-control form-control--plain" name="shipping_cep" placeholder="CEP">
+            <input class="form-control form-control--plain" name="shipping_state" placeholder="UF" maxlength="2">
+          </div>
+          <div class="grid grid--2 gap-2 mt-2">
+            <input class="form-control form-control--plain" name="shipping_street" placeholder="Rua / avenida">
+            <input class="form-control form-control--plain" name="shipping_number" placeholder="Número">
+          </div>
+          <input class="form-control form-control--plain mt-2" name="shipping_complement" placeholder="Complemento (opcional)">
+          <div class="grid grid--2 gap-2 mt-2">
+            <input class="form-control form-control--plain" name="shipping_neighborhood" placeholder="Bairro">
+            <input class="form-control form-control--plain" name="shipping_city" placeholder="Cidade">
+          </div>
+          <div class="form-hint" style="margin-top:8px">Se preenchido, a venda passa a gerar etiqueta de despacho e arquivos de pré-nota em PDF, CSV e JSON.</div>
+        </div>
+
+        <div style="margin-top:14px">
+          <label class="form-label" style="margin-bottom:6px">Observações</label>
+          <textarea class="form-control form-control--plain" name="notes" rows="2" placeholder="Troca, entrega, obs…"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn--lg btn--full mt-2" id="submit-btn" disabled>
+          <svg><use xlink:href="#i-check"/></svg>
+          <span id="submit-label">Finalizar venda</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# hidden template para os itens no carrinho #}
+  <template id="cart-item-tpl">
+    <div class="cart-item" data-cart-row>
+      <div class="thumb thumb--h0" style="width:48px;height:58px"></div>
+      <div class="cart-item__body">
+        <div class="cart-item__name"></div>
+        <div class="cart-item__var"></div>
+        <div class="cart-item__qty">
+          <button type="button" data-dec><svg style="width:12px;height:12px"><use xlink:href="#i-minus"/></svg></button>
+          <span data-qty>1</span>
+          <button type="button" data-inc><svg style="width:12px;height:12px"><use xlink:href="#i-plus"/></svg></button>
+        </div>
+      </div>
+      <div class="cart-item__total">
+        <div class="cart-item__total-v" data-line-total>R$ 0</div>
+        <button type="button" data-remove style="font-size:11px;color:var(--gray-500);background:none;border:0;cursor:pointer;margin-top:2px">Remover</button>
+      </div>
+      <input type="hidden" name="product_id[]" data-pid>
+      <input type="hidden" name="variant_id[]"  data-vid value="">
+      <input type="hidden" name="qty[]" data-hidden-qty value="1">
+      <input type="hidden" name="unit_price[]" data-price>
+    </div>
+  </template>
+
+</form>
+
+{# ── Modal de seleção de variante (tamanho × cor) ── #}
+<div id="variant-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1500;align-items:center;justify-content:center;padding:16px"
+     onclick="if(event.target===this) closeVariantModal()">
+  <div style="background:var(--white);border-radius:var(--r-md);max-width:520px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.3)">
+    <div style="padding:18px 22px 14px;border-bottom:1px solid var(--gray-200)">
+      <div style="font-size:11px;color:var(--coral-deep);font-weight:700;letter-spacing:.6px;text-transform:uppercase">selecione a variante</div>
+      <div style="font-size:17px;font-weight:600;margin-top:4px" id="variant-modal-title">Escolha tamanho e cor</div>
+      <div id="variant-modal-sub" class="text-muted" style="font-size:12.5px;margin-top:2px"></div>
+    </div>
+    <div style="flex:1;overflow:auto;padding:14px 16px;-webkit-overflow-scrolling:touch" id="variant-list">
+      <div class="text-muted" style="text-align:center;padding:30px 0">carregando…</div>
+    </div>
+    <div style="padding:12px 22px;border-top:1px solid var(--gray-200);display:flex;gap:8px;justify-content:flex-end">
+      <button type="button" class="btn btn--ghost btn--sm" onclick="closeVariantModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .pos-grid-item__chip{
+    display:inline-block; margin-left:6px; padding:1px 7px;
+    border-radius:999px; background:var(--coral-glow); color:var(--coral-deep);
+    font-size:9.5px; font-weight:700; letter-spacing:.3px;
+    text-transform:uppercase; vertical-align:middle;
+  }
+  .variant-card{
+    display:grid; grid-template-columns:auto 1fr auto; gap:12px;
+    align-items:center; padding:14px 14px;
+    border:1px solid var(--gray-200); border-radius:var(--r-md);
+    background:var(--white); margin-bottom:8px; cursor:pointer;
+    transition:all .15s ease;
+    min-height:64px;
+  }
+  .variant-card:hover:not(.is-out){
+    border-color:var(--coral-deep); background:var(--coral-glow);
+    transform:translateY(-1px);
+  }
+  .variant-card:active:not(.is-out){
+    transform: scale(.98);
+    background: var(--coral-soft);
+  }
+  .variant-card.is-out{ opacity:.5; cursor:not-allowed; }
+  .variant-card__color{
+    width:24px; height:24px; border-radius:50%;
+    border:2px solid var(--gray-200); flex-shrink:0;
+  }
+  .variant-card__main{ min-width:0; }
+  .variant-card__title{ font-weight:600; font-size:13.5px; }
+  .variant-card__sub{
+    font-size:11px; color:var(--gray-700); margin-top:2px;
+    font-variant-numeric:tabular-nums;
+  }
+  .variant-card__price{
+    font-family:var(--f-display); font-style:italic; font-size:16px;
+    color:var(--gray-900); white-space:nowrap;
+  }
+  .variant-card__price--promo{ color:var(--magenta); }
+  .variant-card.is-out .variant-card__sub{ color:var(--magenta-deep); font-weight:600; }
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  var cart = {}; // id -> { name, price, qty, hue, stock }
+  var discount = 0;
+  var activeCategory = '';
+  var cartEl = document.getElementById('cart-items');
+  var tpl = document.getElementById('cart-item-tpl');
+  var filterEl = document.getElementById('product-filter');
+  var scanOpenBtn = document.getElementById('scan-open-btn');
+  var scannerBtn = document.getElementById('scanner-btn');
+  var scannerContainer = document.getElementById('scanner-container');
+  var scannerVideo = document.getElementById('scanner-video');
+  var stopScanBtn = document.getElementById('stop-scan');
+  var manualCodeInput = document.getElementById('manual-code');
+  var manualCodeBtn = document.getElementById('manual-code-btn');
+  var scanStatus = document.getElementById('scan-status');
+  var scannerStream = null;
+
+  function fmt(v){
+    return 'R$ ' + (Math.round(v*100)/100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+
+  function updateVisibleProducts(){
+    var q = (filterEl && filterEl.value ? filterEl.value : '').toLowerCase().trim();
+    document.querySelectorAll('#pos-grid .pos-grid-item').forEach(function(it){
+      var matchesText = !q || (it.dataset.search || '').indexOf(q) >= 0;
+      var matchesCategory = !activeCategory || it.dataset.cat === activeCategory;
+      it.style.display = (matchesText && matchesCategory) ? '' : 'none';
+    });
+  }
+
+  function render(){
+    cartEl.innerHTML = '';
+    var items = Object.keys(cart);
+    if (items.length === 0) {
+      cartEl.innerHTML = '<div class="empty" style="padding:40px 22px"><div class="empty__title" style="font-size:18px">Carrinho vazio</div><div class="empty__sub">Clique em um produto para adicionar.</div></div>';
+      document.getElementById('submit-btn').disabled = true;
+    } else {
+      document.getElementById('submit-btn').disabled = false;
+    }
+
+    var sub = 0;
+    items.forEach(function(key){
+      var it = cart[key];
+      var node = tpl.content.cloneNode(true);
+      var row = node.querySelector('[data-cart-row]');
+      row.dataset.id = key;
+      row.querySelector('.thumb').className = 'thumb thumb--h' + (it.hue % 8);
+      row.querySelector('.cart-item__name').textContent = it.name;
+      // Mostra variante (tam · cor) quando aplicavel; senao SKU + estoque
+      var varEl = row.querySelector('.cart-item__var');
+      if (it.variantLabel) {
+        varEl.textContent = it.variantLabel + ' · estoque ' + it.stock;
+        varEl.style.color = 'var(--coral-deep)';
+        varEl.style.fontWeight = '600';
+      } else {
+        varEl.textContent = (it.sku || '') + ' · estoque ' + it.stock;
+      }
+      row.querySelector('[data-qty]').textContent = it.qty;
+      row.querySelector('[data-pid]').value = it.pid;
+      row.querySelector('[data-vid]').value = it.vid || '';
+      row.querySelector('[data-hidden-qty]').value = it.qty;
+      row.querySelector('[data-price]').value = String(it.price).replace('.', ',');
+      var lineTotal = it.price * it.qty;
+      row.querySelector('[data-line-total]').textContent = fmt(lineTotal);
+      sub += lineTotal;
+
+      row.querySelector('[data-inc]').addEventListener('click', function(){
+        if (it.qty >= it.stock) {
+          alert('Estoque maximo atingido para este item.');
+          return;
+        }
+        it.qty++;
+        render();
+      });
+      row.querySelector('[data-dec]').addEventListener('click', function(){ if (it.qty > 1) { it.qty--; render(); } });
+      row.querySelector('[data-remove]').addEventListener('click', function(){ delete cart[key]; render(); });
+
+      cartEl.appendChild(node);
+    });
+
+    document.getElementById('cart-count').textContent = items.length + ' ' + (items.length === 1 ? 'item' : 'itens');
+    document.getElementById('subtotal-display').textContent = fmt(sub);
+
+    var discRow = document.getElementById('discount-row');
+    if (discount > 0) {
+      discRow.style.display = 'flex';
+      document.getElementById('discount-display').textContent = '− ' + fmt(discount);
+    } else {
+      discRow.style.display = 'none';
+    }
+
+    var total = Math.max(0, sub - discount);
+    document.getElementById('total-display').textContent = fmt(total);
+    document.getElementById('submit-label').textContent = 'Finalizar venda — ' + fmt(total);
+    document.getElementById('discount-input').value = String(discount).replace('.', ',');
+  }
+
+  // Roteador de clique no card do produto: se tem variantes, abre modal;
+  // senao, adiciona direto ao carrinho.
+  function onProductClick(el){
+    if (!el) return;
+    var hasVariants = el.dataset.hasVariants === '1';
+    if (hasVariants) {
+      openVariantModal(el);
+    } else {
+      addElementToCart(el);
+    }
+  }
+
+  // Pulso visual no card que foi adicionado + toast de feedback.
+  function flashAddedFeedback(productId, label){
+    var card = document.querySelector('.pos-grid-item[data-id="' + productId + '"]');
+    if (card) {
+      card.classList.remove('is-just-added');
+      // forca reflow para reiniciar a animacao em adds rapidos sucessivos
+      void card.offsetWidth;
+      card.classList.add('is-just-added');
+    }
+    showToast('+ ' + label);
+  }
+
+  // Toast efemero no canto inferior do carrinho (acima do botao sticky)
+  var _toastTimer = null;
+  function showToast(text){
+    var t = document.getElementById('pos-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'pos-toast';
+      t.style.cssText = [
+        'position:fixed',
+        'left:50%',
+        'transform:translateX(-50%)',
+        'bottom:88px',
+        'background:var(--ink)',
+        'color:var(--white)',
+        'padding:10px 18px',
+        'border-radius:999px',
+        'font-size:13px',
+        'font-weight:600',
+        'box-shadow:0 8px 24px rgba(0,0,0,.25)',
+        'z-index:1500',
+        'opacity:0',
+        'transition:opacity .2s, transform .2s',
+        'pointer-events:none',
+        'max-width:80vw',
+        'text-align:center',
+        'white-space:nowrap',
+        'overflow:hidden',
+        'text-overflow:ellipsis'
+      ].join(';');
+      document.body.appendChild(t);
+    }
+    t.textContent = text;
+    requestAnimationFrame(function(){
+      t.style.opacity = '1';
+      t.style.transform = 'translateX(-50%) translateY(-4px)';
+    });
+    if (_toastTimer) clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(function(){
+      t.style.opacity = '0';
+      t.style.transform = 'translateX(-50%) translateY(0)';
+    }, 1600);
+  }
+
+  function addElementToCart(el){
+    if (!el) { return; }
+    var id = el.dataset.id;
+    var stock = parseInt(el.dataset.stock || '0', 10);
+    if (!stock) {
+      alert('Produto sem estoque disponivel.');
+      return;
+    }
+    var key = 'p' + id; // sem variante: chave = pid
+    if (cart[key]) {
+      if (cart[key].qty >= cart[key].stock) {
+        alert('Estoque maximo atingido para este item.');
+        return;
+      }
+      cart[key].qty++;
+    } else {
+      cart[key] = {
+        pid: id,
+        vid: null,
+        variantLabel: null,
+        name: el.dataset.name,
+        sku: el.dataset.sku,
+        price: parseFloat(el.dataset.price),
+        qty: 1,
+        stock: stock,
+        hue: parseInt(id, 10) % 8
+      };
+    }
+    render();
+    flashAddedFeedback(id, el.dataset.name);
+  }
+
+  // Adiciona item DE UMA VARIANTE escolhida no modal
+  function addVariantToCart(productId, productName, variant){
+    var key = 'p' + productId + 'v' + variant.id; // pid + vid garantem unicidade
+    var label = (variant.size || '-') + ' · ' + (variant.color || '-');
+    if (cart[key]) {
+      if (cart[key].qty >= cart[key].stock) {
+        alert('Estoque maximo atingido para esta variante.');
+        return;
+      }
+      cart[key].qty++;
+    } else {
+      cart[key] = {
+        pid: productId,
+        vid: variant.id,
+        variantLabel: label,
+        name: productName,
+        sku: '',
+        price: parseFloat(variant.price),
+        qty: 1,
+        stock: variant.stock,
+        hue: parseInt(productId, 10) % 8
+      };
+    }
+    render();
+    closeVariantModal();
+    flashAddedFeedback(productId, productName + ' · ' + label);
+  }
+
+  // ─── Modal de seleção de variante ──────────────────
+  async function openVariantModal(productEl){
+    var pid = productEl.dataset.id;
+    var pname = productEl.dataset.name;
+    document.getElementById('variant-modal-title').textContent = 'Escolha tamanho e cor';
+    document.getElementById('variant-modal-sub').textContent = pname;
+    var listEl = document.getElementById('variant-list');
+    listEl.innerHTML = '<div class="text-muted" style="text-align:center;padding:30px 0">carregando…</div>';
+    document.getElementById('variant-modal').style.display = 'flex';
+    try {
+      var r = await fetch('/products/' + pid + '/variants.json', { credentials: 'same-origin' });
+      var data = await r.json();
+      if (!data.ok || !data.variants || !data.variants.length) {
+        listEl.innerHTML = '<div class="text-muted" style="text-align:center;padding:30px 0">Sem variantes disponiveis.</div>';
+        return;
+      }
+      var html = '';
+      data.variants.forEach(function(v){
+        var isOut = v.stock <= 0;
+        var sizeLabel = v.size || '—';
+        var colorLabel = v.color || '—';
+        var priceFmt = 'R$ ' + parseFloat(v.price).toFixed(2).replace('.', ',');
+        var priceClass = v.in_promo ? 'variant-card__price variant-card__price--promo' : 'variant-card__price';
+        // Cor visual: tenta usar o nome como CSS color; se falhar, fica neutro
+        var swatch = colorLabel.toLowerCase().replace(/\s/g,'');
+        html += '<div class="variant-card' + (isOut ? ' is-out' : '') + '"'
+              + ' data-vid="' + v.id + '"'
+              + ' data-stock="' + v.stock + '"'
+              + ' data-price="' + v.price + '"'
+              + ' data-size="' + escapeAttr(v.size) + '"'
+              + ' data-color="' + escapeAttr(v.color) + '">'
+              + '<div class="variant-card__color" style="background:' + escapeAttr(swatch) + '"></div>'
+              + '<div class="variant-card__main">'
+              +   '<div class="variant-card__title">' + escapeHtml(sizeLabel) + ' · ' + escapeHtml(colorLabel) + '</div>'
+              +   '<div class="variant-card__sub">' + (isOut ? 'sem estoque' : v.stock + ' em estoque') + '</div>'
+              + '</div>'
+              + '<div class="' + priceClass + '">' + priceFmt + '</div>'
+              + '</div>';
+      });
+      listEl.innerHTML = html;
+      // Bind clique em cada card disponivel
+      listEl.querySelectorAll('.variant-card:not(.is-out)').forEach(function(card){
+        card.addEventListener('click', function(){
+          addVariantToCart(pid, pname, {
+            id: parseInt(card.dataset.vid, 10),
+            stock: parseInt(card.dataset.stock, 10),
+            price: card.dataset.price,
+            size: card.dataset.size,
+            color: card.dataset.color
+          });
+        });
+      });
+    } catch (e) {
+      listEl.innerHTML = '<div style="color:var(--magenta-deep);text-align:center;padding:30px 0">Falha ao carregar variantes.</div>';
+    }
+  }
+
+  function closeVariantModal(){
+    document.getElementById('variant-modal').style.display = 'none';
+  }
+
+  function escapeAttr(s){
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function escapeHtml(s){
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') closeVariantModal();
+  });
+
+  function findProductByCode(rawCode){
+    var code = (rawCode || '').trim().toLowerCase();
+    if (!code) { return null; }
+    var exact = null;
+    document.querySelectorAll('#pos-grid .pos-grid-item').forEach(function(it){
+      var sku = (it.dataset.sku || '').trim().toLowerCase();
+      var name = (it.dataset.name || '').trim().toLowerCase();
+      if (!exact && (sku === code || name === code)) {
+        exact = it;
+      }
+    });
+    return exact;
+  }
+
+  function handleManualCode(){
+    var product = findProductByCode(manualCodeInput.value);
+    if (!product) {
+      scanStatus.textContent = 'Código não encontrado.';
+      scanStatus.style.color = 'var(--danger)';
+      return;
+    }
+    addElementToCart(product);
+    scanStatus.textContent = 'Produto localizado e adicionado ao carrinho.';
+    scanStatus.style.color = 'var(--mint-ink)';
+    manualCodeInput.value = '';
+  }
+
+  async function startScanner(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      scanStatus.textContent = 'Scanner não suportado neste navegador. Use a busca manual.';
+      scanStatus.style.color = 'var(--danger)';
+      scannerContainer.style.display = 'block';
+      return;
+    }
+    try {
+      scannerStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      scannerVideo.srcObject = scannerStream;
+      scannerContainer.style.display = 'block';
+      scanStatus.textContent = 'Câmera aberta. A leitura automática depende do navegador; a busca manual está disponível.';
+      scanStatus.style.color = 'var(--gray-600)';
+    } catch (err) {
+      scannerContainer.style.display = 'block';
+      scanStatus.textContent = 'Não foi possível acessar a câmera.';
+      scanStatus.style.color = 'var(--danger)';
+    }
+  }
+
+  function stopScanner(){
+    if (scannerStream) {
+      scannerStream.getTracks().forEach(function(track){ track.stop(); });
+      scannerStream = null;
+    }
+    if (scannerVideo) {
+      scannerVideo.srcObject = null;
+    }
+    scannerContainer.style.display = 'none';
+    scanStatus.textContent = '';
+  }
+
+  // Exposto globalmente: scanner / busca por código usam isto.
+  // Roteia: produto com variantes abre modal, senao adiciona direto.
+  // Funcoes referenciadas por handlers `onclick=` inline em HTML precisam
+  // estar no escopo global (window). A IIFE ao redor cria um escopo
+  // privado, entao expomos explicitamente o que o HTML chama.
+  window.addToCart = onProductClick;          // legacy/scanner
+  window.onProductClick = onProductClick;     // cards de produto
+  window.openVariantModal = openVariantModal; // (caso usado em outro lugar)
+  window.closeVariantModal = closeVariantModal; // botao Cancelar + overlay click
+  window.clearCart = function(){ cart = {}; discount = 0; document.getElementById('coupon-code-hidden').value = ''; document.getElementById('coupon-input').value = ''; document.getElementById('coupon-msg').textContent = ''; render(); };
+
+  if (filterEl) {
+    filterEl.addEventListener('input', updateVisibleProducts);
+  }
+
+  document.querySelectorAll('.filter-pill[data-cat]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.filter-pill[data-cat]').forEach(function(b){
+        b.style.background = 'var(--white)'; b.style.color = 'var(--gray-700)'; b.style.borderColor = 'var(--gray-300)';
+      });
+      this.style.background = 'var(--ink)'; this.style.color = 'var(--white)'; this.style.borderColor = 'var(--ink)';
+      activeCategory = this.dataset.cat || '';
+      updateVisibleProducts();
+    });
+  });
+
+  document.querySelectorAll('.pay-opt').forEach(function(opt){
+    opt.addEventListener('click', function(){
+      document.querySelectorAll('.pay-opt').forEach(function(o){ o.classList.remove('is-selected'); });
+      this.classList.add('is-selected');
+      document.getElementById('payment-method').value = this.dataset.pay;
+    });
+  });
+
+  document.getElementById('apply-coupon').addEventListener('click', function(){
+    var code = document.getElementById('coupon-input').value.trim().toUpperCase();
+    var msg = document.getElementById('coupon-msg');
+    if (!code) {
+      discount = 0;
+      document.getElementById('coupon-code-hidden').value = '';
+      msg.textContent = '';
+      render();
+      return;
+    }
+    var sub = 0;
+    Object.keys(cart).forEach(function(id){ sub += cart[id].price * cart[id].qty; });
+    fetch('{{ url_for("validate_coupon_api") }}?code=' + encodeURIComponent(code) + '&subtotal=' + sub)
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (data.valid) {
+          discount = parseFloat(data.discount || 0);
+          document.getElementById('coupon-code-hidden').value = code;
+          msg.style.color = 'var(--mint-ink)';
+          msg.textContent = data.message || 'Cupom aplicado';
+        } else {
+          discount = 0;
+          document.getElementById('coupon-code-hidden').value = '';
+          msg.style.color = 'var(--danger)';
+          msg.textContent = data.message || 'Cupom inválido';
+        }
+        render();
+      })
+      .catch(function(){ msg.textContent = 'Erro ao validar cupom'; });
+  });
+
+  if (scanOpenBtn) { scanOpenBtn.addEventListener('click', startScanner); }
+  if (scannerBtn) { scannerBtn.addEventListener('click', startScanner); }
+  if (stopScanBtn) { stopScanBtn.addEventListener('click', stopScanner); }
+  if (manualCodeBtn) { manualCodeBtn.addEventListener('click', handleManualCode); }
+  if (manualCodeInput) {
+    manualCodeInput.addEventListener('keydown', function(ev){
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        handleManualCode();
+      }
+    });
+  }
+
+  updateVisibleProducts();
+  render();
+
+  // ─── ATALHOS DE TECLADO ──────────────────────────────────
+  // /        → foca busca de produto
+  // F2       → finaliza venda
+  // F4       → foca campo de desconto
+  // Esc      → limpa busca / desfoca
+  // Ignora atalhos quando o usuário está digitando em textarea
+  document.addEventListener('keydown', function(ev) {
+    var tag = (ev.target.tagName || '').toLowerCase();
+    var isTyping = (tag === 'textarea');
+
+    // F2 sempre finaliza, mesmo dentro de input
+    if (ev.key === 'F2') {
+      ev.preventDefault();
+      var btn = document.getElementById('submit-btn');
+      if (btn && !btn.disabled) btn.click();
+      return;
+    }
+
+    // F4 foca desconto
+    if (ev.key === 'F4') {
+      ev.preventDefault();
+      var disc = document.querySelector('[data-discount-input]') || document.getElementById('discount-input');
+      if (disc) { disc.focus(); disc.select && disc.select(); }
+      return;
+    }
+
+    if (isTyping) return;
+    if (ev.target.matches('input, select')) {
+      // Esc desfoca/limpa
+      if (ev.key === 'Escape') {
+        if (productFilter && document.activeElement === productFilter) {
+          productFilter.value = '';
+          productFilter.dispatchEvent(new Event('input', {bubbles:true}));
+        }
+        ev.target.blur();
+      }
+      return;
+    }
+
+    // / foca busca
+    if (ev.key === '/') {
+      ev.preventDefault();
+      if (productFilter) productFilter.focus();
+    }
+  });
+
+  // Indicador visual de atalhos no rodapé do PDV
+  var hint = document.createElement('div');
+  hint.style.cssText = 'position:fixed;bottom:8px;right:12px;font-size:10.5px;color:var(--gray-500);background:var(--white);padding:6px 10px;border-radius:var(--r-sm);border:1px solid var(--gray-200);z-index:30;pointer-events:none;opacity:.85';
+  hint.innerHTML = '<strong>/</strong> buscar &nbsp;·&nbsp; <strong>F2</strong> finalizar &nbsp;·&nbsp; <strong>F4</strong> desconto &nbsp;·&nbsp; <strong>Esc</strong> limpar';
+  document.body.appendChild(hint);
+})();
+</script>
+{% endblock %}

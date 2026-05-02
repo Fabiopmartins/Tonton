@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Aniversariantes · tonton{% endblock %}
+{% set page_sub_label = "marketing · aniversariantes" %}
+{% block page_title %}Aniversariantes{% endblock %}
+
+{% block body %}
+
+<div class="card card--flush mb-3">
+  <div class="tabs">
+    {% for v, lbl in [('week','Esta semana'),('month','Mês atual'),('next','Próximo mês')] %}
+      <a href="?view={{ v }}" class="tab{% if view == v %} is-active{% endif %}">{{ lbl }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card card--flush">
+  <div class="card__header" style="background:var(--grad-soft);border-bottom:0;border-radius:var(--r-lg) var(--r-lg) 0 0">
+    <div>
+      <div class="text-eyebrow" style="color:var(--magenta-deep)">✦ {{ label|lower }}</div>
+      <div class="text-display" style="font-size:28px;margin-top:4px;color:var(--plum)">
+        {{ customers|length }} {{ 'aniversariante' if customers|length == 1 else 'aniversariantes' }}
+      </div>
+    </div>
+  </div>
+
+  {% if customers %}
+    <div class="table__head" style="grid-template-columns:50px 2fr 110px 120px 140px">
+      <span></span><span>Cliente</span><span>Data</span><span>Cadastro</span><span></span>
+    </div>
+    {% for c in customers %}
+      {% set is_today = c['birthday'] and c['birthday'][-5:] == (today or '') %}
+      <div class="table__row" style="grid-template-columns:50px 2fr 110px 120px 140px{% if is_today %};background:var(--coral-glow){% endif %}">
+        <div class="avatar avatar--md avatar--h{{ loop.index0 % 6 }}">
+          {{ c['name'][:2]|upper }}
+        </div>
+
+        <div>
+          <div class="flex-center gap-2">
+            <span style="font-size:13.5px;font-weight:600">{{ c['name'] }}</span>
+            {% if is_today %}<span class="chip chip--sm chip--coral">✦ hoje</span>{% endif %}
+            {% if c['days_ahead'] is defined and c['days_ahead']|int > 0 %}
+              <span class="chip chip--sm chip--sun">em {{ c['days_ahead'] }} dia{% if c['days_ahead']|int > 1 %}s{% endif %}</span>
+            {% endif %}
+          </div>
+          <div class="text-muted" style="font-size:11.5px">
+            {{ c['email'] or (format_phone_display(c['phone']) if c['phone'] else '—') }}
+          </div>
+        </div>
+
+        <div class="text-mono" style="font-size:12.5px;color:var(--coral-deep);font-weight:600">
+          {{ c['birthday'][-5:] if c['birthday'] else '—' }}
+        </div>
+
+        <div class="text-muted" style="font-size:11.5px">
+          {{ c['created_at'][:10] if c['created_at'] else '—' }}
+        </div>
+
+        <div class="flex gap-1">
+          {% if c['phone'] %}
+            <a href="https://wa.me/55{{ c['phone']|replace(' ','')|replace('-','')|replace('(','')|replace(')','') }}?text=Oi%20{{ c['name'].split()[0] }}!%20Muitos%20anos%20de%20vida%20e%20estilo%20com%20a%20gente"
+               target="_blank" class="btn btn--soft btn--sm" style="flex:1">
+              <svg><use xlink:href="#i-wpp"/></svg> Felicitar
+            </a>
+          {% endif %}
+          <a href="{{ url_for('customer_detail', cid=c['id']) }}" class="icon-btn" style="width:30px;height:30px;background:transparent" title="Perfil">
+            <svg style="width:14px;height:14px"><use xlink:href="#i-eye"/></svg>
+          </a>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">
+      <div class="empty__title">Sem aniversariantes</div>
+      <div class="empty__sub">Cadastre as datas nos perfis das clientes.</div>
+      <a href="{{ url_for('list_customers') }}" class="btn"><svg><use xlink:href="#i-users"/></svg> Ver clientes</a>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

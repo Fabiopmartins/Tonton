@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Novo usuário · tonton{% endblock %}
+{% set page_sub_label = "sistema · novo usuário" %}
+{% block page_title %}Novo usuário{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('list_users') }}" class="btn btn--ghost btn--sm">
+    <svg><use xlink:href="#i-arrow-l"/></svg> Voltar
+  </a>
+{% endblock %}
+
+{% block body %}
+
+<style>
+  /* Cards de seleção de perfil — feedback visual inequívoco no checked */
+  .role-card{
+    position:relative;
+    display:block;
+    padding:14px 14px 14px 44px;
+    background:var(--gray-100);
+    border:2px solid transparent;
+    border-radius:var(--r-md);
+    cursor:pointer;
+    transition:all .18s ease;
+    user-select:none;
+  }
+  .role-card:hover{ background:var(--gray-200); }
+  .role-card input[type=radio]{
+    position:absolute;
+    top:18px; left:14px;
+    width:20px; height:20px;
+    accent-color:var(--coral-deep);
+    cursor:pointer;
+  }
+  .role-card__title{ font-weight:700; font-size:14px; color:var(--gray-900); }
+  .role-card__desc{ font-size:11.5px; color:var(--gray-700); margin-top:2px; }
+  .role-card__check{
+    position:absolute;
+    top:14px; right:14px;
+    width:24px; height:24px;
+    border-radius:50%;
+    background:var(--coral-deep);
+    color:#fff;
+    display:none;
+    align-items:center;
+    justify-content:center;
+  }
+  .role-card__check svg{ width:14px; height:14px; }
+  /* Estado SELECIONADO: ring + fundo + ícone visível */
+  .role-card:has(input[type=radio]:checked){
+    background:var(--coral-glow);
+    border-color:var(--coral-deep);
+    box-shadow:0 0 0 4px rgba(255,107,58,.15);
+  }
+  .role-card:has(input[type=radio]:checked) .role-card__title{ color:var(--coral-deep); }
+  .role-card:has(input[type=radio]:checked) .role-card__check{ display:flex; }
+  /* Variante admin pinta em magenta para diferenciar de operator */
+  .role-card--admin:has(input[type=radio]:checked){
+    background:linear-gradient(135deg,#ffe4d6 0%,#ffd6e0 100%);
+    border-color:var(--magenta-deep);
+    box-shadow:0 0 0 4px rgba(214,51,108,.15);
+  }
+  .role-card--admin:has(input[type=radio]:checked) .role-card__title{ color:var(--magenta-deep); }
+  .role-card--admin:has(input[type=radio]:checked) .role-card__check{ background:var(--magenta-deep); }
+  .role-card input[type=radio]:focus-visible{
+    outline:2px solid var(--coral-deep);
+    outline-offset:2px;
+  }
+</style>
+
+<form method="post">
+  {% if session.get('csrf_token') %}<input type="hidden" name="csrf_token" value="{{ session['csrf_token'] }}">{% endif %}
+
+  <div class="grid grid--2-1" style="align-items:start">
+
+    <div class="card">
+      <div class="card__title">Dados de acesso</div>
+      <div class="card__sub">crie um login para alguém da equipe</div>
+
+      <div class="form-group mt-3">
+        <label class="form-label">Nome completo *</label>
+        <div class="form-control">
+          <svg><use xlink:href="#i-users"/></svg>
+          <input name="display_name" required autofocus placeholder="Ex: Juliana Costa">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">E-mail *</label>
+        <div class="form-control">
+          <svg><use xlink:href="#i-mail"/></svg>
+          <input name="email" type="email" required placeholder="juliana@tontonlojainfantil.com.br">
+        </div>
+        <div class="form-hint">Será usado como login.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Perfil *</label>
+        <div class="grid grid--2 gap-2 mt-1">
+
+          <label class="role-card">
+            <input type="radio" name="role" value="operator" checked>
+            <div class="role-card__title">Operator</div>
+            <div class="role-card__desc">Atendimento, vendas, estoque básico</div>
+            <span class="role-card__check"><svg><use xlink:href="#i-check"/></svg></span>
+          </label>
+
+          <label class="role-card role-card--admin">
+            <input type="radio" name="role" value="admin">
+            <div class="role-card__title">Admin</div>
+            <div class="role-card__desc">Acesso total à loja</div>
+            <span class="role-card__check"><svg><use xlink:href="#i-check"/></svg></span>
+          </label>
+
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Senha inicial *</label>
+        <div class="form-control">
+          <input name="password" type="password" required minlength="10" placeholder="mínimo 10 caracteres, com letras e números">
+        </div>
+        <div class="form-hint">A pessoa poderá trocar no primeiro acesso.</div>
+      </div>
+
+      <label class="checkbox mb-0" style="padding:12px;background:var(--grad-soft);border-radius:var(--r-md);width:100%">
+        <input type="checkbox" name="send_invite">
+        <span class="checkbox__box"><svg><use xlink:href="#i-check"/></svg></span>
+        <div>
+          <div style="font-weight:600;color:var(--plum)">Enviar convite por e-mail</div>
+          <div class="text-muted" style="font-size:11.5px;color:var(--plum)">Com link de acesso e orientação.</div>
+        </div>
+      </label>
+    </div>
+
+    <div class="card" style="position:sticky;top:110px">
+      <div class="card__title">Segurança</div>
+      <div class="card__sub">o que cada perfil pode fazer</div>
+
+      <div class="flex-col gap-2 mt-3">
+        <div class="info-row"><svg><use xlink:href="#i-check"/></svg> Vender e consultar clientes</div>
+        <div class="info-row"><svg><use xlink:href="#i-check"/></svg> Emitir vales e cupons</div>
+        <div class="info-row"><svg><use xlink:href="#i-check"/></svg> Ajustar estoque</div>
+        <div class="info-row" style="color:var(--magenta-deep)"><svg><use xlink:href="#i-star"/></svg> <strong>Admin</strong> · configurações da loja</div>
+        <div class="info-row" style="color:var(--magenta-deep)"><svg><use xlink:href="#i-star"/></svg> <strong>Admin</strong> · gerenciar usuários</div>
+        <div class="info-row" style="color:var(--magenta-deep)"><svg><use xlink:href="#i-star"/></svg> <strong>Admin</strong> · definir metas</div>
+      </div>
+
+      <div class="flex gap-2 mt-3">
+        <a href="{{ url_for('list_users') }}" class="btn btn--ghost" style="flex:1">Cancelar</a>
+        <button type="submit" class="btn btn--lg" style="flex:2">
+          <svg><use xlink:href="#i-check"/></svg> Criar
+        </button>
+      </div>
+    </div>
+
+  </div>
+</form>
+
+{% endblock %}
