@@ -1,5 +1,5 @@
 -- ============================================================
--- malê · Store Admin · Schema Postgres v3.2 (consolidado)
+-- tonton · Painel Admin · Schema Postgres v3.2 (consolidado)
 -- Equivalente a schema.sql + ensure_schema_migrations()
 -- ============================================================
 -- Convenções:

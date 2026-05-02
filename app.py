@@ -2119,9 +2119,9 @@ def ensure_schema_migrations(app: Flask) -> None:
         "SELECT id FROM users WHERE role='admin' LIMIT 1"
     ).fetchone()
     if not existing_admin:
-        email = os.environ.get("ADMIN_USERNAME", "admin@male.local")
+        email = os.environ.get("ADMIN_USERNAME", "admin@tonton.local")
         if "@" not in email:
-            email = f"{email}@male.local"
+            email = f"{email}@tonton.local"
         pw_hash = os.environ.get(
             "ADMIN_PASSWORD_HASH",
             generate_password_hash("Troque-esta-senha"),
